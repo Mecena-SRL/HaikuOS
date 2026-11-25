@@ -4,6 +4,7 @@
 #[macro_use]
 mod console;
 mod ata;
+mod fb;
 mod boot;
 mod fs;
 mod io;
@@ -30,9 +31,26 @@ pub extern "C" fn kmain() -> ! {
         kprintln!("[errore] file system HAIKUFS1 non trovato");
     }
 
+    match fb::init() {
+        Some(f) => {
+            let mut c = f.canvas();
+            let (lw, lh) = c.size();
+            let shell = haiku_gui::Shell::new(&ICONS, lw, lh);
+            haiku_gui::render::draw(&mut c, &shell);
+            kprintln!("[ok] framebuffer VBE 640x480 con desktop");
+        }
+        None => kprintln!("[avviso] nessun framebuffer VBE, resto a testo"),
+    }
+
     kprintln!("Sistema fermo.");
     halt()
 }
+
+static ICONS: [haiku_gui::Icon; 3] = [
+    haiku_gui::Icon { label: "FILE", app: 1, title: "FILE", w: 120, h: 80 },
+    haiku_gui::Icon { label: "TERM", app: 2, title: "TERMINALE", w: 120, h: 80 },
+    haiku_gui::Icon { label: "CALC", app: 3, title: "CALCOLATRICE", w: 80, h: 80 },
+];
 
 fn halt() -> ! {
     loop {

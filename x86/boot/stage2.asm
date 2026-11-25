@@ -43,6 +43,38 @@ stage2:
     mov dx, LOAD
     call read_disk
 
+    ; ---- VBE: 640x480 con framebuffer lineare (0x112|0x4000) ----
+    ; esito a 0x0600: magic(4) base(4) w(4) h(4) pitch(4) bpp(4); magic 0 = niente grafica
+    ; 640x480 a 24 o 32 bit (0x112 è 24 bit in VBE standard)
+    mov dword [0x0600], 0
+    mov ax, 0x4F01
+    mov cx, 0x112
+    xor bx, bx
+    mov es, bx
+    mov di, 0x0700
+    int 0x10
+    cmp ax, 0x004F
+    jne .novbe
+    mov ax, 0x4F02
+    mov bx, 0x4112
+    int 0x10
+    cmp ax, 0x004F
+    jne .novbe
+    mov eax, [es:0x0700+0x28]
+    mov [0x0608], eax
+    movzx eax, word [es:0x0700+0x12]
+    mov [0x060C], eax
+    movzx eax, word [es:0x0700+0x14]
+    mov [0x0610], eax
+    movzx eax, word [es:0x0700+0x10]
+    mov [0x0614], eax
+    movzx eax, byte [es:0x0700+0x19]
+    mov [0x0618], eax
+    mov dword [0x0600], 0x56424531
+.novbe:
+    xor ax, ax
+    mov es, ax
+
     cli
     lgdt [gdt_desc]
     mov eax, cr0
@@ -99,11 +131,12 @@ pm32:
 
     ; tabelle di pagina a 0x1000 (PML4), 0x2000 (PDPT), 0x3000 (PD)
     mov edi, 0x1000
-    mov ecx, 3072
+    mov ecx, 4096          ; 0x1000..0x5000: PML4, PDPT, PD 0..1 GB, PD 3..4 GB
     xor eax, eax
     rep stosd
     mov dword [0x1000], 0x2003
     mov dword [0x2000], 0x3003
+    mov dword [0x2018], 0x4003   ; 3..4 GB: framebuffer VBE (QEMU ~0xFD000000)
     mov edi, 0x3000
     mov eax, 0x83            ; presente, scrivibile, pagina da 2 MB
     mov ecx, 512
@@ -112,6 +145,14 @@ pm32:
     add eax, 0x200000
     add edi, 8
     loop .pd
+    mov edi, 0x4000
+    mov eax, 0xC0000083
+    mov ecx, 512
+.pd2:
+    mov [edi], eax
+    add eax, 0x200000
+    add edi, 8
+    loop .pd2
 
     mov eax, 0x1000
     mov cr3, eax

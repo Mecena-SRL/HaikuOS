@@ -1,6 +1,9 @@
 //! Scrivania: icone, finestre, regole di input. Nessun disegno qui.
 use crate::input::Key;
 use crate::layout::{content, icon_cell, COLS};
+
+/// Icone per pagina: 3 righe da 4. La quarta riga finirebbe con l'etichetta fuori dallo schermo.
+pub const PER_PAGE: usize = 12;
 use crate::wm::Wm;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -40,6 +43,20 @@ impl Shell {
         Shell { icons, sel: 0, wm: Wm::new(), w, h, desk: true }
     }
 
+    pub fn pages(&self) -> usize {
+        self.icons.len().div_ceil(PER_PAGE).max(1)
+    }
+
+    pub fn page(&self) -> usize {
+        self.sel / PER_PAGE
+    }
+
+    /// Icone visibili nella pagina corrente: indice assoluto della prima e numero.
+    pub fn visible(&self) -> (usize, usize) {
+        let start = self.page() * PER_PAGE;
+        (start, (self.icons.len() - start).min(PER_PAGE))
+    }
+
     /// Apre l'app `i` o la porta in primo piano: mai due copie.
     fn launch(&mut self, i: usize) -> Event {
         let ic = self.icons[i];
@@ -76,16 +93,25 @@ impl Shell {
                 _ => Event::ToApp(k),
             };
         }
-        if matches!(k, Key::B | Key::Select | Key::Start) && self.wm.top().is_some() {
+        if matches!(k, Key::B | Key::Start) && self.wm.top().is_some() {
+            self.desk = false;
+            return Event::None;
+        }
+        if k == Key::Select && self.wm.top().is_some() && self.icons.len() <= PER_PAGE {
             self.desk = false;
             return Event::None;
         }
         let n = self.icons.len();
+        let local = self.sel % PER_PAGE;
         match k {
-            Key::Left if self.sel > 0 => self.sel -= 1,
-            Key::Right if self.sel + 1 < n => self.sel += 1,
-            Key::Up if self.sel >= COLS => self.sel -= COLS,
-            Key::Down if self.sel + COLS < n => self.sel += COLS,
+            Key::Left if !local.is_multiple_of(COLS) => self.sel -= 1,
+            Key::Right if local % COLS + 1 < COLS && self.sel + 1 < n => self.sel += 1,
+            Key::Up if local >= COLS => self.sel -= COLS,
+            Key::Down if local + COLS < PER_PAGE && self.sel + COLS < n => self.sel += COLS,
+            Key::Select if n > PER_PAGE => {
+                // Select sul desktop (nessuna finestra): pagina successiva.
+                self.sel = ((self.page() + 1) % self.pages()) * PER_PAGE;
+            }
             Key::A if n > 0 => return self.launch(self.sel),
             _ => {}
         }
@@ -116,11 +142,11 @@ impl Shell {
             }
             return Event::None;
         }
-        for i in 0..self.icons.len() {
-            let cell = icon_cell(i);
-            if cell.contains(x, y) {
-                self.sel = i;
-                return self.launch(i);
+        let (start, count) = self.visible();
+        for k in 0..count {
+            if icon_cell(k).contains(x, y) {
+                self.sel = start + k;
+                return self.launch(start + k);
             }
         }
         Event::None
