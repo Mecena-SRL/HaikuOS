@@ -4,6 +4,7 @@
 #![no_main]
 
 mod alloc;
+mod compositor;
 mod fs;
 mod monolith;
 mod persist;
@@ -72,6 +73,19 @@ const ORANGE: u16 = rgb(30, 16, 2);
 const GREY: u16 = rgb(10, 10, 10);
 const DARK: u16 = rgb(3, 3, 4);
 const WHITE: u16 = rgb(31, 31, 31);
+
+/// Superfici di prova del compositore: tinta piena.
+const fn solid<const N: usize>(c: u16) -> [u16; N] {
+    let mut a = [0u16; N];
+    let mut i = 0;
+    while i < N {
+        a[i] = c;
+        i += 1;
+    }
+    a
+}
+const SURF_A: [u16; 100 * 60] = solid(GREEN);
+const SURF_B: [u16; 100 * 60] = solid(BLUE);
 
 fn fill(x: usize, y: usize, w: usize, h: usize, c: u16) {
     for yy in y..y + h {
@@ -246,6 +260,23 @@ pub extern "C" fn rust_main() -> ! {
     draw_bits(40, sum_alloc / 100, ORANGE); // alloc+free, cicli
     draw_bits(70, sum_sync / 10, GREEN); // sync 100 byte, cicli
     // Schermata delle misure: resta finché non si preme A.
+    while keys() & workspace::KEY_A == 0 {
+        sram::vblank();
+    }
+    while keys() & workspace::KEY_A != 0 {
+        sram::vblank();
+    }
+
+    // Demo del compositore: due superfici, la seconda sopra la prima. Resta finché non si preme A.
+    fill(0, 0, W, 160, BLACK);
+    let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    let _ = compositor::compose(
+        fb,
+        &[
+            compositor::Surface { x: 20, y: 30, w: 100, h: 60, pixels: &SURF_A },
+            compositor::Surface { x: 70, y: 60, w: 100, h: 60, pixels: &SURF_B },
+        ],
+    );
     while keys() & workspace::KEY_A == 0 {
         sram::vblank();
     }
