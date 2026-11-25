@@ -40,7 +40,19 @@ pub struct Terminal {
     out_len: [usize; LINES],
     out_n: usize,
     open: Option<Open>,
+    /// App di sistema chiesta dalla riga digitata (indice icona), da aprire dal desktop.
+    launch: Option<usize>,
 }
+
+/// App di sistema lanciabili digitando il nome: (nome, indice icona). Vedi desktop::ICON_LABELS.
+const APP_CMDS: [(&[u8], usize); 6] = [
+    (b"FILES", 0),
+    (b"CALC", 2),
+    (b"NOTES", 3),
+    (b"CLOCK", 4),
+    (b"SETTINGS", 5),
+    (b"REMIND", 8),
+];
 
 fn push(buf: &mut [u8], n: &mut usize, s: &[u8]) {
     for &c in s {
@@ -73,7 +85,13 @@ impl Terminal {
             out_len: [0; LINES],
             out_n: 0,
             open: None,
+            launch: None,
         }
+    }
+
+    /// Icona dell'app chiesta dall'ultima riga digitata, se c'era un comando di app. Lo consuma.
+    pub fn take_launch(&mut self) -> Option<usize> {
+        self.launch.take()
     }
 
     pub fn cwd(&self) -> &[u8] {
@@ -185,6 +203,9 @@ impl Terminal {
             self.out_n = 0;
             self.open = Some(Open::Reader);
             self.set_line(b"LETTORE");
+        } else if let Some(&(_, icon)) = APP_CMDS.iter().find(|(n, _)| line.eq_ignore_ascii_case(n)) {
+            self.out_n = 0;
+            self.launch = Some(icon);
         } else if line.len() > 3 && line[..3].eq_ignore_ascii_case(b"CD ") {
             match self.find_child(fs, trim(&line[3..])) {
                 Some(id) => self.run_cmd(fs, Cmd::Cd(id)),

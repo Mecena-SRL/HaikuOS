@@ -282,6 +282,13 @@ impl Desktop {
                             Some(terminal::Open::Reader) => self.win = Some(App::Reader),
                             None => {}
                         }
+                        if let Some(i) = self.term.take_launch() {
+                            match launchable(i) {
+                                Some(App::Files) | Some(App::Notes) => self.run = launchable(i),
+                                Some(app) => self.win = Some(app),
+                                None => {}
+                            }
+                        }
                     }
                 } else {
                     if pressed & KEY_UP != 0 {

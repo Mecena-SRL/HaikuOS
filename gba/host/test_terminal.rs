@@ -164,3 +164,25 @@ fn comandi_chess_e_read_richiedono_la_finestra() {
     assert_eq!(t.take_open(), None);
     assert_eq!(t.line(0), b"SCACCHI");
 }
+
+#[test]
+fn typed_app_names_request_their_icon() {
+    let f = sample();
+    let mut t = Terminal::new();
+    for (name, icon) in [(&b"calc"[..], 2), (b"FILES", 0), (b"Remind", 8), (b"settings", 5)] {
+        type_str(&mut t, name);
+        t.run_input(&f);
+        assert_eq!(t.take_launch(), Some(icon));
+        assert_eq!(t.take_launch(), None);
+    }
+}
+
+#[test]
+fn unknown_cd_target_is_not_an_app() {
+    let f = sample();
+    let mut t = Terminal::new();
+    type_str(&mut t, b"CD NOPE");
+    t.run_input(&f);
+    assert_eq!(t.take_launch(), None);
+    assert_eq!(text(&t, 0), b"NON TROVATO" as &[u8]);
+}
