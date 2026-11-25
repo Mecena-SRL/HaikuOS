@@ -13,6 +13,8 @@ pub enum Input {
     Key { key: Option<Key>, ch: u8 },
     /// Tasto Windows: apre o chiude il menu applicazioni.
     Super,
+    /// F2: tema successivo.
+    Theme,
     Mouse { dx: i32, dy: i32, left: bool },
 }
 
@@ -67,6 +69,9 @@ impl Ps2 {
         self.e0 = false;
         if b & 0x80 != 0 {
             return None; // rilascio
+        }
+        if !ext && b == 0x3C {
+            return Some(Input::Theme);
         }
         if ext {
             let key = match b {
