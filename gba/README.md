@@ -117,3 +117,21 @@ Note sulle misure:
 - Il sync scrive i dati dei file a blocchi (`put_stream` + `Fs::read_block`), senza buffer da 8 KB azzerato a ogni chiamata.
 - Misura in mGBA (cicli del timer, media): sync di 100 byte = 50 734 cicli (prima 165 122). Alloc+free invariato: 35 400.
 - Test host: 33 test, incluso il file grande che sopravvive a compattazioni e riavvio.
+
+## Harness libmgba (verifica VRAM della scrivania)
+
+Verificato il 25 novembre 2026 su Ubuntu 24.04 (gcc 13.3), libmgba 0.10.2. Comandi esatti:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y libmgba-dev          # installa libmgba 0.10.2
+dpkg -L libmgba-dev | grep 'libmgba.so$'      # -> /usr/lib/x86_64-linux-gnu/libmgba.so
+cd gba
+cargo +nightly build --release
+/usr/bin/llvm-objcopy -O binary target/thumbv4t-none-eabi/release/haiku-gba haiku-gba.gba
+gcc -O1 -o /tmp/desktop_check host/desktop_check.c -lmgba   # collega /usr/lib/x86_64-linux-gnu/libmgba.so.0.10.2
+/tmp/desktop_check haiku-gba.gba
+```
+
+Risultato atteso (ultima riga): `ESITO: OK`. Il programma stampa anche `pixel fuori dalle 4 tinte: 0` e `pixel di testo nell'output di LS: 32`.
+Se `libmgba` manca, `gcc` fallisce con `cannot find -lmgba`: rifare il passo `apt-get install`.
