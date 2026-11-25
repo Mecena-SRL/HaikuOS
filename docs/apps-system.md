@@ -79,3 +79,19 @@ Su ARM7TDMI il costo sarà molto più alto: **da verificare**.
 - Frequenza dei frame del GBA per l'orologio (59,73 Hz nominali, da misurare).
 - Palette alternative del tema.
 - Tempi della SRAM per salvare note e impostazioni.
+
+## Utility di sistema (`gba/src/apps/sysutil.rs`)
+
+Logica pura, testata sull'host (`host/test_apps.rs`, 7 test nuovi). Ogni utility ha una voce nel lanciatore (icona UTIL, finestra con disco, memoria, coda di stampa e nota di riferimento) e un comando nel terminale. Righe di output massimo 14 caratteri.
+
+| Utility | Terminale | Stato |
+|---|---|---|
+| Utility disco | `DISCO` | Completa (logica + finestra) |
+| Info di sistema | `INFO` | Completa (memoria da costanti del monolite) |
+| Stampante | `STAMPA`, `STAMPA FINE` | Coda simulata: il driver della stampante non c'è. **Da verificare** |
+| Configuratore MIDI | `NOTA n` | Solo nota → frequenza (decimi di Hz). Nessuna porta MIDI. **Da verificare** |
+| Colorimetro | `COLORE rrggbb` | Nome del colore più vicino. Nessun sensore: **da verificare** |
+| Screenshot | nessuno | Solo la miniatura 1 bit (`thumb`, 4800 B, entra nei 8 KB dello store). Cattura dal framebuffer **non collegata** |
+| Archiviatore cifrato | nessuno | `archive::seal`/`open` con Ascon-AEAD128 e test. Nessuna voce in UI né terminale. **Da verificare**: tempi su ARM7TDMI |
+
+Nota: una foto piena (240×160×2 B ≈ 75 KB) non entra nello store da 8 KB né in uno slot da 32 KB: per questo la miniatura è 1 bit.
