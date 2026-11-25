@@ -61,7 +61,10 @@ Regola: il compositor non legge la memoria dei programmi. Riceve solo superfici 
 - Build verificata: `cargo +nightly build --release` produce lo stesso `haiku-gba.gba` committato.
 - Avvio in mGBA 0.10.2 (`mgba-qt`) sotto Xvfb: il processo parte, ma la finestra non si disegna in modo affidabile per lo screenshot. Quindi l'output visivo **non è verificato** in questa sessione (da verificare).
 
-**Prototipo compositor (`gba/src/compositor.rs`).** Copia superfici rettangolari in un framebuffer 240×160, con ritaglio ai bordi e ordine a strati. Non è ancora collegato alla ROM. Verificato con 5 test host (`cd gba && rustc --edition 2021 --test src/compositor.rs -o /tmp/comp_t && /tmp/comp_t`), che controllano i singoli byte del framebuffer. Non verificato su GBA né in mGBA: da verificare.
+**Prototipo compositor (`gba/src/compositor.rs`).** Copia superfici rettangolari in un framebuffer 240×160, con ritaglio ai bordi e ordine a strati. Collegato alla ROM: dopo il tasto A della schermata misure, la demo compone due superfici (verdi, 100×60) direttamente in VRAM. Verificato in due modi:
+- 5 test host sui byte del framebuffer (`cd gba && rustc --edition 2021 --test src/compositor.rs`).
+- Harness libmgba senza schermo (`gba/host/vram_check.c`): al frame 400 la VRAM ha 4500 pixel verdi e 6000 blu, con la sovrapposizione blu. Verificato.
+- Non verificato su hardware reale. Lo screenshot di mGBA sotto Xvfb non funziona in questo ambiente.
 
 ## 7. Domande aperte
 
