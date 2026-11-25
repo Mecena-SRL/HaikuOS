@@ -4,8 +4,8 @@ Stato: bozza di ricerca. Ogni ipotesi non verificata su hardware è marcata **da
 
 ## 1. Sintesi
 
-- **Cifratura:** Ascon-AEAD128 è lo standard NIST per i dispositivi piccoli (NIST SP 800-232, finale nell'agosto 2025). È la scelta per GBA. Su ARM64/AMD64 si usa AES-256-GCM (con accelerazione hardware) o ChaCha20-Poly1305 se manca l'accelerazione.
-- **Compressione:** LZSS con finestra piccola (stile heatshrink) o RLE per GBA. LZ4 (solo decompressione leggera) su macchine medie. Zstd solo su macchine potenti.
+- **Cifratura:** Ascon-AEAD128 ovunque, per semplicità (decisione del 25/11/2026). È lo standard NIST per i dispositivi piccoli (NIST SP 800-232, agosto 2025).
+- **Compressione:** su GBA solo offline (LZSS a finestra 256 byte, stile heatshrink). Nessuna compressione a runtime. Su macchine potenti si valuta LZ4/Zstd in una fase successiva.
 - **Chiavi:** su GBA non esiste memoria sicura: la chiave è un segreto che il dispositivo può leggere. Il modello di minaccia va scritto prima di implementare.
 
 ## 2. Cifratura
@@ -68,16 +68,24 @@ Per macchine potenti:
 
 1. **Accettiamo che su GBA la chiave sia leggibile dal dispositivo?** Se sì, la cifratura protegge solo da copie accidentali.
 2. **Priorità:** sicurezza forte su macchine potenti, o uniformità con lo stesso algoritmo su tutti i profili (Ascon ovunque)?
-3. **Compressione:** accettiamo di comprimere solo offline su GBA, rinunciando alla compressione runtime?
+3. ~~Compressione: accettiamo di comprimere solo offline su GBA?~~ Deciso: sì, solo offline su GBA.
 
-## 7. Da verificare (lista)
+## 7. Prototipo (sim/)
+
+- `sim/src/lzss.rs`: LZSS a finestra 256 byte. Il decodificatore usa solo finestra e output.
+- `sim/src/slot.rs`: LZSS poi Ascon-AEAD128 (`AsconAead128` di `ascon-aead` 0.6), nonce 16 byte, AAD con numero di slot.
+- `sim/tests/memoria.rs`: 9 test, tutti passano. Coprono round-trip, limiti di dimensione, manomissione, slot e chiave sbagliati.
+- Misure host (non GBA): dati ripetitivi arrivano a circa 15% della dimensione (massimo 10 byte per 12 bit). Il rumore casuale si espande (9 bit per byte): 32 KB casuali non entrano nello slot. Da verificare su dati reali.
+- Limite del formato: il nonce va gestito dal monolite (contatore per slot). Il prototipo lo riceve come parametro.
+
+## 8. Da verificare (lista)
 
 - Tempi reali di Ascon-AEAD128 e ChaCha20-Poly1305 su ARM7TDMI (misurare nel simulatore o su hardware).
 - Dimensione codice e RAM di heatshrink e LZ4 su ARM7TDMI.
 - Parametri Argon2id per macchine potenti.
 - Rischio della lunghezza compressa (side channel) per i dati del nostro uso.
 
-## 8. Fonti
+## 9. Fonti
 
 - NIST SP 800-232, Ascon per la cifratura leggera: https://csrc.nist.gov/pubs/sp/800/232/final
 - Annuncio NIST, agosto 2025: https://www.nist.gov/news-events/news/2025/08/nist-finalizes-lightweight-cryptography-standard-protect-small-devices

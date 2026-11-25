@@ -31,3 +31,9 @@ cargo test
 - Lettura di "massimo 4 programmi" e "uno slot sempre libero": qui 4 slot, 3 concedibili.
 - Dimensione massima messaggio (64 byte).
 - Memoria totale: 288 KB, con 176 KB concedibili (monolite 64 + agente 16 + 3 slot da 32).
+
+## Memoria compressa e cifrata (`src/lzss.rs`, `src/slot.rs`)
+
+- LZSS a finestra 256 byte, poi Ascon-AEAD128 con AAD che lega il blocco allo slot.
+- Test in `tests/memoria.rs`: `cargo test`.
+- Misure e limiti: `docs/memory-security.md`, sezione 7. **Da verificare** su GBA.
