@@ -60,6 +60,11 @@ impl Mixer {
         Ok(())
     }
 
+    /// Campioni liberi nel buffer del canale.
+    pub fn free(&self, ch: usize) -> Result<usize, AudioError> {
+        Ok(self.channels.get(ch).ok_or(AudioError::NoChannel)?.samples.free())
+    }
+
     pub fn set_volume(&mut self, ch: usize, volume: u8) -> Result<(), AudioError> {
         self.channels.get_mut(ch).ok_or(AudioError::NoChannel)?.volume = volume;
         Ok(())

@@ -6,6 +6,9 @@ pub mod agent;
 pub mod contacts;
 pub mod mail;
 pub mod audio;
+pub mod chess;
+pub mod ebook;
+pub mod player;
 pub mod fat32;
 #[cfg(feature = "fat32-write")]
 pub mod fat32_write;
