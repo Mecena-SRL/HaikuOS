@@ -21,6 +21,8 @@ pub enum Action {
     FormatAsk,
     /// Formattazione dello spazio di sistema, confermata con A. Non tocca lo spazio utente.
     FormatSys,
+    /// B nella radice: torna al desktop.
+    Back,
 }
 
 pub struct Workspace {
@@ -125,6 +127,9 @@ impl Workspace {
             return Action::FormatAsk;
         }
         if pressed & KEY_B != 0 {
+            if self.cwd_len == 0 {
+                return Action::Back;
+            }
             let mut path = [0u8; NAME_MAX];
             let parent = parent_of(self.cwd()).unwrap_or(&[]);
             path[..parent.len()].copy_from_slice(parent);
@@ -179,6 +184,16 @@ mod tests {
     }
 
     #[test]
+    fn b_at_root_goes_back_to_desktop() {
+        let fs = tree();
+        let mut ws = Workspace::new();
+        assert_eq!(tap(&mut ws, &fs, KEY_B), Action::Back);
+        assert_eq!(tap(&mut ws, &fs, KEY_A), Action::Dir); // sel 0 = docs
+        assert_eq!(tap(&mut ws, &fs, KEY_B), Action::Dir); // dentro docs: sale alla radice
+        assert_eq!(tap(&mut ws, &fs, KEY_B), Action::Back);
+    }
+
+    #[test]
     fn new_at_starts_in_given_dir_or_root() {
         let fs = tree();
         assert_eq!(Workspace::new_at(&fs, b"docs").cwd(), b"docs");
@@ -218,9 +233,9 @@ mod tests {
         assert_eq!(ws.step(&fs, 0), Action::None);
         assert_eq!(ws.step(&fs, KEY_B), Action::None);
         assert!(!ws.confirming());
-        // Solo B da solo torna su, come prima.
+        // Solo B da solo, nella radice: torna al desktop.
         assert_eq!(ws.step(&fs, 0), Action::None);
-        assert_eq!(ws.step(&fs, KEY_B), Action::Dir);
+        assert_eq!(ws.step(&fs, KEY_B), Action::Back);
     }
 
     #[test]
