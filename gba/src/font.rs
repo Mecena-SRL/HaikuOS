@@ -32,6 +32,11 @@ pub fn glyph(c: u8) -> [u8; GLYPH_H] {
         b'T' => [0b111, 0b010, 0b010, 0b010, 0b010],
         b'U' => [0b101, 0b101, 0b101, 0b101, 0b111],
         b'W' => [0b101, 0b101, 0b111, 0b111, 0b101],
+        b'+' => [0b000, 0b010, 0b111, 0b010, 0b000],
+        b'-' => [0b000, 0b000, 0b111, 0b000, 0b000],
+        b'*' => [0b000, 0b101, 0b010, 0b101, 0b000],
+        b'/' => [0b001, 0b001, 0b010, 0b100, 0b100],
+        b'=' => [0b000, 0b111, 0b000, 0b111, 0b000],
         _ => [0; GLYPH_H],
     }
 }
@@ -70,7 +75,7 @@ mod tests {
 
     #[test]
     fn every_label_glyph_has_pixels() {
-        for &c in b"HAIKUOSFILESTERMGIOCHINTDCB012" {
+        for &c in b"HAIKUOSFILESTERMGIOCHINTDCB012+-*/=" {
             assert!(glyph(c).iter().any(|&r| r != 0), "glifo vuoto per {}", c as char);
         }
     }
