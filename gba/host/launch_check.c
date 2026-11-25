@@ -1,10 +1,10 @@
 /* Harness headless (libmgba): percorso desktop -> lanciatore -> app.
- * NON COMPILATO NEL PRIMO PASSO: gli header mGBA non sono in questo ambiente (vedi PR).
+ * Eseguito con libmgba 0.10 (apt libmgba-dev): esito OK.
  * Build: gcc -O1 -o launch_check host/launch_check.c -lmgba
  * Uso:   ./launch_check haiku-gba.gba
- * Sequenza (frame): A 300 (fine misure), Start 500 (fine editor demo), Sinistra 600 (NOTES),
- *   A 610 (editor su docs/hello), Start 700 (torna al desktop), A su FILES: Sinistra 800, Destra 810 (sel 0), A 820 (spazio di lavoro),
- *   L 900 (torna al desktop).
+ * Sequenza (frame): A 300 (fine misure), Start 500 (fine editor demo), Sinistra 600 (NOTES, icona 3),
+ *   A 610 (editor su docs/hello), Start 700 (torna al desktop, sel 3), Destra 800 (FILES, icona 0),
+ *   A 810 (spazio di lavoro), L 900 (torna al desktop).
  * Verifica: (0,0) nero nell'editor; (5,5) = blu del workspace; (0,0) = tinta barra sul desktop dopo ogni ritorno.
  */
 #include <stdio.h>
@@ -46,14 +46,13 @@ int main(int argc, char **argv) {
         if (f >= 600 && f < 602) k = KEY_LEFT;
         if (f >= 610 && f < 612) k = KEY_A;
         if (f >= 700 && f < 702) k = KEY_START;
-        if (f >= 800 && f < 802) k = KEY_LEFT;
-        if (f >= 810 && f < 812) k = KEY_RIGHT;
-        if (f >= 820 && f < 822) k = KEY_A;
+        if (f >= 800 && f < 802) k = KEY_RIGHT;
+        if (f >= 810 && f < 812) k = KEY_A;
         if (f >= 900 && f < 902) k = KEY_L;
         c->setKeys(c, k);
         c->runFrame(c);
-        if (f == 605) atteso("editor NOTES (0,0) nero", px(c, 0, 0), BLACK_PX);
-        if (f == 695) atteso("desktop dopo editor (0,0) barra", px(c, 0, 0), BAR_T3);
+        if (f == 615) atteso("editor NOTES (0,0) nero", px(c, 0, 0), BLACK_PX);
+        if (f == 715) atteso("desktop dopo editor (0,0) barra", px(c, 0, 0), BAR_T3);
         if (f == 895) atteso("workspace FILES (5,5) blu", px(c, 5, 5), WS_BLUE);
         if (f == 995) atteso("desktop dopo L (0,0) barra", px(c, 0, 0), BAR_T3);
     }
