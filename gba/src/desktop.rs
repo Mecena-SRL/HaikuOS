@@ -64,6 +64,8 @@ pub fn launchable(i: usize) -> Option<App> {
 }
 
 use crate::calc_ui::{self, CalcUi};
+use crate::fs::Fs;
+use crate::terminal::{self, Terminal};
 
 pub const KEY_A: u16 = 1 << 0;
 pub const KEY_B: u16 = 1 << 1;
@@ -76,13 +78,14 @@ pub const KEY_DOWN: u16 = 1 << 7;
 pub struct Desktop {
     sel: usize,
     win: Option<App>,
+    pub term: Terminal,
     prev: u16,
     calc: CalcUi,
 }
 
 impl Desktop {
     pub const fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new() }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new() }
     }
 
     pub fn sel(&self) -> usize {
@@ -104,33 +107,76 @@ impl Desktop {
 
     /// Un passo di input. Con la calcolatrice in finestra, la croce e A vanno a lei; B chiude la finestra.
     /// Ritorna true se il desktop va ridisegnato.
-    pub fn step(&mut self, keys: u16) -> bool {
+    pub fn step(&mut self, keys: u16, fs: &Fs) -> bool {
         let pressed = keys & !self.prev;
         self.prev = keys;
-        let before = (self.sel, self.win, self.calc.cursor(), self.calc.calc().shown(), self.calc.calc().err.is_some());
-        if self.win == Some(App::Calc) {
-            self.calc.step(keys);
-            if pressed & KEY_B != 0 {
-                self.win = None;
-            }
-        } else {
-            if pressed & (KEY_RIGHT | KEY_DOWN) != 0 {
-                self.sel = (self.sel + 1) % ICONS;
-            }
-            if pressed & (KEY_LEFT | KEY_UP) != 0 {
-                self.sel = (self.sel + ICONS - 1) % ICONS;
-            }
-            if pressed & KEY_A != 0 {
-                if let Some(app) = launchable(self.sel) {
-                    self.win = Some(app);
+        let before = (
+            self.sel,
+            self.win,
+            self.calc.cursor(),
+            self.calc.calc().shown(),
+            self.calc.calc().err.is_some(),
+            self.term.sel,
+            self.term.lines(),
+        );
+        match self.win {
+            Some(App::Calc) => {
+                self.calc.step(keys);
+                if pressed & KEY_B != 0 {
+                    self.win = None;
                 }
             }
-            if pressed & KEY_B != 0 {
-                self.win = None;
+            Some(App::Term) => {
+                if pressed & KEY_UP != 0 {
+                    self.term.step_sel(fs, -1);
+                }
+                if pressed & KEY_DOWN != 0 {
+                    self.term.step_sel(fs, 1);
+                }
+                if pressed & KEY_A != 0 {
+                    self.term.run(fs, self.term.sel);
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            _ => {
+                if pressed & (KEY_RIGHT | KEY_DOWN) != 0 {
+                    self.sel = (self.sel + 1) % ICONS;
+                }
+                if pressed & (KEY_LEFT | KEY_UP) != 0 {
+                    self.sel = (self.sel + ICONS - 1) % ICONS;
+                }
+                if pressed & KEY_A != 0 {
+                    if let Some(app) = launchable(self.sel) {
+                        self.win = Some(app);
+                    }
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
             }
         }
-        before != (self.sel, self.win, self.calc.cursor(), self.calc.calc().shown(), self.calc.calc().err.is_some())
+        before
+            != (
+                self.sel,
+                self.win,
+                self.calc.cursor(),
+                self.calc.calc().shown(),
+                self.calc.calc().err.is_some(),
+                self.term.sel,
+                self.term.lines(),
+            )
     }
+}
+
+/// Copia `src` in maiuscolo in `dst` (il font ha solo le maiuscole). Ritorna i byte scritti.
+fn upper_into(dst: &mut [u8], src: &[u8]) -> usize {
+    let n = src.len().min(dst.len());
+    for i in 0..n {
+        dst[i] = src[i].to_ascii_uppercase();
+    }
+    n
 }
 
 /// Posizione (x, y) dell'icona `i` nella griglia: 4 colonne.
@@ -153,7 +199,7 @@ fn rect(fb: &mut [u16], x: usize, y: usize, w: usize, h: usize, c: u16) {
 }
 
 /// Disegna il desktop completo in `fb` (W * H pixel). `surf` è la superficie della calcolatrice.
-pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16]) {
+pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
     assert!(fb.len() >= W * H);
     rect(fb, 0, 0, W, H, BG);
 
@@ -198,8 +244,20 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16]) {
         return;
     }
     crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"TERMINALE", TEXT);
-    // Prima riga del prompt, come nel concept ("$ ls").
-    rect(fb, WIN_X + 4, WIN_Y + TITLE_H + 5, 10, 2, TEXT);
+    // Prompt: "$ " e la voce del menu scelta con su/giù. A la esegue.
+    let mut lab = [0u8; terminal::LABEL_MAX];
+    let ln = d.term.label(fs, d.term.sel, &mut lab);
+    let mut prompt = [0u8; terminal::LABEL_MAX + 2];
+    prompt[0] = b'$';
+    prompt[1] = b' ';
+    let n = upper_into(&mut prompt[2..], &lab[..ln]);
+    crate::font::draw(fb, W, H, WIN_X + 4, by + 2, &prompt[..2 + n], TEXT);
+    // Output: sotto il prompt, una riga per voce.
+    for k in 0..d.term.lines() {
+        let mut out = [0u8; terminal::LINE_MAX];
+        let n = upper_into(&mut out, d.term.line(k));
+        crate::font::draw(fb, W, H, WIN_X + 4, by + 10 + k * 7, &out[..n], TEXT);
+    }
     put(fb, WIN_X + 1, WIN_Y + 1, WIN_BORDER);
 }
 
@@ -211,57 +269,57 @@ mod tests {
         let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
         d.draw_calc(&mut surf);
         let mut fb = [0u16; W * H];
-        paint(&mut fb, d, &surf);
+        paint(&mut fb, d, &surf, &Fs::new());
         fb
     }
 
     #[test]
     fn navigation_wraps_and_terminal_opens_and_closes() {
         let mut d = Desktop::new();
-        assert!(d.step(KEY_RIGHT));
+        assert!(d.step(KEY_RIGHT, &Fs::new()));
         assert_eq!(d.sel(), 1);
-        assert!(!d.step(KEY_RIGHT)); // tasto ancora premuto: nessun passo in più
-        d.step(0);
-        assert!(d.step(KEY_RIGHT));
+        assert!(!d.step(KEY_RIGHT, &Fs::new())); // tasto ancora premuto: nessun passo in più
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_RIGHT, &Fs::new()));
         assert_eq!(d.sel(), 2);
-        d.step(0);
-        assert!(d.step(KEY_A)); // sel 2 = CALC: apre la calcolatrice
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_A, &Fs::new())); // sel 2 = CALC: apre la calcolatrice
         assert_eq!(d.win, Some(App::Calc));
-        d.step(0);
-        assert!(d.step(KEY_B));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_B, &Fs::new()));
         assert!(!d.win_open());
-        d.step(0);
-        d.step(KEY_LEFT);
+        d.step(0, &Fs::new());
+        d.step(KEY_LEFT, &Fs::new());
         assert_eq!(d.sel(), TERM_ICON);
-        d.step(0);
-        assert!(d.step(KEY_A));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_A, &Fs::new()));
         assert!(d.win_open());
-        d.step(0);
-        assert!(d.step(KEY_B));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_B, &Fs::new()));
         assert!(!d.win_open());
-        d.step(0);
-        d.step(KEY_UP);
+        d.step(0, &Fs::new());
+        d.step(KEY_UP, &Fs::new());
         assert_eq!(d.sel(), 0);
-        d.step(0);
-        d.step(KEY_LEFT);
+        d.step(0, &Fs::new());
+        d.step(KEY_LEFT, &Fs::new());
         assert_eq!(d.sel(), ICONS - 1);
     }
 
     #[test]
     fn calculator_takes_keys_while_open() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_A); // apre CALC
-        d.step(0);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new()); // apre CALC
+        d.step(0, &Fs::new());
         // Croce e A vanno alla calcolatrice: A preme il tasto 7 (cursore in 0).
-        assert!(d.step(KEY_A));
+        assert!(d.step(KEY_A, &Fs::new()));
         assert_eq!(d.calc().calc().shown(), 700);
         assert_eq!(d.sel(), CALC_ICON); // la selezione delle icone non si muove
-        d.step(0);
-        assert!(d.step(KEY_RIGHT));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_RIGHT, &Fs::new()));
         assert_eq!(d.calc().cursor(), 1);
     }
 
@@ -277,7 +335,7 @@ mod tests {
     #[test]
     fn a_on_icon_without_program_opens_nothing() {
         let mut d = Desktop::new();
-        assert!(!d.step(KEY_A)); // icona 0 = FILES
+        assert!(!d.step(KEY_A, &Fs::new())); // icona 0 = FILES
         assert!(!d.win_open());
     }
 
@@ -302,9 +360,9 @@ mod tests {
     #[test]
     fn window_has_title_body_and_close_button() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT); // icona del terminale
-        d.step(0);
-        d.step(KEY_A);
+        d.step(KEY_RIGHT, &Fs::new()); // icona del terminale
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new());
         let fb = screen(&d);
         assert_eq!(fb[(WIN_Y + 2) * W + WIN_X + 3], WIN_TITLE);
         assert_eq!(fb[(WIN_Y + 3) * W + WIN_X + WIN_W - 5], CLOSE);
@@ -315,11 +373,11 @@ mod tests {
     #[test]
     fn calculator_surface_is_inside_window_body() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_A);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new());
         let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
         d.draw_calc(&mut surf);
         let fb = screen(&d);
@@ -331,9 +389,9 @@ mod tests {
     #[test]
     fn only_the_four_tints_are_used() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_A);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new());
         let fb = screen(&d);
         for px in fb.iter() {
             assert!([T0, T1, T2, T3].contains(px), "colore fuori tavolozza: {px:#06x}");

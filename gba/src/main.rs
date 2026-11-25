@@ -8,6 +8,7 @@ mod calc;
 mod calc_ui;
 mod compositor;
 mod desktop;
+mod terminal;
 mod font;
 mod fs;
 mod editor;
@@ -379,12 +380,12 @@ pub extern "C" fn rust_main() -> ! {
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
     dk.draw_calc(surf);
-    desktop::paint(fb, &dk, surf);
+    desktop::paint(fb, &dk, surf, sp.usr.fs());
     while keys() & workspace::KEY_START == 0 {
         sram::vblank();
-        if dk.step(keys()) {
+        if dk.step(keys(), sp.usr.fs()) {
             dk.draw_calc(surf);
-            desktop::paint(fb, &dk, surf);
+            desktop::paint(fb, &dk, surf, sp.usr.fs());
         }
     }
     while keys() & workspace::KEY_START != 0 {
