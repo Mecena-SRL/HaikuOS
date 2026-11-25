@@ -1,40 +1,68 @@
 //! Simulazione sull'host del monolite orizzontale e dell'agente di allocazione.
 //! Nessun hardware, nessun bootloader.
-//! Scelta: `std` (Vec) solo per la simulazione; la logica è piccola e portabile a `no_std` + `alloc`.
+//! Feature `std` (predefinita): simulazione completa. Senza `std` si compilano solo i moduli già
+//! `no_std` (vedi `cfg` su ogni `mod`): è il controllo per il target ARM7.
+
+#![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod agent;
+#[cfg(feature = "std")]
 pub mod contacts;
+#[cfg(feature = "std")]
 pub mod mail;
+#[cfg(feature = "std")]
 pub mod audio;
+#[cfg(feature = "std")]
 pub mod chess;
+#[cfg(feature = "std")]
 pub mod ebook;
+#[cfg(feature = "std")]
 pub mod player;
+#[cfg(feature = "std")]
 pub mod fat32;
 #[cfg(feature = "fat32-write")]
+#[cfg(feature = "std")]
 pub mod fat32_write;
+#[cfg(feature = "std")]
 pub mod exfat;
+#[cfg(feature = "std")]
 pub mod fonts;
+#[cfg(feature = "std")]
 pub mod opentype;
+#[cfg(feature = "std")]
 pub mod raster;
+#[cfg(feature = "std")]
 pub mod gpu;
 pub mod input;
 pub mod ip;
 pub mod cpu;
+#[cfg(feature = "std")]
 pub mod crypto;
 pub mod csum;
+#[cfg(feature = "std")]
 pub mod install;
+#[cfg(feature = "std")]
 pub mod keys;
+#[cfg(feature = "std")]
 pub mod lzss;
 pub mod net;
+#[cfg(feature = "std")]
 pub mod memory;
+#[cfg(feature = "std")]
 pub mod partition;
 pub mod power;
+#[cfg(feature = "std")]
 pub mod reminders;
+#[cfg(feature = "std")]
 pub mod process;
 pub mod resource;
+#[cfg(feature = "std")]
 pub mod slot;
+#[cfg(feature = "std")]
 pub mod snapshot;
+#[cfg(feature = "std")]
 pub mod storage;
+#[cfg(feature = "std")]
 pub mod swap;
 pub mod tcp;
 pub use agent::{Agent, GreedyAgent, Proposal, QuotaRequest};
@@ -81,6 +109,7 @@ pub enum FilterError {
     NoSlot,
 }
 
+#[cfg(feature = "std")]
 pub struct Monolith<A: Agent> {
     agent: A,
     programs: Vec<ProgramId>,
@@ -89,6 +118,7 @@ pub struct Monolith<A: Agent> {
     inbox: Vec<(ProgramId, Vec<u8>)>,
 }
 
+#[cfg(feature = "std")]
 impl<A: Agent> Monolith<A> {
     pub fn new(agent: A) -> Self {
         Self { agent, programs: Vec::new(), grants: Vec::new(), rules: Vec::new(), inbox: Vec::new() }

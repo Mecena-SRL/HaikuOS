@@ -4,6 +4,7 @@ pub mod archive;
 pub mod clock;
 pub mod notes;
 pub mod settings;
+pub mod sysutil;
 pub mod view;
 pub mod calendar;
 pub mod camera;

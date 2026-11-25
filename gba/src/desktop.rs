@@ -38,10 +38,10 @@ pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
 /// Numero di icone del lanciatore (una pagina: 5 colonne x 4 righe).
-pub const ICONS: usize = 19;
+pub const ICONS: usize = 20;
 /// Etichette sotto le icone. Il terminale digita questi nomi (vedi terminal::APP_CMDS).
 pub const ICON_LABELS: [&[u8]; ICONS] = [
-    b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ", b"REMIND", b"PASSWORDS", b"DICTIONARY", b"CALENDAR", b"MESSAGES", b"PHOTOS", b"VIEWER", b"CAMERA", b"MUSIC", b"MAPS", b"MEMO",
+    b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ", b"REMIND", b"PASSWORDS", b"DICTIONARY", b"CALENDAR", b"MESSAGES", b"PHOTOS", b"VIEWER", b"CAMERA", b"MUSIC", b"MAPS", b"MEMO", b"UTIL",
 ];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
@@ -84,12 +84,15 @@ pub enum App {
     Music,
     Maps,
     Memo,
+    /// Utility di sistema: disco, memoria, stampante, nota, colore (sola lettura, A aggiunge un lavoro).
+    Utility,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
 pub const APPS: [App; ICONS] = [
     App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader, App::Reminders,
     App::Passwords, App::Dictionary, App::Calendar, App::Messages, App::Photos, App::PhotoView, App::Camera, App::Music, App::Maps, App::Memo,
+    App::Utility,
 ];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
@@ -100,7 +103,7 @@ pub fn launchable(i: usize) -> Option<App> {
     }
 }
 
-use crate::apps::{clock::Clock, settings::Settings, ui::AppsUi, view};
+use crate::apps::{clock::Clock, settings::Settings, sysutil, ui::AppsUi, view};
 use crate::media_ui::{self, ChessView, Key, Reader};
 use crate::calc_ui::{self, CalcUi};
 use crate::reminders::Reminders;
@@ -288,6 +291,11 @@ impl Desktop {
                     self.win = None;
                 }
             }
+            Some(App::Utility) => {
+                if pressed & KEY_A != 0 {
+                    self.term.spool.submit();
+                }
+            }
             Some(App::Term) => {
                 if pressed & KEY_SELECT != 0 {
                     self.term.toggle_typing();
@@ -465,7 +473,7 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
     crate::font::draw(fb, W, H, 4, 3, b"HAIKUOS", t0);
     crate::font::draw(fb, W, H, 92, 3, b"TERM", t0);
     crate::font::draw(fb, W, H, 120, 3, b"FILES", t0);
-    crate::font::draw(fb, W, H, W - 30, 3, &d.clock.testo(), t1);
+    crate::font::draw(fb, W, H, W - 30, 3, &d.clock.testo(), t0);
 
     // Icone con etichetta. Riquadro chiaro = icona selezionata.
     for i in 0..ICONS {
@@ -518,6 +526,22 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
                 row[1] = if it.done { b'+' } else { b'-' };
                 row[3..3 + it.len].copy_from_slice(&it.text[..it.len]);
                 crate::font::draw(fb, W, H, WIN_X + 4, by + 2 + i * 10, &row[..3 + it.len], TEXT);
+            }
+        }
+        return;
+    }
+    if app == App::Utility {
+        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"UTIL", TEXT);
+        // Disco, memoria, coda di stampa e nota di riferimento (La 440 Hz), due righe per voce.
+        let env = d.term.env(fs);
+        let outs = [sysutil::disk(&env), sysutil::info(&env), d.term.spool.out(), sysutil::note(69)];
+        let mut y = by + 2;
+        for (a, b) in outs {
+            crate::font::draw(fb, W, H, WIN_X + 4, y, a.as_bytes(), TEXT);
+            y += 10;
+            if !b.is_empty() {
+                crate::font::draw(fb, W, H, WIN_X + 4, y, b.as_bytes(), TEXT);
+                y += 10;
             }
         }
         return;

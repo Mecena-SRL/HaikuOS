@@ -6,6 +6,12 @@ mod fs;
 mod font;
 #[path = "../src/terminal.rs"]
 mod terminal;
+#[path = "../src/ascon.rs"]
+mod ascon;
+#[path = "../src/alloc.rs"]
+mod alloc;
+#[path = "../src/monolith.rs"]
+mod monolith;
 #[path = "../src/calc.rs"]
 mod calc;
 #[path = "../src/calc_ui.rs"]

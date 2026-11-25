@@ -5,8 +5,11 @@ edition = "2021"
 publish = false
 
 [dependencies]
-ascon-aead = "0.6"
+ascon-aead = { version = "0.6", optional = true }
 
 [features]
+# Simulazione completa (Vec, String, ascon). Senza, solo i moduli `no_std`: target ARM7.
+default = ["std"]
+std = ["dep:ascon-aead"]
 # Scrittura FAT32 (solo simulatore). Spenta di default: `cargo test --features fat32-write`.
 fat32-write = []
