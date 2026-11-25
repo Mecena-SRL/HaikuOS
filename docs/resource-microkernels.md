@@ -121,3 +121,31 @@ Una GPU ha memoria propria (VRAM o memoria unificata con accesso dichiarato), co
 - Driver audio: quanti buffer servono per non avere scatti.
 - Alimentazione su ARM64 e x86-64: quali stati esistono davvero.
 - Ordine di attivazione tra risorse (es. memoria prima di GPU): oggi è fisso nel manifest.
+
+## 11. Revisione di coerenza con il contratto comune
+
+Verificata per ogni microkernel nel simulatore. Test di coerenza in `sim/tests/audio_coerenza.rs` (manifest unici, architetture e memoria dichiarate, risorse indispensabili su tutte le architetture).
+
+| Microkernel | Manifest | Capacità | Stato | Richieste asincrone | Errori tipizzati | Note |
+|---|---|---|---|---|---|---|
+| CPU (`cpu.rs`) | sì | `caps_of` | in `process.rs` | no (ammissione sincrona) | `AdmitError` | conforme |
+| Memoria (`memory.rs`) | sì | quote | conteggio blocchi | no (sincrona) | `MemError` | conforme |
+| Storage (`storage.rs`) | sì | dimensione blocco | no | no (sincrono) | `StorageError` | conforme |
+| Rete (`net.rs`) | sì | MTU | no | no (solo frame) | `NetError` | stack TCP/IP da fare |
+| GPU (`gpu.rs`) | sì (2) | VRAM | no | sì (`submit`/`run`) | `GpuError` | conforme |
+| Input (`input.rs`) | sì | profondità coda | no | sì (`push`/`poll`) | `resource::Error` | corretto: prima restituiva `bool` |
+| Alimentazione (`power.rs`) | sì | soglia batteria | sì (`State`) | no | `PowerError` | conforme |
+| Crittografia (`crypto.rs`) | sì | slot | no | no | `CryptoError` | conforme |
+| Swap (`swap.rs`) | sì | pagina fissa | no | no | `SwapError` | conforme |
+| Audio (`audio.rs`) | sì | canali (max 4) | underrun contati | sì (`push`/`mix`) | `AudioError` | conforme |
+
+Aggiornamento (trait comune):
+- `resource::Microkernel` (trait con `manifest()`) è implementato da tutti i moduli con stato: memoria, storage, GPU, input, alimentazione, crittografia, swap, audio, e dal `Driver`. CPU e rete non hanno ancora una struttura con stato.
+- `resource::Queue<T>` è la coda generica a profondità fissa. Il `Driver`, la GPU e l'input la usano; così il comportamento "piena → `Full`" è uno solo.
+- Test: `sim/tests/contratto.rs` (coda, manifest via `dyn Microkernel`, GPU/input su coda comune, stop del driver).
+
+Deviazioni aperte:
+1. **Stato nel trait.** Il trait espone solo il manifest. Stato e richieste restano per modulo: il monolite non ha ancora una lettura comune dello stato.
+2. **Audio e swap non usano `Queue`.** L'audio ha buffer per canale, lo swap è sincrono. Da allineare se servono richieste asincrone.
+3. **CPU e rete** non hanno ancora una struttura con stato da implementare.
+4. **Stack TCP/IP, driver Wi-Fi e driver reali** non esistono: il prototipo di rete copre solo il frame ethernet.

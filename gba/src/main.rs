@@ -7,6 +7,8 @@ mod alloc;
 mod compositor;
 mod desktop;
 mod fs;
+mod editor;
+mod glyph;
 mod monolith;
 mod persist;
 mod surfaces;
@@ -77,6 +79,7 @@ const ORANGE: u16 = rgb(30, 16, 2);
 const GREY: u16 = rgb(10, 10, 10);
 const DARK: u16 = rgb(3, 3, 4);
 const WHITE: u16 = rgb(31, 31, 31);
+const RED: u16 = rgb(31, 0, 0);
 
 
 fn fill(x: usize, y: usize, w: usize, h: usize, c: u16) {
@@ -179,6 +182,24 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
         let len = p.fs().len_of(id).unwrap_or(0);
         fill(4, 140, (len * 2).min(232), 8, GREEN);
     }
+    // Conferma formattazione: fascia rossa, A = formatta (verde), B = annulla (grigio).
+    if ws.confirming() {
+        fill(0, 100, W, 40, RED);
+        fill(20, 110, 60, 20, GREEN);
+        fill(W - 80, 110, 60, 20, WHITE);
+    }
+}
+
+/// Ridisegna il visualizzatore: testo verde, carattere in attesa arancio, poi compone in VRAM.
+fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor) {
+    if let Some(px) = surf.pixels_mut(0) {
+        px.fill(BLACK);
+        glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 2, ed.text(), GREEN);
+        let x = 2 + ed.text().len() * glyph::ADVANCE;
+        glyph::draw_text(px, surfaces::SW, surfaces::SH, x, 2, &[ed.pending()], ORANGE);
+    }
+    let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    surf.compose_into(fb);
 }
 
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
@@ -277,22 +298,43 @@ pub extern "C" fn rust_main() -> ! {
     let _ = surf.open(&mut m, 0, 10, 20);
     let _ = surf.open(&mut m, 2, 50, 50);
     let _ = surf.open(&mut m, 3, 100, 70);
-    if let Some(px) = surf.pixels_mut(0) {
-        px.fill(GREEN);
-    }
     if let Some(px) = surf.pixels_mut(2) {
         px.fill(BLUE);
     }
     if let Some(px) = surf.pixels_mut(3) {
         px.fill(ORANGE);
     }
-    let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
-    surf.compose_into(fb);
-    while keys() & workspace::KEY_A == 0 {
+    // Primo programma grafico: visualizzatore di testo. Legge docs/hello dal file system.
+    let mut t = [0u8; 32];
+    let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
+    let mut ed = editor::Editor::new();
+    ed.load(&t[..n]);
+    draw_editor(surf, &ed);
+    // Il testo si modifica con il keypad: su/giù, A aggiunge, B cancella, Start esce.
+    let mut prev = keys();
+    loop {
         sram::vblank();
-    }
-    while keys() & workspace::KEY_A != 0 {
-        sram::vblank();
+        let pressed = keys() & !prev;
+        prev = keys();
+        if pressed & workspace::KEY_START != 0 {
+            break;
+        }
+        let changed = if pressed & workspace::KEY_UP != 0 {
+            ed.up();
+            true
+        } else if pressed & workspace::KEY_DOWN != 0 {
+            ed.down();
+            true
+        } else if pressed & workspace::KEY_A != 0 {
+            ed.commit()
+        } else if pressed & workspace::KEY_B != 0 {
+            ed.backspace()
+        } else {
+            false
+        };
+        if changed {
+            draw_editor(surf, &ed);
+        }
     }
     // Chiusura: ogni programma riottiene la sua quota.
     for p in [0, 2, 3] {
@@ -329,6 +371,7 @@ pub extern "C" fn rust_main() -> ! {
                 let _ = sp.format_system(space::SYS_CAP);
                 ws.dirty = true;
             }
+            Action::FormatAsk => {}
             _ => {}
         }
         if ws.dirty {
