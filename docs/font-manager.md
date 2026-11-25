@@ -43,8 +43,9 @@ Ordine di sicurezza: il font di sistema è sempre attivo, quindi l'interfaccia n
 
 ## 4. Dove vive il codice
 
-- **Gestore dei font**: programma separato, come le altre app (`apps/fontmgr` nel repo, da creare). Non è parte del monolite.
-- **Logica di registro**: `sim/src/fonts.rs` (prototipo su host, con test in `sim/tests/fonts.rs`). Il codice è scritto in modo da poter diventare `no_std` + `alloc`.
+- **Gestore dei font**: programma separato in `apps/fontmgr` (prototipo host: comandi da stdin, anteprima, attivazione, collezioni, font di sistema). Non è parte del monolite. Nessuna persistenza ancora.
+- **Logica di registro**: `sim/src/fonts.rs` (test in `sim/tests/fonts.rs`). Il codice è scritto in modo da poter diventare `no_std` + `alloc`.
+- **Lettore OpenType** in sola lettura: `sim/src/opentype.rs` (famiglia, unitsPerEm, numero di glifi; controlli sui limiti; test in `sim/tests/opentype.rs`).
 - **Font GBA**: `gba/src/font.rs` resta il font di sistema di partenza (3×5); il formato 8×8 si aggiunge dopo.
 
 ## 5. Verificabile su host
@@ -54,6 +55,7 @@ Ordine di sicurezza: il font di sistema è sempre attivo, quindi l'interfaccia n
 - Font di sistema: non disattivabile, attiva il font, deve esistere.
 - Collezioni: creazione, aggiunta, limite dei membri, id sconosciuti.
 - Anteprima solo su font installato.
+- Lettura OpenType: intestazioni, magic, tabelle mancanti, file troncati, nome Windows e nome Mac.
 
 **Non verificabile su host**: rendering sul GBA, lettura reale di TTF/OTF, interfaccia grafica, comportamento della SRAM.
 
@@ -61,5 +63,5 @@ Ordine di sicurezza: il font di sistema è sempre attivo, quindi l'interfaccia n
 
 - Limiti numerici (font installati, attivi, collezioni, membri). I valori del prototipo sono scelte iniziali.
 - Dimensione e posizione dell'archivio dei font su GBA (ROM, SRAM o flash).
-- Parser OpenType: quale crate o quale parser minimo.
+- Parser OpenType: il lettore attuale legge solo head, maxp e name. Nessun glifo né cmap. Da decidere se servono altre tabelle.
 - Estetica dell'anteprima e dell'elenco (decisione di Ivan).

@@ -167,6 +167,14 @@ impl FontManager {
             .map(|c| (c.name.as_str(), c.members.as_slice()))
     }
 
+    pub fn find(&self, name: &str) -> Option<FontId> {
+        self.fonts.iter().position(|f| f.name == name).map(|i| FontId(i as u8))
+    }
+
+    pub fn name(&self, id: FontId) -> Option<&str> {
+        self.get(id).ok().map(|f| f.name.as_str())
+    }
+
     fn get(&self, id: FontId) -> Result<&Font, FontError> {
         self.fonts.get(id.0 as usize).ok_or(FontError::Unknown)
     }
