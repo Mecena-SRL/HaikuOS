@@ -1,0 +1,10 @@
+[package]
+name = "haiku-gui"
+version = "0.1.0"
+edition = "2021"
+
+# Crate separato: nessun dipendente, no_std, testabile su host.
+[workspace]
+
+[profile.release]
+opt-level = "s"
