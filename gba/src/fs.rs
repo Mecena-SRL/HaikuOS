@@ -1,12 +1,12 @@
-//! File system in RAM: store a blocchi fissi, nomi e contenuti separati,
-//! checksum per blocco, scritture atomiche, permessi legati all'owner e alla quota.
+//! File system in RAM: store a blocchi fissi, percorsi e contenuti separati,
+//! checksum per blocco, scritture atomiche, directory (percorsi "a/b"), permessi per owner, quota.
 //! Solo `core`: compila nel binario no_std e nei test host (`rustc --test`).
 #![allow(dead_code)]
 
 pub const BLOCK: usize = 64;
 pub const BLOCKS: usize = 128;
 pub const FILES: usize = 16;
-pub const NAME_MAX: usize = 12;
+pub const NAME_MAX: usize = 24;
 pub const MAX_FILE: usize = BLOCK * BLOCKS;
 const NONE: u8 = 0xFF;
 
@@ -19,11 +19,15 @@ pub enum FsError {
     TooLarge,
     Corrupt,
     BadName,
+    IsDir,
+    NotEmpty,
+    NoParent,
 }
 
 #[derive(Clone, Copy)]
 struct Entry {
     used: bool,
+    dir: bool,
     name: [u8; NAME_MAX],
     name_len: u8,
     owner: u8,
@@ -31,7 +35,7 @@ struct Entry {
     len: u16,
 }
 
-const EMPTY: Entry = Entry { used: false, name: [0; NAME_MAX], name_len: 0, owner: 0, head: NONE, len: 0 };
+const EMPTY: Entry = Entry { used: false, dir: false, name: [0; NAME_MAX], name_len: 0, owner: 0, head: NONE, len: 0 };
 
 fn fnv(b: &[u8]) -> u32 {
     let mut h: u32 = 0x811c_9dc5;
@@ -40,6 +44,20 @@ fn fnv(b: &[u8]) -> u32 {
         h = h.wrapping_mul(0x0100_0193);
     }
     h
+}
+
+/// Percorso valido: niente componenti vuoti, niente '/' iniziale o finale.
+fn valid(name: &[u8]) -> bool {
+    !name.is_empty()
+        && name.len() <= NAME_MAX
+        && name[0] != b'/'
+        && name[name.len() - 1] != b'/'
+        && !name.windows(2).any(|w| w == b"//")
+}
+
+/// Directory che contiene il percorso. `None` = radice. "a/b" -> Some("a"), "a" -> None.
+fn parent_of(name: &[u8]) -> Option<&[u8]> {
+    name.iter().rposition(|&c| c == b'/').map(|i| &name[..i])
 }
 
 pub struct Fs {
@@ -75,16 +93,23 @@ impl Fs {
         }
     }
 
-    pub fn create(&mut self, name: &[u8], owner: u8) -> Result<usize, FsError> {
-        if name.is_empty() || name.len() > NAME_MAX {
+    fn add(&mut self, name: &[u8], owner: u8, dir: bool) -> Result<usize, FsError> {
+        if !valid(name) {
             return Err(FsError::BadName);
         }
         if self.find(name).is_some() {
             return Err(FsError::Exists);
         }
+        if let Some(p) = parent_of(name) {
+            let pid = self.find(p).ok_or(FsError::NoParent)?;
+            if !self.files[pid].dir {
+                return Err(FsError::NoParent);
+            }
+        }
         let id = (0..FILES).find(|&i| !self.files[i].used).ok_or(FsError::NoSpace)?;
         let mut e = EMPTY;
         e.used = true;
+        e.dir = dir;
         e.owner = owner;
         e.name_len = name.len() as u8;
         e.name[..name.len()].copy_from_slice(name);
@@ -92,10 +117,52 @@ impl Fs {
         Ok(id)
     }
 
+    pub fn create(&mut self, name: &[u8], owner: u8) -> Result<usize, FsError> {
+        self.add(name, owner, false)
+    }
+
+    pub fn mkdir(&mut self, name: &[u8], owner: u8) -> Result<usize, FsError> {
+        self.add(name, owner, true)
+    }
+
+    pub fn find_name(&self, name: &[u8]) -> Option<usize> {
+        self.find(name)
+    }
+
+    /// Nome e owner del file `id`, se esiste.
+    pub fn info(&self, id: usize) -> Option<(&[u8], u8)> {
+        self.files.get(id).filter(|e| e.used).map(|e| (&e.name[..e.name_len as usize], e.owner))
+    }
+
+    pub fn is_dir(&self, id: usize) -> bool {
+        self.files.get(id).map_or(false, |e| e.used && e.dir)
+    }
+
+    pub fn len_of(&self, id: usize) -> Option<usize> {
+        self.files.get(id).filter(|e| e.used).map(|e| e.len as usize)
+    }
+
+    /// Elementi diretti di `dir` (stringa vuota = radice). Ritorna quanti id ha scritto in `out`.
+    pub fn list(&self, dir: &[u8], out: &mut [usize]) -> usize {
+        let d = if dir.is_empty() { None } else { Some(dir) };
+        let mut n = 0;
+        for id in 0..FILES {
+            let e = &self.files[id];
+            if e.used && parent_of(&e.name[..e.name_len as usize]) == d && n < out.len() {
+                out[n] = id;
+                n += 1;
+            }
+        }
+        n
+    }
+
     /// Scrittura atomica: blocchi nuovi e dati prima, cambio di testa poi, liberazione della catena vecchia.
     /// Se fallisce prima del cambio di testa, il file resta com'era.
     pub fn write(&mut self, id: usize, caller: u8, grant: usize, bytes: &[u8]) -> Result<(), FsError> {
         let e = self.entry(id)?;
+        if e.dir {
+            return Err(FsError::IsDir);
+        }
         if e.owner != caller {
             return Err(FsError::Denied);
         }
@@ -138,6 +205,9 @@ impl Fs {
     /// Legge il file. Ogni blocco viene verificato con il checksum.
     pub fn read(&self, id: usize, caller: u8, out: &mut [u8]) -> Result<usize, FsError> {
         let e = self.entry(id)?;
+        if e.dir {
+            return Err(FsError::IsDir);
+        }
         if e.owner != caller {
             return Err(FsError::Denied);
         }
@@ -161,10 +231,21 @@ impl Fs {
         Ok(len.min(out.len()))
     }
 
+    /// Rimuove un file o una directory vuota.
     pub fn remove(&mut self, id: usize, caller: u8) -> Result<(), FsError> {
         let e = self.entry(id)?;
         if e.owner != caller {
             return Err(FsError::Denied);
+        }
+        if e.dir {
+            let path = &e.name[..e.name_len as usize];
+            let has_child = (0..FILES).any(|i| {
+                let c = &self.files[i];
+                c.used && parent_of(&c.name[..c.name_len as usize]) == Some(path)
+            });
+            if has_child {
+                return Err(FsError::NotEmpty);
+            }
         }
         self.free_chain(e.head);
         self.files[id] = EMPTY;
@@ -177,19 +258,6 @@ impl Fs {
             self.used[i] = false;
             b = self.next[i];
         }
-    }
-
-    pub fn find_name(&self, name: &[u8]) -> Option<usize> {
-        self.find(name)
-    }
-
-    /// Nome e owner del file `id`, se esiste.
-    pub fn info(&self, id: usize) -> Option<(&[u8], u8)> {
-        self.files.get(id).filter(|e| e.used).map(|e| (&e.name[..e.name_len as usize], e.owner))
-    }
-
-    pub fn len_of(&self, id: usize) -> Option<usize> {
-        self.files.get(id).filter(|e| e.used).map(|e| e.len as usize)
     }
 
     pub fn free_blocks(&self) -> usize {
@@ -266,5 +334,23 @@ mod tests {
         fs.remove(id, 0).unwrap();
         assert_eq!(fs.free_blocks(), BLOCKS);
         assert_eq!(fs.read(id, 0, &mut out), Err(FsError::NotFound));
+    }
+
+    #[test]
+    fn directories_and_children() {
+        let mut fs = Fs::new();
+        let d = fs.mkdir(b"docs", 0).unwrap();
+        assert_eq!(fs.create(b"nope/f", 0), Err(FsError::NoParent));
+        let f = fs.create(b"docs/a", 0).unwrap();
+        fs.write(f, 0, 1024, b"x").unwrap();
+        assert_eq!(fs.write(d, 0, 1024, b"x"), Err(FsError::IsDir));
+        assert_eq!(fs.remove(d, 0), Err(FsError::NotEmpty));
+        let mut ids = [0usize; FILES];
+        assert_eq!(fs.list(b"", &mut ids), 1);
+        assert_eq!(ids[0], d);
+        assert_eq!(fs.list(b"docs", &mut ids), 1);
+        assert_eq!(ids[0], f);
+        fs.remove(f, 0).unwrap();
+        fs.remove(d, 0).unwrap();
     }
 }

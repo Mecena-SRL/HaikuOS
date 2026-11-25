@@ -4,3 +4,7 @@
 mod fs;
 #[path = "../src/persist.rs"]
 mod persist;
+#[path = "../src/alloc.rs"]
+mod alloc;
+#[path = "../src/monolith.rs"]
+mod monolith;
