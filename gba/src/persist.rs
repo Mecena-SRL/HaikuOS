@@ -421,6 +421,10 @@ impl<M: Medium> Persist<M> {
         Ok(())
     }
 
+    pub fn fs(&self) -> &Fs {
+        &self.fs
+    }
+
     pub fn into_medium(self) -> M {
         self.m
     }

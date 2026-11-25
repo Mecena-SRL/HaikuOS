@@ -8,3 +8,5 @@ mod persist;
 mod alloc;
 #[path = "../src/monolith.rs"]
 mod monolith;
+#[path = "../src/workspace.rs"]
+mod workspace;

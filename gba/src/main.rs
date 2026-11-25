@@ -1,4 +1,4 @@
-//! HaikuOS su GBA: prima ROM. Il monolite gira, l'agente risponde, gli slot si assegnano.
+//! HaikuOS su GBA: avvio, stato del sistema, misure, spazio di lavoro.
 //! Nessun bootloader separato: questa ROM è il primo stadio.
 #![no_std]
 #![no_main]
@@ -8,18 +8,20 @@ mod fs;
 mod monolith;
 mod persist;
 mod sram;
+mod workspace;
 
 use core::arch::global_asm;
 use core::panic::PanicInfo;
-use core::ptr::write_volatile;
-use monolith::{Monolith, MONOLITH_BYTES, AGENT_BYTES, POOL_BYTES, SLOT_BYTES, RAM_BYTES, MAX_PROGRAMS};
+use core::ptr::{read_volatile, write_volatile};
+use fs::FILES;
+use monolith::{Monolith, AGENT_BYTES, MAX_PROGRAMS, MONOLITH_BYTES, RAM_BYTES, SLOT_BYTES};
+use workspace::{child_name, Action, Workspace};
 
-// Header ROM (0x00-0xBF) e avvio in ARM. Logo Nintendo e checksum NON inclusi:
-// gli emulatori li ignorano, l'hardware reale no. Da verificare.
 /// Tag letto da mGBA: indica una SRAM da 32 KB per il salvataggio.
 #[used]
 static SAVE_TAG: [u8; 12] = *b"SRAM_V113\0\0\0";
 
+// Header ROM (0x00-0xBF) e avvio in ARM. Logo Nintendo e checksum NON inclusi (test solo in emulatore).
 global_asm!(
     ".section .text.start,\"ax\",%progbits",
     ".code 32",
@@ -55,6 +57,9 @@ global_asm!(
 
 const VRAM: usize = 0x0600_0000;
 const DISPCNT: *mut u16 = 0x0400_0000 as *mut u16;
+const KEYINPUT: *const u16 = 0x0400_0130 as *const u16;
+const TM0: usize = 0x0400_0100;
+const TM1: usize = 0x0400_0104;
 const W: usize = 240;
 
 const fn rgb(r: u16, g: u16, b: u16) -> u16 {
@@ -66,6 +71,7 @@ const BLUE: u16 = rgb(6, 14, 28);
 const ORANGE: u16 = rgb(30, 16, 2);
 const GREY: u16 = rgb(10, 10, 10);
 const DARK: u16 = rgb(3, 3, 4);
+const WHITE: u16 = rgb(31, 31, 31);
 
 fn fill(x: usize, y: usize, w: usize, h: usize, c: u16) {
     for yy in y..y + h {
@@ -81,20 +87,16 @@ fn draw_memory(granted: &[usize; MAX_PROGRAMS]) {
     const BAR_W: usize = 216;
     let px = |bytes: usize| bytes * BAR_W / RAM_BYTES;
     let mut x = 12;
-    let segs_fixed = [(MONOLITH_BYTES, GREEN), (AGENT_BYTES, BLUE)];
-    for (bytes, c) in segs_fixed {
+    for (bytes, c) in [(MONOLITH_BYTES, GREEN), (AGENT_BYTES, BLUE)] {
         let w = px(bytes);
         fill(x, 30, w, 24, c);
         x += w;
     }
-    let mut used = 0;
     for &b in granted.iter().filter(|&&b| b != 0) {
         let w = px(b);
         fill(x, 30, w, 24, ORANGE);
         x += w;
-        used += b;
     }
-    let _ = (POOL_BYTES, used);
     fill(x, 30, 12 + BAR_W - x, 24, DARK);
 }
 
@@ -103,6 +105,73 @@ fn draw_slots(granted: &[usize; MAX_PROGRAMS]) {
     for (i, &b) in granted.iter().enumerate() {
         let c = if b != 0 { ORANGE } else { GREY };
         fill(12 + i * 56, 80, 40, 40, c);
+    }
+}
+
+/// Un valore a 32 bit come riga di 32 quadretti (1 = colorato). Bit alto a sinistra.
+fn draw_bits(y: usize, v: u32, c: u16) {
+    for i in 0..32 {
+        if v & (1 << (31 - i)) != 0 {
+            fill(4 + i * 7, y, 6, 8, c);
+        }
+    }
+}
+
+/// Cicli (prescaler 1) impiegati da `f`, con TM0+TM1 in cascata (32 bit).
+fn cycles<F: FnOnce()>(f: F) -> u32 {
+    unsafe {
+        write_volatile(TM0 as *mut u16, 0);
+        write_volatile((TM0 + 2) as *mut u16, 0);
+        write_volatile(TM1 as *mut u16, 0);
+        write_volatile((TM1 + 2) as *mut u16, 0);
+        write_volatile((TM0 + 2) as *mut u16, 0x0080);
+        write_volatile((TM1 + 2) as *mut u16, 0x0084);
+    }
+    f();
+    let t = now();
+    unsafe {
+        write_volatile((TM0 + 2) as *mut u16, 0);
+        write_volatile((TM1 + 2) as *mut u16, 0);
+    }
+    t
+}
+
+fn now() -> u32 {
+    loop {
+        let hi1 = unsafe { read_volatile(TM1 as *const u16) };
+        let lo = unsafe { read_volatile(TM0 as *const u16) };
+        let hi2 = unsafe { read_volatile(TM1 as *const u16) };
+        if hi1 == hi2 {
+            return ((hi1 as u32) << 16) | lo as u32;
+        }
+    }
+}
+
+/// Tasti premuti (1 = premuto). Il registro è attivo basso.
+fn keys() -> u16 {
+    !unsafe { read_volatile(KEYINPUT) } & 0x03FF
+}
+
+fn draw_workspace(ws: &Workspace, p: &persist::Persist<sram::Sram>) {
+    fill(0, 0, W, 160, BLACK);
+    // Barra della directory corrente: lunghezza = percorso.
+    let bar = (ws.cwd().len() * 8 + 8).min(232);
+    fill(4, 4, bar, 8, BLUE);
+    let mut ids = [0usize; FILES];
+    let n = p.fs().list(ws.cwd(), &mut ids);
+    for i in 0..n {
+        let x = 8 + (i % 7) * 30;
+        let y = 24 + (i / 7) * 30;
+        if i == ws.sel() {
+            fill(x - 2, y - 2, 26, 26, WHITE);
+        }
+        let c = if p.fs().is_dir(ids[i]) { BLUE } else { ORANGE };
+        fill(x, y, 22, 22, c);
+    }
+    // File aperto: una barra verde proporzionale alla lunghezza.
+    if let Some(id) = ws.open_id() {
+        let len = p.fs().len_of(id).unwrap_or(0);
+        fill(4, 140, (len * 2).min(232), 8, GREEN);
     }
 }
 
@@ -117,16 +186,13 @@ pub extern "C" fn rust_main() -> ! {
     let _ = m.request(0, SLOT_BYTES);
     let _ = m.request(1, SLOT_BYTES);
     let _ = m.request(2, SLOT_BYTES);
-    let _ = m.request(3, SLOT_BYTES); // negato: NoFreeSlot
+    let _ = m.request(3, SLOT_BYTES);
     m.revoke(1);
     let _ = m.request(3, SLOT_BYTES);
-
-    // Allocatore: il programma 0 alloca 4 KB dentro la sua quota e li libera.
     let alloc_ok = match m.alloc(0, 4096) {
         Ok(off) => m.free(0, off, 4096),
         Err(_) => false,
     };
-
     let granted = [m.grant_of(0), m.grant_of(1), m.grant_of(2), m.grant_of(3)];
 
     unsafe { write_volatile(DISPCNT, 0x0403) }; // mode 3, BG2 attivo
@@ -136,7 +202,8 @@ pub extern "C" fn rust_main() -> ! {
     draw_slots(&granted);
     fill(12, 130, 16, 16, GREEN); // monolite: vivo
     fill(36, 130, 16, 16, BLUE); // agente: pronto
-    // Persistenza in SRAM: contatore di avvii. Ogni avvio lo incrementa e lo salva.
+
+    // Persistenza in SRAM: contatore di avvii e file di esempio.
     let mut p = persist::Persist::open(sram::Sram, (sram::SIZE - 32) / 2);
     let mut b = [0u8; 1];
     let found = p.read(b"boots", 0, &mut b) == Ok(1);
@@ -145,16 +212,66 @@ pub extern "C" fn rust_main() -> ! {
     }
     let boots = if found { b[0].wrapping_add(1) } else { 1 };
     let ok = p.write(b"boots", 0, 1, &[boots]).is_ok() && p.sync().is_ok();
+    let _ = p.mkdir(b"docs", 0);
+    let _ = p.create(b"docs/hello", 0);
+    let _ = p.write(b"docs/hello", 0, 64, b"hello haikuos");
     fill(60, 130, 16, 16, if ok { GREEN } else { ORANGE }); // persistenza: ok
     fill(84, 130, 16, 16, if alloc_ok { GREEN } else { ORANGE }); // allocatore: ok
     for i in 0..(boots as usize).min(8) {
         fill(12 + i * 20, 146, 12, 10, BLUE); // avvii salvati
     }
+    for _ in 0..180 {
+        sram::vblank();
+    }
+
+    // Misure (cicli di timer, emulatore mGBA): media di alloc+free e di sync con 100 byte.
+    let _ = p.create(b"bench", 0);
+    let mut sum_alloc = 0u32;
+    for _ in 0..100 {
+        sum_alloc = sum_alloc.wrapping_add(cycles(|| {
+            if let Ok(off) = m.alloc(0, 4096) {
+                m.free(0, off, 4096);
+            }
+        }));
+    }
+    let data = [0xA5u8; 100];
+    let mut sum_sync = 0u32;
+    for _ in 0..10 {
+        let _ = p.write(b"bench", 0, 128, &data);
+        sum_sync = sum_sync.wrapping_add(cycles(|| {
+            let _ = p.sync();
+        }));
+    }
+    fill(0, 0, W, 160, BLACK);
+    draw_bits(40, sum_alloc / 100, ORANGE); // alloc+free, cicli
+    draw_bits(70, sum_sync / 10, GREEN); // sync 100 byte, cicli
+    // Schermata delle misure: resta finché non si preme A.
+    while keys() & workspace::KEY_A == 0 {
+        sram::vblank();
+    }
+    while keys() & workspace::KEY_A != 0 {
+        sram::vblank();
+    }
+
+    // Spazio di lavoro: tasti per navigare, Start crea un file.
+    let mut ws = Workspace::new();
     loop {
         sram::vblank();
         let _ = p.frame();
+        if ws.step(p.fs(), keys()) == Action::Create {
+            let mut ids = [0usize; FILES];
+            let n = p.fs().list(ws.cwd(), &mut ids) as u8;
+            let (nm, nl) = child_name(ws.cwd(), n);
+            if nl > 0 && p.create(&nm[..nl], 0).is_ok() {
+                let _ = p.write(&nm[..nl], 0, 64, &[n; 8]);
+            }
+            ws.dirty = true;
+        }
+        if ws.dirty {
+            draw_workspace(&ws, &p);
+            ws.dirty = false;
+        }
     }
-
 }
 
 #[panic_handler]
