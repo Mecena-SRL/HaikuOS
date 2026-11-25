@@ -10,7 +10,10 @@ mod compositor;
 mod desktop;
 mod font;
 mod fs;
+mod chess;
 mod editor;
+#[allow(dead_code)]
+mod media_ui;
 mod glyph;
 mod monolith;
 mod persist;
