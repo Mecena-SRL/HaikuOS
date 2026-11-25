@@ -6,6 +6,7 @@ pub mod agent;
 pub mod install;
 pub mod lzss;
 pub mod process;
+pub mod resource;
 pub mod slot;
 pub mod snapshot;
 pub use agent::{Agent, GreedyAgent, Proposal, QuotaRequest};
