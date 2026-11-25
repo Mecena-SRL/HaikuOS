@@ -48,12 +48,16 @@ pub const CALC_ICON: usize = 2;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum App {
     None,
+    /// Spazio di lavoro (file manager): schermo intero, si esce con L.
+    Files,
+    /// Visualizzatore/editor di testo: schermo intero, si esce con Start.
+    Notes,
     Term,
     Calc,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
-pub const APPS: [App; ICONS] = [App::None, App::Term, App::Calc, App::None];
+pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
 pub fn launchable(i: usize) -> Option<App> {
@@ -80,13 +84,25 @@ pub struct Desktop {
     sel: usize,
     win: Option<App>,
     pub term: Terminal,
+    /// Programma a schermo intero da avviare (lo gestisce il chiamante).
+    run: Option<App>,
     prev: u16,
     calc: CalcUi,
 }
 
 impl Desktop {
     pub const fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new() }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None }
+    }
+
+    /// Vero se c'è un programma a schermo intero da avviare.
+    pub fn run_requested(&self) -> bool {
+        self.run.is_some()
+    }
+
+    /// Prende il programma a schermo intero richiesto.
+    pub fn take_run(&mut self) -> Option<App> {
+        self.run.take()
     }
 
     pub fn sel(&self) -> usize {
@@ -174,8 +190,10 @@ impl Desktop {
                     self.sel = (self.sel + ICONS - 1) % ICONS;
                 }
                 if pressed & KEY_A != 0 {
-                    if let Some(app) = launchable(self.sel) {
-                        self.win = Some(app);
+                    match launchable(self.sel) {
+                        Some(App::Files) | Some(App::Notes) => self.run = launchable(self.sel),
+                        Some(app) => self.win = Some(app),
+                        None => {}
                     }
                 }
                 if pressed & KEY_B != 0 {
@@ -364,18 +382,33 @@ mod tests {
 
     #[test]
     fn launcher_table_maps_icons_to_apps() {
-        assert_eq!(launchable(0), None); // FILES: ancora senza programma
+        assert_eq!(launchable(0), Some(App::Files));
         assert_eq!(launchable(TERM_ICON), Some(App::Term));
         assert_eq!(launchable(CALC_ICON), Some(App::Calc));
-        assert_eq!(launchable(ICONS - 1), None); // NOTES
+        assert_eq!(launchable(ICONS - 1), Some(App::Notes));
         assert_eq!(launchable(ICONS + 5), None);
     }
 
     #[test]
-    fn a_on_icon_without_program_opens_nothing() {
+    fn a_on_files_requests_fullscreen_run_not_window() {
         let mut d = Desktop::new();
-        assert!(!d.step(KEY_A, &Fs::new())); // icona 0 = FILES
+        d.step(KEY_A, &Fs::new()); // icona 0 = FILES
+        assert!(d.run_requested());
         assert!(!d.win_open());
+        assert_eq!(d.take_run(), Some(App::Files));
+        assert!(!d.run_requested());
+    }
+
+    #[test]
+    fn notes_icon_requests_editor_run() {
+        let mut d = Desktop::new();
+        for _ in 0..ICONS - 1 {
+            d.step(KEY_RIGHT, &Fs::new());
+            d.step(0, &Fs::new());
+        }
+        assert_eq!(d.sel(), ICONS - 1);
+        d.step(KEY_A, &Fs::new());
+        assert_eq!(d.take_run(), Some(App::Notes));
     }
 
     #[test]
