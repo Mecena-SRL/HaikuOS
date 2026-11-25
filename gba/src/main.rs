@@ -6,6 +6,7 @@
 mod alloc;
 mod compositor;
 mod fs;
+mod editor;
 mod glyph;
 mod monolith;
 mod persist;
@@ -188,6 +189,18 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
     }
 }
 
+/// Ridisegna il visualizzatore: testo verde, carattere in attesa arancio, poi compone in VRAM.
+fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor) {
+    if let Some(px) = surf.pixels_mut(0) {
+        px.fill(BLACK);
+        glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 2, ed.text(), GREEN);
+        let x = 2 + ed.text().len() * glyph::ADVANCE;
+        glyph::draw_text(px, surfaces::SW, surfaces::SH, x, 2, &[ed.pending()], ORANGE);
+    }
+    let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    surf.compose_into(fb);
+}
+
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
 
 impl surfaces::Quota for Monolith {
@@ -284,25 +297,43 @@ pub extern "C" fn rust_main() -> ! {
     let _ = surf.open(&mut m, 0, 10, 20);
     let _ = surf.open(&mut m, 2, 50, 50);
     let _ = surf.open(&mut m, 3, 100, 70);
-    // Primo programma grafico: visualizzatore di testo. Legge docs/hello dal file system.
-    let mut t = [0u8; 32];
-    let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
-    if let Some(px) = surf.pixels_mut(0) {
-        glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 2, &t[..n], GREEN);
-    }
     if let Some(px) = surf.pixels_mut(2) {
         px.fill(BLUE);
     }
     if let Some(px) = surf.pixels_mut(3) {
         px.fill(ORANGE);
     }
-    let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
-    surf.compose_into(fb);
-    while keys() & workspace::KEY_A == 0 {
+    // Primo programma grafico: visualizzatore di testo. Legge docs/hello dal file system.
+    let mut t = [0u8; 32];
+    let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
+    let mut ed = editor::Editor::new();
+    ed.load(&t[..n]);
+    draw_editor(surf, &ed);
+    // Il testo si modifica con il keypad: su/giù, A aggiunge, B cancella, Start esce.
+    let mut prev = keys();
+    loop {
         sram::vblank();
-    }
-    while keys() & workspace::KEY_A != 0 {
-        sram::vblank();
+        let pressed = keys() & !prev;
+        prev = keys();
+        if pressed & workspace::KEY_START != 0 {
+            break;
+        }
+        let changed = if pressed & workspace::KEY_UP != 0 {
+            ed.up();
+            true
+        } else if pressed & workspace::KEY_DOWN != 0 {
+            ed.down();
+            true
+        } else if pressed & workspace::KEY_A != 0 {
+            ed.commit()
+        } else if pressed & workspace::KEY_B != 0 {
+            ed.backspace()
+        } else {
+            false
+        };
+        if changed {
+            draw_editor(surf, &ed);
+        }
     }
     // Chiusura: ogni programma riottiene la sua quota.
     for p in [0, 2, 3] {
