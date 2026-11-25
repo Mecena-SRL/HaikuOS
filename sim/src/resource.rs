@@ -94,6 +94,11 @@ impl<T> Queue<T> {
         self.items.len()
     }
 
+    /// Posti liberi.
+    pub fn free(&self) -> usize {
+        self.depth - self.items.len()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
@@ -104,10 +109,20 @@ impl<T> Queue<T> {
     }
 }
 
-/// Contratto comune: ogni microkernel dichiara il proprio manifest.
-/// I moduli con stato proprio lo implementano; il `Driver` generico lo fa per le richieste numeriche.
+/// Stato comune di un microkernel: pronto o fermato.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Status {
+    Ready,
+    Stopped,
+}
+
+/// Contratto comune: ogni microkernel dichiara il proprio manifest e il proprio stato.
+/// Lo stato di default è `Ready`; chi può fermarsi lo sovrascrive.
 pub trait Microkernel {
     fn manifest(&self) -> Manifest;
+    fn status(&self) -> Status {
+        Status::Ready
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -163,6 +178,9 @@ impl Driver {
 impl Microkernel for Driver {
     fn manifest(&self) -> Manifest {
         self.manifest.clone()
+    }
+    fn status(&self) -> Status {
+        if self.running { Status::Ready } else { Status::Stopped }
     }
 }
 

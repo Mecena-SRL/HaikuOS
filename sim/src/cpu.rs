@@ -2,7 +2,7 @@
 //! Lo scheduling a budget resta in `process.rs`; qui si decide solo chi può girare.
 //! Nessun hardware reale. Regole: docs/resource-microkernels.md, docs/process-management.md.
 
-use crate::resource::{Arch, Kind, Manifest};
+use crate::resource::{Arch, Kind, Manifest, Microkernel, Status};
 
 /// Capacità dichiarate di una CPU. Il 128 bit non esiste come voce: nessuna CPU general purpose in uso.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,6 +44,10 @@ pub struct TaskReq {
 pub enum AdmitError {
     WordSize,
     NoMmu,
+    /// Il microkernel è fermo.
+    Halted,
+    /// Tabella dei programmi piena.
+    Full,
 }
 
 /// Ammissione: un programma gira solo se la CPU ne supporta la dimensione e l'isolamento richiesto.
@@ -55,4 +59,53 @@ pub fn admit(caps: CpuCaps, task: TaskReq) -> Result<(), AdmitError> {
         return Err(AdmitError::NoMmu);
     }
     Ok(())
+}
+
+/// Microkernel CPU con stato: conta i programmi ammessi, può essere fermato.
+pub struct Cpu {
+    caps: CpuCaps,
+    max_tasks: usize,
+    admitted: usize,
+    running: bool,
+}
+
+impl Cpu {
+    pub fn new(arch: Arch, max_tasks: usize) -> Self {
+        Self { caps: caps_of(arch), max_tasks, admitted: 0, running: true }
+    }
+
+    pub fn caps(&self) -> CpuCaps {
+        self.caps
+    }
+
+    /// Ammette un programma se c'è posto e la CPU lo supporta. Ritorna il numero di programmi ammessi.
+    pub fn admit_task(&mut self, task: TaskReq) -> Result<usize, AdmitError> {
+        if !self.running {
+            return Err(AdmitError::Halted);
+        }
+        admit(self.caps, task)?;
+        if self.admitted >= self.max_tasks {
+            return Err(AdmitError::Full);
+        }
+        self.admitted += 1;
+        Ok(self.admitted)
+    }
+
+    pub fn release_task(&mut self) {
+        self.admitted = self.admitted.saturating_sub(1);
+    }
+
+    /// Ferma la CPU: nessun nuovo programma. I programmi già ammessi restano.
+    pub fn halt(&mut self) {
+        self.running = false;
+    }
+}
+
+impl Microkernel for Cpu {
+    fn manifest(&self) -> Manifest {
+        CPU_MANIFEST
+    }
+    fn status(&self) -> Status {
+        if self.running { Status::Ready } else { Status::Stopped }
+    }
 }

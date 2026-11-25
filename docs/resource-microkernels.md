@@ -144,8 +144,15 @@ Aggiornamento (trait comune):
 - `resource::Queue<T>` è la coda generica a profondità fissa. Il `Driver`, la GPU e l'input la usano; così il comportamento "piena → `Full`" è uno solo.
 - Test: `sim/tests/contratto.rs` (coda, manifest via `dyn Microkernel`, GPU/input su coda comune, stop del driver).
 
-Deviazioni aperte:
-1. **Stato nel trait.** Il trait espone solo il manifest. Stato e richieste restano per modulo: il monolite non ha ancora una lettura comune dello stato.
-2. **Audio e swap non usano `Queue`.** L'audio ha buffer per canale, lo swap è sincrono. Da allineare se servono richieste asincrone.
-3. **CPU e rete** non hanno ancora una struttura con stato da implementare.
-4. **Stack TCP/IP, driver Wi-Fi e driver reali** non esistono: il prototipo di rete copre solo il frame ethernet.
+Aggiornamento (stato e code):
+- `resource::Status` (`Ready`, `Stopped`) è nel trait `Microkernel` con default `Ready`. Il `Driver`, la CPU e la rete lo sovrascrivono.
+- CPU (`Cpu`): conta i programmi ammessi fino a un limite, `halt()` ferma nuove ammissioni.
+- Rete (`NetLink`): code di ricezione e trasmissione a profondità fissa, filtro per MAC e broadcast, link su/giù.
+- Audio: i canali sono `Queue<i16>`; un blocco di campioni entra tutto o niente.
+- Swap: i blocchi liberi sono una `Queue<usize>`; la doppia liberazione viene rifiutata quando la coda è piena.
+- Test: `sim/tests/stato.rs` (stato, limiti, MTU, filtro, code piene, doppia liberazione).
+
+Deviazioni residue:
+1. **Il monolite non legge ancora lo stato in modo comune.** Lo stato è esposto dal trait, ma nessun componente lo usa per decidere.
+2. **Stato solo sull'alimentazione e sugli oggetti sopra.** Memoria, storage, crittografia restano senza fermo: in sim non serve ancora.
+3. **Stack TCP/IP, driver Wi-Fi e driver reali** non esistono: il prototipo di rete copre frame, filtro e code.

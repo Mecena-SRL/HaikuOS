@@ -2,7 +2,7 @@
 //! Lo stack TCP/IP è un microkernel separato che usa questo livello. Nessun hardware reale.
 //! Regole: docs/resource-microkernels.md, sezione 4.1.
 
-use crate::resource::{Arch, Kind, Manifest};
+use crate::resource::{Arch, Error as QError, Kind, Manifest, Microkernel, Queue, Status};
 
 pub const MTU: usize = 1500;
 pub const ETH_HEADER: usize = 14;
@@ -20,6 +20,16 @@ pub const NET_MANIFEST: Manifest = Manifest {
 pub enum NetError {
     TooShort,
     TooLarge,
+    /// Coda piena.
+    Full,
+    /// Link giù.
+    Down,
+}
+
+impl From<QError> for NetError {
+    fn from(_: QError) -> Self {
+        NetError::Full
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,4 +83,63 @@ pub fn internet_checksum(data: &[u8]) -> u16 {
         sum = (sum & 0xffff) + (sum >> 16);
     }
     !(sum as u16)
+}
+
+pub const BROADCAST: [u8; 6] = [0xff; 6];
+
+/// Link ethernet con stato: code di ricezione e trasmissione a profondità fissa, filtro per MAC.
+pub struct NetLink {
+    mac: [u8; 6],
+    up: bool,
+    rx: Queue<Frame>,
+    tx: Queue<Frame>,
+}
+
+impl NetLink {
+    pub fn new(mac: [u8; 6], depth: usize) -> Self {
+        Self { mac, up: true, rx: Queue::new(depth), tx: Queue::new(depth) }
+    }
+
+    pub fn set_link(&mut self, up: bool) {
+        self.up = up;
+    }
+
+    /// Accoda un frame in trasmissione.
+    pub fn send(&mut self, f: Frame) -> Result<(), NetError> {
+        if !self.up {
+            return Err(NetError::Down);
+        }
+        f.encode()?; // rifiuta frame oltre MTU prima di accodare
+        Ok(self.tx.push(f)?)
+    }
+
+    /// Riceve un frame grezzo. Accetta solo il proprio MAC o il broadcast. Ritorna true se accettato.
+    pub fn receive(&mut self, raw: &[u8]) -> Result<bool, NetError> {
+        if !self.up {
+            return Err(NetError::Down);
+        }
+        let f = Frame::parse(raw)?;
+        if f.dst != self.mac && f.dst != BROADCAST {
+            return Ok(false);
+        }
+        self.rx.push(f)?;
+        Ok(true)
+    }
+
+    pub fn next_rx(&mut self) -> Option<Frame> {
+        self.rx.pop()
+    }
+
+    pub fn next_tx(&mut self) -> Option<Frame> {
+        self.tx.pop()
+    }
+}
+
+impl Microkernel for NetLink {
+    fn manifest(&self) -> Manifest {
+        NET_MANIFEST
+    }
+    fn status(&self) -> Status {
+        if self.up { Status::Ready } else { Status::Stopped }
+    }
 }
