@@ -468,6 +468,20 @@ fn titolo_app(app: App) -> Option<&'static [u8]> {
     Some(t)
 }
 
+/// Chiave del glifo condiviso (`haiku_gui::icons::cuts`) per l'etichetta dell'icona.
+fn glifo(label: &[u8]) -> &'static str {
+    match label {
+        b"FILES" => "FILE",
+        b"SETTINGS" => "SET",
+        b"NOTES" => "NOTE",
+        b"TERM" => "TERM",
+        b"CALC" => "CALC",
+        b"CLOCK" => "CLOCK",
+        b"READ" => "READ",
+        _ => "",
+    }
+}
+
 fn put(fb: &mut [u16], x: usize, y: usize, c: u16) {
     if x < W && y < H {
         fb[y * W + x] = c;
@@ -499,8 +513,16 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
     let first = page_start(d.sel());
     for i in first..(first + PER_PAGE).min(ICONS) {
         let (x, y) = icon_pos(i);
-        let c = if i == d.sel() { t1 } else { t2 };
-        rect(fb, x, y, ICON_SIZE, ICON_SIZE, c);
+        if i == d.sel() {
+            // Selezionata: cella piena T1, segni in T0 (bibbia §8).
+            rect(fb, x, y, ICON_SIZE, ICON_SIZE, t1);
+        } else {
+            let (bx, by, bw, bh) = haiku_gui::icons::BLOCK;
+            rect(fb, x + bx as usize, y + by as usize, bw as usize, bh as usize, t2);
+        }
+        for &(cx, cy, cw, ch) in haiku_gui::icons::cuts(glifo(ICON_LABELS[i])) {
+            rect(fb, x + cx as usize, y + cy as usize, cw as usize, ch as usize, t0);
+        }
         crate::font::draw(fb, W, H, x, y + ICON_SIZE + 2, ICON_LABELS[i], T1);
     }
     let app = match d.win {
