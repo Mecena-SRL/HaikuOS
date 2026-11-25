@@ -15,6 +15,8 @@ pub const SNAP_BLOCK_BYTES: usize = 128;
 pub const SNAP_MAX_FILE: usize = 256;
 /// Snapshot contemporanei massimi. Da verificare.
 pub const MAX_SNAPSHOTS: usize = 4;
+/// Scritture massime per blocco prima di ritirarlo (endurance). Valore segnaposto, da verificare.
+pub const DEFAULT_ENDURANCE: u32 = 100_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SnapError {
@@ -23,6 +25,8 @@ pub enum SnapError {
     TooManySnapshots,
     NoSuchSnapshot,
     Corrupt,
+    /// Restano solo blocchi liberi ma esauriti (endurance raggiunta).
+    Worn,
 }
 
 /// Voce di un file: blocco, byte occupati nel blocco, lunghezza in chiaro, checksum.
@@ -71,6 +75,9 @@ fn check_table(t: &Table) -> Result<(), SnapError> {
 
 pub struct Store {
     key: [u8; 16],
+    /// Contatore di riscritture per blocco (un'allocazione = una riscrittura).
+    wear: Vec<u32>,
+    endurance: u32,
     /// Contatore per i nonce: ogni scrittura ne usa uno nuovo.
     nonce_ctr: u64,
     blocks: Vec<[u8; SNAP_BLOCK_BYTES]>,
@@ -82,8 +89,14 @@ pub struct Store {
 
 impl Store {
     pub fn new(key: [u8; 16]) -> Self {
+        Self::with_endurance(key, DEFAULT_ENDURANCE)
+    }
+
+    pub fn with_endurance(key: [u8; 16], endurance: u32) -> Self {
         Self {
             key,
+            wear: vec![0; SNAP_BLOCKS],
+            endurance,
             nonce_ctr: 0,
             blocks: vec![[0; SNAP_BLOCK_BYTES]; SNAP_BLOCKS],
             refs: vec![0; SNAP_BLOCKS],
@@ -96,10 +109,24 @@ impl Store {
         self.refs.iter().filter(|&&r| r == 0).count()
     }
 
+    /// Riscritture fatte su un blocco.
+    pub fn wear(&self, blk: usize) -> u32 {
+        self.wear[blk]
+    }
+
+    /// Sceglie il blocco libero meno usato (wear leveling) e lo conta come riscritto.
     fn alloc(&mut self) -> Result<usize, SnapError> {
-        let b = self.refs.iter().position(|&r| r == 0).ok_or(SnapError::NoSpace)?;
-        self.refs[b] = 1;
-        Ok(b)
+        let free = (0..SNAP_BLOCKS).filter(|&b| self.refs[b] == 0);
+        let best = free.clone().filter(|&b| self.wear[b] < self.endurance).min_by_key(|&b| (self.wear[b], b));
+        match best {
+            Some(b) => {
+                self.refs[b] = 1;
+                self.wear[b] += 1;
+                Ok(b)
+            }
+            None if free.count() > 0 => Err(SnapError::Worn),
+            None => Err(SnapError::NoSpace),
+        }
     }
 
     fn release(&mut self, b: usize) {

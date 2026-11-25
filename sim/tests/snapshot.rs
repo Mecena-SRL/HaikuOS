@@ -158,3 +158,25 @@ fn flipped_cipher_byte_is_detected_on_read() {
     s.flip_block_byte(blk);
     assert_eq!(s.read_checked("c"), Err(SnapError::Corrupt));
 }
+
+#[test]
+fn writes_spread_over_blocks_by_wear() {
+    let mut s = Store::new(KEY);
+    for _ in 0..SNAP_BLOCKS {
+        s.write("x", b"v").unwrap();
+        s.delete("x");
+    }
+    for b in 0..SNAP_BLOCKS {
+        assert_eq!(s.wear(b), 1);
+    }
+}
+
+#[test]
+fn worn_out_blocks_are_not_reused() {
+    let mut s = Store::with_endurance(KEY, 1);
+    for i in 0..SNAP_BLOCKS {
+        s.write(&format!("f{i}"), b"x").unwrap();
+    }
+    s.delete("f0");
+    assert_eq!(s.write("n", b"x"), Err(SnapError::Worn));
+}
