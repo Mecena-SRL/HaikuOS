@@ -5,6 +5,7 @@
 
 mod alloc;
 mod apps;
+mod ascon;
 mod calc;
 mod calc_ui;
 mod compositor;
@@ -258,6 +259,99 @@ fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save
     let _ = surf.close(m, 0);
 }
 
+/// File delle note: una per nota, `docs/nota0`..`docs/nota7`.
+const NOTE_FILES: [&[u8]; apps::notes::N] = [
+    b"docs/nota0", b"docs/nota1", b"docs/nota2", b"docs/nota3",
+    b"docs/nota4", b"docs/nota5", b"docs/nota6", b"docs/nota7",
+];
+
+fn digit(n: usize) -> u8 {
+    b'0' + (n % 10) as u8
+}
+
+/// Disegna le note: testo dell'editor sulla superficie, elenco "NOTA n DI m" in alto.
+fn draw_notes(surf: &mut surfaces::Surfaces, ns: &apps::notes::Notes, status: Option<&[u8]>) {
+    if let Some(px) = surf.pixels_mut(0) {
+        px.fill(BLACK);
+        glyph::draw_wrapped(px, surfaces::SW, surfaces::SH, ns.testo(), ns.pos(), ns.pending(), GREEN, ORANGE);
+        if let Some(msg) = status {
+            glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 40, msg, BLUE);
+        }
+    }
+    let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    surf.compose_into(fb);
+    if ns.count() > 0 {
+        let head = [b'N', b'O', b'T', b'A', b' ', digit(ns.selected() + 1), b' ', b'D', b'I', b' ', digit(ns.count())];
+        glyph::draw_text(fb, W, 160, 10, 4, &head, GREEN);
+    } else {
+        glyph::draw_text(fb, W, 160, 10, 4, b"NESSUNA NOTA", GREEN);
+    }
+}
+
+/// Note: l'editor a schermo intero, con l'elenco in alto.
+/// Select+L/R cambia nota, Select+A ne crea una. Select, rilasciato da solo, salva tutte le note.
+fn run_notes(surf: &mut surfaces::Surfaces, m: &mut Monolith, ns: &mut apps::notes::Notes, save: &mut dyn FnMut(usize, &[u8]) -> bool) {
+    let _ = surf.open(m, 0, 10, 20);
+    draw_notes(surf, ns, None);
+    let mut prev = keys();
+    let mut combo = false;
+    loop {
+        sram::vblank();
+        let k = keys();
+        let pressed = k & !prev;
+        let released = prev & !k;
+        prev = k;
+        if pressed & workspace::KEY_START != 0 {
+            break;
+        }
+        if pressed & workspace::KEY_SELECT != 0 {
+            combo = false;
+        }
+        let sel = k & workspace::KEY_SELECT != 0;
+        let mut changed = false;
+        let mut status: Option<&[u8]> = None;
+        if sel && pressed & !workspace::KEY_SELECT != 0 {
+            combo = true;
+            if pressed & KEY_L != 0 {
+                changed = ns.scorri(-1);
+            }
+            if pressed & KEY_R != 0 {
+                changed = ns.scorri(1) || changed;
+            }
+            if pressed & workspace::KEY_A != 0 {
+                changed = ns.nuova();
+            }
+        } else if pressed & workspace::KEY_UP != 0 {
+            ns.up();
+            changed = true;
+        } else if pressed & workspace::KEY_DOWN != 0 {
+            ns.down();
+            changed = true;
+        } else if pressed & workspace::KEY_A != 0 {
+            changed = ns.commit();
+        } else if pressed & workspace::KEY_B != 0 {
+            changed = ns.backspace();
+        } else if pressed & KEY_L != 0 {
+            changed = ns.left();
+        } else if pressed & KEY_R != 0 {
+            changed = ns.right();
+        }
+        if released & workspace::KEY_SELECT != 0 && !combo {
+            let mut ok = true;
+            for i in 0..ns.count() {
+                ok &= save(i, ns.testo_di(i));
+            }
+            ns.mark_saved();
+            status = Some(if ok { b"SALVATO" } else { b"ERRORE" });
+            changed = true;
+        }
+        if changed {
+            draw_notes(surf, ns, status);
+        }
+    }
+    let _ = surf.close(m, 0);
+}
+
 /// Tasti L e R (dorsali): spostano il cursore nell'editor.
 const KEY_R: u16 = 1 << 8;
 const KEY_L: u16 = 1 << 9;
@@ -347,9 +441,30 @@ pub extern "C" fn rust_main() -> ! {
             let _ = sp.usr.sync();
         }));
     }
+    // Ascon per blocchi da 64 byte: media per blocco (128 blocchi = 8 KB), e controllo di apertura.
+    let key = [0x42u8; 16];
+    let pt = [0x5Au8; 64];
+    let mut ct = [0u8; 80];
+    let mut plain = [0u8; 64];
+    let mut sum_seal = 0u32;
+    for b in 0..128u32 {
+        sum_seal = sum_seal.wrapping_add(cycles(|| ascon::seal_block(&key, 1, 1, b, &pt, &mut ct)));
+    }
+    let mut sum_open = 0u32;
+    let mut bad = 0u32;
+    for b in 0..128u32 {
+        ascon::seal_block(&key, 1, 1, b, &pt, &mut ct);
+        let mut r = false;
+        sum_open = sum_open.wrapping_add(cycles(|| r = ascon::open_block(&key, 1, 1, b, &ct, &mut plain)));
+        if !r { bad += 1; }
+    }
+    let ok = bad == 0 && plain == pt;
+    fill(200, 140, 20, 10, if ok { GREEN } else { BLUE }); // verde = aperture e testo corretti
     fill(0, 0, W, 160, BLACK);
     draw_bits(40, sum_alloc / 100, ORANGE); // alloc+free, cicli
     draw_bits(70, sum_sync / 10, GREEN); // sync 100 byte, cicli
+    draw_bits(100, sum_seal / 128, ORANGE); // Ascon seal, per blocco da 64 byte
+    draw_bits(120, sum_open / 128, if ok { GREEN } else { BLUE }); // Ascon open, per blocco
     // Gestore dei font: installa il font di ROM (3×5), lo imposta di sistema e ne mostra l'anteprima.
     let mut fm = fontmgr::FontMgr::new();
     let _ = fm.install(b"Sistema 3x5");
@@ -412,12 +527,32 @@ pub extern "C" fn rust_main() -> ! {
     }
     let app = dk.take_run().unwrap_or(desktop::App::Files);
     if app == desktop::App::Notes {
+        // Carica le note fino all'ultima non vuota, in ordine. Senza note, migra docs/hello.
+        let mut ns = apps::notes::Notes::new();
         let mut t = [0u8; editor::MAX];
-        let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
+        let last = (0..apps::notes::N).rev().find(|&i| sp.usr.read(NOTE_FILES[i], 0, &mut [0u8; 1]).unwrap_or(0) > 0);
+        match last {
+            Some(last) => {
+                for i in 0..=last {
+                    let n = sp.usr.read(NOTE_FILES[i], 0, &mut t).unwrap_or(0);
+                    ns.nuova();
+                    ns.carica(i, &t[..n]);
+                }
+            }
+            None => {
+                let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
+                if n > 0 {
+                    ns.nuova();
+                    ns.carica(0, &t[..n]);
+                }
+            }
+        }
+        ns.seleziona(0);
+        ns.mark_saved();
         fill(0, 0, W, 160, BLACK);
         let surf = unsafe { &mut *core::ptr::addr_of_mut!(SURFACES) };
-        run_editor(surf, &mut m, &t[..n], &mut |txt| {
-            sp.usr.write(b"docs/hello", 0, editor::MAX, txt).is_ok() && sp.usr.sync().is_ok()
+        run_notes(surf, &mut m, &mut ns, &mut |i, txt| {
+            sp.usr.write(NOTE_FILES[i], 0, editor::MAX, txt).is_ok() && sp.usr.sync().is_ok()
         });
         continue;
     }
