@@ -21,6 +21,11 @@ cargo test
 - messaggi fuori allowlist, oltre la dimensione fissa o senza slot scartati;
 - un messaggio non concede né modifica diritti.
 
+## Snapshot copy-on-write (`src/snapshot.rs`, `tests/snapshot.rs`)
+
+- Snapshot = copia della tabella file -> blocco, nessun dato copiato; overwrite usa un blocco nuovo.
+- Test: rollback, drop che libera blocchi, limiti (blocchi, snapshot, dimensione). Roadmap: `docs/filesystem-roadmap.md`.
+
 ## Scelte
 
 - Linguaggio: Rust, `std` per la simulazione sull'host. La logica usa solo `Vec` piccoli e costanti, quindi è portabile a `no_std` + `alloc`. **Da verificare** con Ivan.
