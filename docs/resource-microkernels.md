@@ -83,6 +83,8 @@ Una GPU ha memoria propria (VRAM o memoria unificata con accesso dichiarato), co
 - `sim/src/resource.rs`: `Arch`, `Kind`, `Manifest`, `Driver` (coda fissa, `submit`/`step`/`stop`), `plan`, `activate` con rollback, `tick`.
 - `sim/tests/risorse.rs`: 8 test, tutti passati. Coprono: opzionale incompatibile saltato, richiesto incompatibile bloccante, RAM insufficiente, architettura sconosciuta, rollback in ordine inverso, due GPU in parallelo senza mescolare i risultati, coda piena, stop di un driver senza effetti sugli altri.
 - Il lavoro simulato è `op + 1`. Nessuna misura di prestazioni.
+- `sim/src/cpu.rs`: capacità dichiarate per architettura (bit, core, MMU) e ammissione dei programmi. Lo scheduling resta in `process.rs`.
+- `sim/src/memory.rs`: pool RAM e VRAM separati a blocchi fissi, quote per proprietario, revoca che azzera prima del riuso. Test in `sim/tests/cpu_memoria.rs` (7 test, passati).
 
 ## 10. Da verificare
 
