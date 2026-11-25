@@ -290,7 +290,12 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
         }
         return;
     }
-    crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"TERMINALE", TEXT);
+    // Titolo: "/" più la cartella corrente del terminale (es. "/DOCS"), fino a 16 caratteri.
+    let mut title = [0u8; 17];
+    title[0] = b'/';
+    let cwd = d.term.cwd();
+    let tn = upper_into(&mut title[1..], cwd);
+    crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, &title[..1 + tn], TEXT);
     // Prompt: "$ " e la voce del menu scelta con su/giù. A la esegue.
     let mut prompt = [0u8; terminal::INPUT_MAX + terminal::LABEL_MAX + 4];
     prompt[0] = b'$';
