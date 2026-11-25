@@ -4,16 +4,20 @@
 
 pub mod agent;
 pub mod gpu;
+pub mod input;
 pub mod cpu;
+pub mod crypto;
 pub mod install;
 pub mod lzss;
 pub mod net;
 pub mod memory;
+pub mod power;
 pub mod process;
 pub mod resource;
 pub mod slot;
 pub mod snapshot;
 pub mod storage;
+pub mod swap;
 pub use agent::{Agent, GreedyAgent, Proposal, QuotaRequest};
 
 // Limiti di partenza: docs/architecture.md, sezione 6. Tutti da verificare.

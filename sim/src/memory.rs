@@ -37,7 +37,6 @@ pub const MEMORY_MANIFEST: Manifest = Manifest {
 };
 
 struct Block {
-    owner: u8,
     data: Vec<u8>,
 }
 
@@ -82,7 +81,7 @@ impl MemoryKernel {
         let block_bytes = self.block_bytes;
         let slots = self.pool_mut(pool);
         let slot = slots.iter().position(|b| b.is_none()).ok_or(MemError::NoSpace)?;
-        slots[slot] = Some(Block { owner, data: vec![0; block_bytes] });
+        slots[slot] = Some(Block { data: vec![0; block_bytes] });
         self.used[o] += 1;
         Ok(Handle { pool, slot, owner })
     }
