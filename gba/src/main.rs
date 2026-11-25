@@ -6,6 +6,7 @@
 mod alloc;
 mod compositor;
 mod desktop;
+mod font;
 mod fs;
 mod editor;
 mod glyph;

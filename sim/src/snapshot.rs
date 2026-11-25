@@ -13,6 +13,8 @@ pub const SNAP_BLOCKS: usize = 64;
 pub const SNAP_BLOCK_BYTES: usize = 128;
 /// Dimensione massima di un file in chiaro. Da verificare.
 pub const SNAP_MAX_FILE: usize = 256;
+/// Slot logico usato per cifrare l'invio (AAD distinta da quella dei blocchi).
+const TRANSIT_SLOT: u8 = 0xFE;
 /// Snapshot contemporanei massimi. Da verificare.
 pub const MAX_SNAPSHOTS: usize = 4;
 /// Scritture massime per blocco prima di ritirarlo (endurance). Valore segnaposto, da verificare.
@@ -347,9 +349,17 @@ impl Store {
         }
     }
 
+    /// Cifra un contenuto per l'invio, con lo stesso schema dei blocchi (LZSS poi Ascon, nonce da contatore).
+    fn seal_transit(&mut self, content: &[u8]) -> Result<Vec<u8>, SnapError> {
+        let mut nonce = [0u8; 16];
+        nonce[8..].copy_from_slice(&self.nonce_ctr.to_le_bytes());
+        self.nonce_ctr += 1;
+        slot::seal(content, &self.key, &nonce, TRANSIT_SLOT, SNAP_MAX_FILE * 2).map_err(|_| SnapError::TooLarge)
+    }
+
     /// Cosa serve per passare dallo stato `from` (None = vuoto) allo snapshot `to`.
-    /// Il contenuto è in chiaro: l'invio è verificato e cifrato solo a riposo.
-    pub fn diff(&self, from: Option<&str>, to: &str) -> Result<Diff, SnapError> {
+    /// I contenuti da scrivere sono cifrati per il trasporto (chiave condivisa tra le repliche).
+    pub fn diff(&mut self, from: Option<&str>, to: &str) -> Result<Diff, SnapError> {
         let old = self.table_of(from)?;
         let new = self.table_of(Some(to))?;
         check_table(&old)?;
@@ -362,7 +372,8 @@ impl Store {
                 None => false,
             };
             if !same {
-                d.put.push((name.clone(), content));
+                let sealed = self.seal_transit(&content)?;
+                d.put.push((name.clone(), sealed));
             }
         }
         for name in old.keys() {
@@ -373,12 +384,18 @@ impl Store {
         Ok(d)
     }
 
-    /// Applica una differenza. Se manca spazio a metà, lo stato è parziale: va ripetuta.
+    /// Applica una differenza. Prima apre e autentica tutto il contenuto: se un pezzo è alterato
+    /// non si scrive nulla. Se poi manca spazio a metà, lo stato è parziale: va ripetuta.
     pub fn apply(&mut self, d: &Diff) -> Result<(), SnapError> {
+        let mut plain = Vec::with_capacity(d.put.len());
+        for (name, sealed) in &d.put {
+            let data = slot::open(sealed, &self.key, TRANSIT_SLOT, SNAP_MAX_FILE).map_err(|_| SnapError::Corrupt)?;
+            plain.push((name.clone(), data));
+        }
         for name in &d.del {
             self.delete(name);
         }
-        for (name, data) in &d.put {
+        for (name, data) in &plain {
             self.write(name, data)?;
         }
         Ok(())
