@@ -106,3 +106,14 @@ Da decidere con Ivan:
 4. **Priorità:** quale uso è il primo da supportare dopo il desktop generico?
 5. **Limiti:** i valori della sezione 6 vanno bene come punto di partenza, o cambiano?
 6. **Filtro messaggi:** quali regole fisse sono necessarie al primo rilascio?
+
+## 9. Decisione: nucleo e piattaforme
+
+Valida per GBA e per una macchina potente.
+
+- **Nucleo:** monolite logico, agente, file system e messaggi sono Rust `no_std` puro, senza dipendenze dall'hardware.
+- **Piattaforma:** ogni piattaforma fornisce solo un livello sottile: avvio, timer, memoria fisica, schermo o console. Si scrive in assembly per GBA, in assembly o Rust per x86-64 e ARM64.
+- **Parametri, non costanti:** blocchi, slot e limiti sono parametri di configurazione. GBA usa i valori piccoli, la macchina potente quelli grandi.
+- **File system senza allocazione dinamica:** solo blocchi fissi nel nucleo, così il codice è identico su entrambe le piattaforme.
+- **Linguaggi:** assembly solo per l'hardware, Rust ovunque il resto. C resta piano B.
+- **Test:** solo in emulatore per ora. Il logo Nintendo e il checksum della ROM non sono inclusi.
