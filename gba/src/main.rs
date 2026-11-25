@@ -3,6 +3,7 @@
 #![no_std]
 #![no_main]
 
+mod fs;
 mod monolith;
 
 use core::arch::global_asm;
@@ -122,6 +123,19 @@ pub extern "C" fn rust_main() -> ! {
     draw_slots(&granted);
     fill(12, 130, 16, 16, GREEN); // monolite: vivo
     fill(36, 130, 16, 16, BLUE); // agente: pronto
+    // Self-test del file system: crea, scrive, rilegge. Verde = ok.
+    let mut store = fs::Fs::new();
+    let msg = b"HaikuOS";
+    let ok = match store.create(b"boot", 0) {
+        Ok(id) => {
+            store.write(id, 0, SLOT_BYTES, msg).is_ok() && {
+                let mut buf = [0u8; 7];
+                store.read(id, 0, &mut buf) == Ok(7) && &buf == msg
+            }
+        }
+        Err(_) => false,
+    };
+    fill(60, 130, 16, 16, if ok { GREEN } else { ORANGE }); // file system: ok
 
     loop {}
 }
