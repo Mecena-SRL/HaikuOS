@@ -35,7 +35,7 @@ Non raggiungibili dal sandbox: docs.kernel.org e support.apple.com (rete bloccat
 |---|---|---|
 | Copy-on-write (mai sovrascrivere) | ZFS, Btrfs, APFS, WAFL, LittleFS | Base dell'atomicità. Abbiamo già la forma minima in `fs.rs`. |
 | Snapshot istantanei | ZFS: "creati rapidamente, inizialmente nessuno spazio extra" (zfsconcepts). Btrfs: OK (Status.rst). | Costo = copia della tabella, non dei dati. Prototipo fatto (vedi §6). |
-| Checksum su dati **e** metadati | ZFS (checksum end-to-end), Btrfs: checksum OK (Status.rst), ReFS integrity streams | Oggi copriamo dati e metadati delle voci (`fs.rs`); puntatori `next` ancora scoperti. |
+| Checksum su dati **e** metadati | ZFS (checksum end-to-end), Btrfs: checksum OK (Status.rst), ReFS integrity streams | Oggi copriamo dati e metadati delle voci (`fs.rs`); puntatori `next` coperti da checksum per blocco, verificati in lettura, scrittura e rimozione. |
 | Auto-riparazione da copia valida | Btrfs: OK su DUP, RAID1, RAID10, RAID56 | Richiede ridondanza. |
 | Scrub (verifica periodica) | Btrfs: OK; Scrub + RAID56: "mostly OK" | RAID5/6 non è maturo ovunque: evitare in v1. |
 | Compressione | Btrfs OK (Status.rst), ZFS (feature in pool) | Riusare LZSS già in `sim/src/lzss.rs`. **Da verificare** rapporto e CPU su ARM7. |
@@ -82,7 +82,7 @@ Non raggiungibili dal sandbox: docs.kernel.org e support.apple.com (rete bloccat
 - `sim/tests/snapshot.rs`: 9 test. Costo zero in blocchi allo snapshot; un blocco per overwrite; drop libera i blocchi; rollback recupera file cancellati; limiti (64 blocchi, 4 snapshot, 64 byte per file) **da verificare**.
 - Snapshot: `verify()` controlla i checksum di tabella viva e snapshot. Il rollback verifica lo snapshot prima di toccare i riferimenti: se è alterato, errore `Corrupt` e stato invariato. Test di manomissione.
 - Checksum sui metadati (nome, blocco, lunghezza) per ogni voce, verificato in `read_checked`; test di manomissione. È il passo 1 della priorità, portato nel sim.
-- `gba/src/fs.rs`: checksum dei metadati per ogni voce (nome, flag, owner, testa, lunghezza), verificato in `entry()`; test di manomissione. 32 test host verdi, build GBA release ok.
+- `gba/src/fs.rs`: checksum dei metadati per ogni voce (nome, flag, owner, testa, lunghezza), verificato in `entry()`; checksum dei puntatori `next` per blocco, verificati lungo la catena; test di manomissione. 33 test host verdi, build GBA release ok.
 
 Limiti dichiarati: un file occupa un solo blocco (64 byte). Overwrite richiede un blocco libero, anche se il file è piccolo. Non c'è persistenza su disco.
 

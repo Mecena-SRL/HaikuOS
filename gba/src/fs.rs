@@ -49,6 +49,11 @@ fn fnv(b: &[u8]) -> u32 {
     fnv_with(0x811c_9dc5, b)
 }
 
+/// Checksum del puntatore `next` del blocco `i`: lega il valore alla posizione, così un puntatore spostato è rilevato.
+fn link_sum(i: usize, next: u8) -> u32 {
+    fnv_with(0x811c_9dc5, &[i as u8, next])
+}
+
 /// Checksum dei metadati di una voce: nome, flag, owner, testa, lunghezza. Da verificare su ARM7.
 fn meta_sum(e: &Entry) -> u32 {
     let h = fnv_with(0x811c_9dc5, &e.name[..e.name_len as usize]);
@@ -79,6 +84,8 @@ pub struct Fs {
     cursor: usize,
     /// Checksum dei metadati per ogni voce (vedi `meta_sum`).
     msum: [u32; FILES],
+    /// Checksum dei puntatori `next` per blocco (vedi `link_sum`).
+    nsum: [u32; BLOCKS],
 }
 
 impl Fs {
@@ -91,7 +98,22 @@ impl Fs {
             files: [EMPTY; FILES],
             cursor: 0,
             msum: [0; FILES],
+            nsum: [0; BLOCKS],
         }
+    }
+
+    /// Vero se la catena che parte da `b` ha tutti i puntatori validi e non è ciclica.
+    fn chain_ok(&self, mut b: u8) -> bool {
+        let mut steps = 0;
+        while b != NONE {
+            let i = b as usize;
+            if i >= BLOCKS || steps >= BLOCKS || self.nsum[i] != link_sum(i, self.next[i]) {
+                return false;
+            }
+            b = self.next[i];
+            steps += 1;
+        }
+        true
     }
 
     fn find(&self, name: &[u8]) -> Option<usize> {
@@ -177,6 +199,9 @@ impl Fs {
     /// Se fallisce prima del cambio di testa, il file resta com'era.
     pub fn write(&mut self, id: usize, caller: u8, grant: usize, bytes: &[u8]) -> Result<(), FsError> {
         let e = self.entry(id)?;
+        if !self.chain_ok(e.head) {
+            return Err(FsError::Corrupt);
+        }
         if e.dir {
             return Err(FsError::IsDir);
         }
@@ -213,6 +238,7 @@ impl Fs {
             self.data[b][..end - start].copy_from_slice(&bytes[start..end]);
             self.sum[b] = fnv(&self.data[b]);
             self.next[b] = if i + 1 < need { staged[i + 1] } else { NONE };
+            self.nsum[b] = link_sum(b, self.next[b]);
             self.used[b] = true;
         }
         let f = &mut self.files[id];
@@ -239,7 +265,7 @@ impl Fs {
         let mut pos = 0;
         while b != NONE && pos < len {
             let i = b as usize;
-            if fnv(&self.data[i]) != self.sum[i] {
+            if i >= BLOCKS || fnv(&self.data[i]) != self.sum[i] || self.nsum[i] != link_sum(i, self.next[i]) {
                 return Err(FsError::Corrupt);
             }
             let take = (len - pos).min(BLOCK);
@@ -257,6 +283,9 @@ impl Fs {
     /// Rimuove un file o una directory vuota.
     pub fn remove(&mut self, id: usize, caller: u8) -> Result<(), FsError> {
         let e = self.entry(id)?;
+        if !self.chain_ok(e.head) {
+            return Err(FsError::Corrupt);
+        }
         if e.owner != caller {
             return Err(FsError::Denied);
         }
@@ -285,6 +314,12 @@ impl Fs {
 
     pub fn free_blocks(&self) -> usize {
         self.used.iter().filter(|&&u| !u).count()
+    }
+
+    #[cfg(test)]
+    fn tamper_next(&mut self, id: usize) {
+        let b = self.files[id].head as usize;
+        self.next[b] ^= 1;
     }
 
     #[cfg(test)]
@@ -371,6 +406,18 @@ mod tests {
         fs.tamper_meta(id);
         let mut out = [0u8; 4];
         assert_eq!(fs.read(id, 0, &mut out), Err(FsError::Corrupt));
+        assert_eq!(fs.remove(id, 0), Err(FsError::Corrupt));
+    }
+
+    #[test]
+    fn next_pointer_corruption_detected() {
+        let mut fs = Fs::new();
+        let id = fs.create(b"p", 0).unwrap();
+        fs.write(id, 0, 1024, &[7u8; 100]).unwrap();
+        fs.tamper_next(id);
+        let mut out = [0u8; 100];
+        assert_eq!(fs.read(id, 0, &mut out), Err(FsError::Corrupt));
+        assert_eq!(fs.write(id, 0, 1024, b"new"), Err(FsError::Corrupt));
         assert_eq!(fs.remove(id, 0), Err(FsError::Corrupt));
     }
 
