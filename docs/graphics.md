@@ -45,6 +45,7 @@ Regola: il compositor non legge la memoria dei programmi. Riceve solo superfici 
 - **Plan di base.** Un programma = una superficie = un livello di tile o una porzione del modo 4. Il compositor decide l'ordine, non i pixel.
 - **Sprite.** 128 sprite hardware, fino a 64×64. Il cursore e le icone vanno qui, non nel buffer.
 - **Sincronizzazione.** Disegno solo durante il blank verticale (circa 60 Hz) per evitare tearing. **Da verificare** il tempo utile.
+- **Stato.** La ROM attuale usa il modo 3 (vedi sezione 6).
 - **Cosa è già possibile.** Mostrare una finestra per programma con quota fissa (32 KB, come da architecture.md), spostare sprite come cursore. Non è possibile un compositor con alpha blending completo nel tempo reale senza misure: **da verificare**.
 
 ## 5. Per macchina potente
@@ -53,9 +54,14 @@ Regola: il compositor non legge la memoria dei programmi. Riceve solo superfici 
 - Compositor a buffer: ogni programma consegna un buffer con token; il compositor compone con la GPU se disponibile, altrimenti in CPU.
 - Protocollo: messaggi a campi fissi (tipo, id, rettangolo, handle buffer). Nessun parser testuale.
 
-## 6. Prototipo
+## 6. Stato attuale (da `gba/`, main)
 
-Non fatto in questa PR: sul branch `main` non esiste la cartella `gba/` e non è stato verificato un toolchain (devkitARM) né mGBA in questo ambiente. Primo passo consigliato: creare `gba/` con un test a schermo pieno in modo 4, poi un compositor di due superfici.
+- La ROM attuale (`gba/src/main.rs`) gira in **modo 3** (`DISPCNT = 0x0403`) e scrive direttamente in VRAM con `fill`. Non c'è ancora un compositor né un'interfaccia.
+- Mostra memoria, slot, workspace e misure con il timer (16,78 MHz). Non ci sono superfici né finestre separate.
+- Build verificata: `cargo +nightly build --release` produce lo stesso `haiku-gba.gba` committato.
+- Avvio in mGBA 0.10.2 (`mgba-qt`) sotto Xvfb: il processo parte, ma la finestra non si disegna in modo affidabile per lo screenshot. Quindi l'output visivo **non è verificato** in questa sessione (da verificare).
+
+**Prototipo compositor: bloccato.** Serve una verifica visiva in mGBA che l'ambiente non riesce a dare in modo affidabile. Passo successivo: far girare un test a schermo pieno in modo 4 con uscita controllabile (es. salvataggio dello schermo via libmgba), poi un compositor a due superfici.
 
 ## 7. Domande aperte
 
