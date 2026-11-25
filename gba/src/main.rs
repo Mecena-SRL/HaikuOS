@@ -374,14 +374,15 @@ pub extern "C" fn rust_main() -> ! {
         let _ = surf.close(&mut m, p);
     }
 
-    // Desktop del concept: croce per scegliere un'icona, A apre il terminale, B lo chiude.
-    // Start passa allo spazio di lavoro.
+    // Desktop del concept: croce per scegliere un'icona, A apre, B chiude la finestra.
+    // Il lanciatore avvia a schermo intero FILES (spazio di lavoro) e NOTES (editor). Start = FILES.
     let mut dk = desktop::Desktop::new();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
+    loop {
     dk.draw_calc(surf);
     desktop::paint(fb, &dk, surf, sp.usr.fs());
-    while keys() & workspace::KEY_START == 0 {
+    while keys() & workspace::KEY_START == 0 && !dk.run_requested() {
         sram::vblank();
         if dk.step(keys(), sp.usr.fs()) {
             dk.draw_calc(surf);
@@ -391,9 +392,26 @@ pub extern "C" fn rust_main() -> ! {
     while keys() & workspace::KEY_START != 0 {
         sram::vblank();
     }
-    // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file.
+    let app = dk.take_run().unwrap_or(desktop::App::Files);
+    if app == desktop::App::Notes {
+        let mut t = [0u8; editor::MAX];
+        let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
+        fill(0, 0, W, 160, BLACK);
+        let surf = unsafe { &mut *core::ptr::addr_of_mut!(SURFACES) };
+        run_editor(surf, &mut m, &t[..n], &mut |txt| {
+            sp.usr.write(b"docs/hello", 0, editor::MAX, txt).is_ok() && sp.usr.sync().is_ok()
+        });
+        continue;
+    }
+    // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file, L torna al desktop.
     let mut ws = Workspace::new();
     loop {
+        if keys() & workspace::KEY_L != 0 {
+            while keys() & workspace::KEY_L != 0 {
+                sram::vblank();
+            }
+            break;
+        }
         sram::vblank();
         let _ = sp.sys.frame();
         let _ = sp.usr.frame();
@@ -437,6 +455,7 @@ pub extern "C" fn rust_main() -> ! {
             draw_workspace(&ws, &sp.usr);
             ws.dirty = false;
         }
+    }
     }
 }
 
