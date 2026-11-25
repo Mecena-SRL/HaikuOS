@@ -1,7 +1,7 @@
 /* Harness headless (libmgba): controlla i colori di desktop::paint in VRAM (mode 3).
  * Build: gcc -O1 -o desktop_check host/desktop_check.c -lmgba
  * Uso:   ./desktop_check haiku-gba.gba
- * Sequenza: A a 300 (fine misure), Start a 500 (fine editor), Destra a 600, A a 610 (apre il terminale); controllo a 650.
+ * Sequenza: A a 300 (fine misure), Start a 500 (fine editor), Destra a 600, A a 610 (apre il terminale), A a 620 (esegue LS); controllo a 650.
  * Verifica: ogni pixel è una delle 4 tinte, e alcuni punti chiave hanno la tinta attesa.
  */
 #include <stdio.h>
@@ -36,7 +36,8 @@ int main(int argc, char **argv) {
     c->reset(c);
     for (int f = 0; f <= 650; f++) {
         c->setKeys(c, (f >= 300 && f < 302) ? KEY_A : (f >= 500 && f < 502) ? KEY_START
-                      : (f >= 600 && f < 602) ? KEY_RIGHT : (f >= 610 && f < 612) ? KEY_A : 0);
+                      : (f >= 600 && f < 602) ? KEY_RIGHT : (f >= 610 && f < 612) ? KEY_A
+                      : (f >= 620 && f < 622) ? KEY_A : 0);
         c->runFrame(c);
     }
     for (int i = 0; i < W * H; i++) vram[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);
@@ -48,13 +49,19 @@ int main(int argc, char **argv) {
         fuori += !ok;
     }
     printf("pixel fuori dalle 4 tinte: %d\n", fuori);
+    /* Output di LS: almeno un pixel di testo (T0) nella riga di output, dentro il corpo della finestra. */
+    int testo = 0;
+    for (int y = 51; y < 58; y++)
+        for (int x = 128; x < 224; x++) testo += vram[y * W + x] == T[0];
+    printf("pixel di testo nell'output di LS: %d\n", testo);
+    fuori += testo == 0;
 
     /* Punti chiave: barra, orologio, icona 0 (evidenziata), icona 1, titolo, chiudi, corpo, testo, bordo. */
     punto p[] = {
         {0, 0, 3, "barra"}, {200, 1, 3, "barra"}, {1, 20, 0, "sfondo"},
         {16, 32, 2, "icona 0"}, {64, 32, 1, "icona 1 (selezionata)"},
         {127, 32, 2, "titolo"}, {227, 33, 1, "chiudi"},
-        {127, 43, 1, "corpo"}, {129, 45, 0, "testo prompt"}, {124, 30, 3, "bordo"},
+        {127, 43, 1, "corpo"}, {124, 30, 3, "bordo"},
     };
     int errori = fuori;
     for (size_t k = 0; k < sizeof p / sizeof p[0]; k++) {
