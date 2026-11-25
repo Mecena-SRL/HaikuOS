@@ -9,6 +9,7 @@ pub const KEY_SELECT: u16 = 1 << 2;
 pub const KEY_START: u16 = 1 << 3;
 pub const KEY_UP: u16 = 1 << 6;
 pub const KEY_DOWN: u16 = 1 << 7;
+pub const KEY_L: u16 = 1 << 9;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Action {
