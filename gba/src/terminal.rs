@@ -42,6 +42,8 @@ pub struct Terminal {
     open: Option<Open>,
     /// App di sistema chiesta dalla riga digitata (indice icona), da aprire dal desktop.
     launch: Option<usize>,
+    /// Testo di un promemoria da aggiungere (ADD), da prendere dal desktop.
+    add: Option<([u8; INPUT_MAX], usize)>,
 }
 
 /// App di sistema lanciabili digitando il nome: (nome, indice icona). Vedi desktop::ICON_LABELS.
@@ -86,12 +88,18 @@ impl Terminal {
             out_n: 0,
             open: None,
             launch: None,
+            add: None,
         }
     }
 
     /// Icona dell'app chiesta dall'ultima riga digitata, se c'era un comando di app. Lo consuma.
     pub fn take_launch(&mut self) -> Option<usize> {
         self.launch.take()
+    }
+
+    /// Testo del promemoria scritto con ADD, se c'è. Lo consuma.
+    pub fn take_add(&mut self) -> Option<([u8; INPUT_MAX], usize)> {
+        self.add.take()
     }
 
     pub fn cwd(&self) -> &[u8] {
@@ -206,6 +214,13 @@ impl Terminal {
         } else if let Some(&(_, icon)) = APP_CMDS.iter().find(|(n, _)| line.eq_ignore_ascii_case(n)) {
             self.out_n = 0;
             self.launch = Some(icon);
+        } else if line.len() > 4 && line[..4].eq_ignore_ascii_case(b"ADD ") {
+            let text = trim(&line[4..]);
+            let mut buf = [0u8; INPUT_MAX];
+            buf[..text.len()].copy_from_slice(text);
+            self.add = Some((buf, text.len()));
+            self.out_n = 0;
+            self.set_line(b"PROMEMORIA OK");
         } else if line.len() > 3 && line[..3].eq_ignore_ascii_case(b"CD ") {
             match self.find_child(fs, trim(&line[3..])) {
                 Some(id) => self.run_cmd(fs, Cmd::Cd(id)),

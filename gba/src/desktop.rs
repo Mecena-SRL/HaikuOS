@@ -282,6 +282,9 @@ impl Desktop {
                             Some(terminal::Open::Reader) => self.win = Some(App::Reader),
                             None => {}
                         }
+                        if let Some((buf, n)) = self.term.take_add() {
+                            self.rem.add(&buf[..n]);
+                        }
                         if let Some(i) = self.term.take_launch() {
                             match launchable(i) {
                                 Some(App::Files) | Some(App::Notes) => self.run = launchable(i),
