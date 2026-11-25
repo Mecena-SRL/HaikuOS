@@ -133,7 +133,7 @@ fn tcp_fin_chiude_il_lato_remoto() {
 
 #[test]
 fn tcp_checksum_su_pseudo_intestazione() {
-    let s = Segment { src_port: 1, dst_port: 2, seq: 3, ack: 4, flags: 0x10, wnd: 512, payload: b"xy".to_vec() };
+    let s = Segment { src_port: 1, dst_port: 2, seq: 3, ack: 4, flags: 0x10, wnd: 512, sack: vec![], payload: b"xy".to_vec() };
     let raw = s.encode(A_IP, B_IP);
     assert_eq!(Segment::parse(&raw, A_IP, B_IP).unwrap(), s);
     // stesso segmento con un IP diverso: il checksum non torna.
