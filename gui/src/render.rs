@@ -68,6 +68,14 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         c.fill(max_button(f), T0);
         c.fill(min_button(f), T0);
         c.fill(body(f), T1);
+        let cc = content(f);
+        for (k, line) in crate::apps::lines(w.app).iter().enumerate() {
+            let y = cc.y + k as i32 * crate::apps::LINE_H;
+            if y + FONT_H > cc.y + cc.h {
+                break;
+            }
+            c.text(cc.x, y, line, T0);
+        }
     }
 
     // Menu applicazioni: riga di ricerca, poi le voci che corrispondono; in cima a tutto.

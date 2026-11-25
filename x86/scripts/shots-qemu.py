@@ -52,4 +52,6 @@ shot("02_menu_ricerca.png")
 key("ret")                                     # apre il terminale
 key("alt")                                     # nessun effetto: controllo che il tasto non rompa nulla
 shot("03_finestra_terminale.png")
+key("f2")                                      # tema successivo
+shot("04_tema_verde.png")
 qemu.terminate(); qemu.wait()

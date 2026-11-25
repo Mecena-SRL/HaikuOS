@@ -12,6 +12,14 @@ const INFO: usize = 0x600;
 const MAGIC: u32 = 0x5642_4531;
 pub const SCALE: i32 = 2;
 
+/// Temi di colore: stessi quattro token (T0..T3) con valori diversi. Tema 0 è il riferimento (bibbia §3).
+/// Da verificare la leggibilità dei temi 1 e 2.
+pub const THEMES: [[u32; 4]; 3] = [
+    [0x08_10_31, 0xFF_FF_FF, 0xFF_84_00, 0x00_A5_FF],
+    [0x0B_2E_1C, 0xF2_F7_F2, 0x7F_D1_7F, 0x2E_8B_57],
+    [0x1E_1E_1E, 0xEE_EE_EE, 0xFF_B0_00, 0x5A_5A_5A],
+];
+
 pub struct Fb {
     base: usize,
     pitch: usize,
@@ -39,8 +47,8 @@ pub fn init() -> Option<Fb> {
 
 impl Fb {
     /// Canvas logico: 320×240 (w/2 × h/2) con scala intera.
-    pub fn canvas(&self) -> Scaled<'_> {
-        Scaled { fb: self, lw: self.w / SCALE, lh: self.h / SCALE }
+    pub fn canvas(&self, theme: usize) -> Scaled<'_> {
+        Scaled { fb: self, lw: self.w / SCALE, lh: self.h / SCALE, pal: &THEMES[theme] }
     }
 
     fn put(&self, x: i32, y: i32, c: u32) {
@@ -65,6 +73,7 @@ pub struct Scaled<'a> {
     fb: &'a Fb,
     lw: i32,
     lh: i32,
+    pal: &'a [u32; 4],
 }
 
 impl<'a> Scaled<'a> {
@@ -79,7 +88,7 @@ impl<'a> Scaled<'a> {
 
 impl<'a> Canvas for Scaled<'a> {
     fn fill(&mut self, r: Rect, t: Tok) {
-        let c = t.rgb();
+        let c = self.pal[t as usize];
         for y in r.y.max(0)..(r.y + r.h).min(self.lh) {
             for x in r.x.max(0)..(r.x + r.w).min(self.lw) {
                 self.block(x, y, c);
@@ -88,7 +97,7 @@ impl<'a> Canvas for Scaled<'a> {
     }
 
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
-        let c = t.rgb();
+        let c = self.pal[t as usize];
         for (i, &ch) in s.as_bytes().iter().enumerate() {
             let g = font::glyph(ch);
             for (row, bits) in g.iter().enumerate() {

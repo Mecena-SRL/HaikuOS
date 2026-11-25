@@ -45,6 +45,7 @@ pub extern "C" fn kmain() -> ! {
             let mut acc = (0i32, 0i32);
             let mut draw_now = true;
             let mut clock = (u8::MAX, u8::MAX);
+            let mut theme = 0usize;
             loop {
                 let mut dirty = draw_now;
                 draw_now = false;
@@ -62,6 +63,10 @@ pub extern "C" fn kmain() -> ! {
                         if ch != 0 {
                             shell.text(ch);
                         }
+                        dirty = true;
+                    }
+                    Some(input::Input::Theme) => {
+                        theme = (theme + 1) % fb::THEMES.len();
                         dirty = true;
                     }
                     Some(input::Input::Super) => {
@@ -87,7 +92,7 @@ pub extern "C" fn kmain() -> ! {
                     None => {}
                 }
                 if dirty {
-                    let mut c = f.canvas();
+                    let mut c = f.canvas(theme);
                     haiku_gui::render::draw(&mut c, &shell);
                     c.fill(haiku_gui::layout::Rect::new(cx, cy, 2, 2), haiku_gui::Tok::T1);
                 }

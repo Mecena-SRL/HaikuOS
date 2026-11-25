@@ -95,3 +95,12 @@ fn clock_text_is_hh_mm() {
     s.set_clock(9, 5);
     assert_eq!(core::str::from_utf8(&s.clock).unwrap(), "09:05");
 }
+
+#[test]
+fn window_body_shows_app_content() {
+    let mut s = Shell::new(&ICONS, 320, 240);
+    s.key(Key::A);
+    let mut b = common::Buf::new(320, 240);
+    haiku_gui::render::draw(&mut b, &s);
+    assert!(b.texts.iter().any(|t| t == "LEGGIMI.TXT"));
+}
