@@ -12,6 +12,8 @@ mod monolith;
 mod workspace;
 #[path = "../src/space.rs"]
 mod space;
+#[path = "../src/reminders.rs"]
+mod reminders;
 #[path = "../src/desktop.rs"]
 mod desktop;
 #[path = "../src/font.rs"]
