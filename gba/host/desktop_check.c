@@ -36,7 +36,10 @@ typedef struct { int x, y, tint; const char *nome; } punto;
 
 /* Tasti per frame. A a 300 (fine misure), Start a 500 (fine editor), Destra a 600, A a 610 (apre il terminale).
  * Poi SELECT (digitazione), 11 giù + A = 'L', 5 giù + A = 'S', sinistra esegue LS. Controllo a 800. */
-static int keys_at(int f) {
+/* Sequenza (frame relativi). Il desktop compare circa al frame 860: i tasti di avvio (A a 300,
+ * Start a 500) fanno avanzare le schermate di test; dal frame 600 la sequenza di desktop è
+ * spostata di 300 frame, così Destra arriva sul desktop (frame 900). */
+static int keys_old(int f) {
     if (f >= 300 && f < 304) return KEY_A;
     if (f >= 500 && f < 504) return KEY_START;
     if (f >= 600 && f < 604) return KEY_RIGHT;
@@ -55,6 +58,12 @@ static int keys_at(int f) {
     return 0;
 }
 
+static int keys_at(int f) {
+    if (f < 600) return keys_old(f);
+    int g = f - 300;
+    return g < 600 ? 0 : keys_old(g);
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
     struct mCore *c = mCoreCreate(mPLATFORM_GBA);
@@ -62,11 +71,11 @@ int main(int argc, char **argv) {
     mCoreInitConfig(c, NULL);
     if (!mCoreLoadFile(c, argv[1])) { puts("load fail"); return 1; }
     c->reset(c);
-    static uint16_t fm[W * H]; /* istantanea del file manager (frame 880) */
-    for (int f = 0; f <= 1000; f++) {
+    static uint16_t fm[W * H]; /* istantanea del file manager (frame 1180) */
+    for (int f = 0; f <= 1300; f++) {
         c->setKeys(c, keys_at(f));
         c->runFrame(c);
-        if (f == 880)
+        if (f == 1180)
             for (int i = 0; i < W * H; i++) fm[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);
     }
     int fm_fuori = 0;
@@ -75,7 +84,7 @@ int main(int argc, char **argv) {
         for (int k = 0; k < 4; k++) ok |= fm[i] == T[k];
         fm_fuori += !ok;
     }
-    printf("pixel fuori tinta nel file manager (frame 880): %d\n", fm_fuori);
+    printf("pixel fuori tinta nel file manager (frame 1180): %d\n", fm_fuori);
     for (int i = 0; i < W * H; i++) vram[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);
 
     int fuori = 0;
