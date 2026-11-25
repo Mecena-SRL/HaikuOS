@@ -71,14 +71,16 @@ Unità logica = 1 px GBA. Tutte le misure sono in unità logiche.
 
 ## 8. Icone e stati
 
+Icona 16×16 = blocco 14×14 (T2) con segni a rettangoli in T0 (glifo, `gui/src/icons.rs`). Etichetta sconosciuta: riquadro vuoto.
+
 | Stato | Icona | Etichetta |
 |---|---|---|
-| Normale | Quadrato pieno T2 | T1 |
-| Selezionata | Quadrato pieno T1 | T1 |
+| Normale | Blocco T2, segni T0 | T1 |
+| Selezionata | Cella piena T1, segni T0 | T1 |
 | Aperta | Come normale, con sottolineatura T2 (1 px) | T1 |
 | Premuta (A) | Inversione: T0 pieno, bordo T1 | T1 |
 
-Lo stato "aperta" e "premuta" sono da implementare. **Da verificare** la visibilità su schermo reale.
+Glifi: FILE, TERM, CALC, WEB, EDIT, SET, ORA, READ. **Da verificare** su schermo GBA reale e su x86 a 32×32 (non fatto).
 
 ## 9. Scala GBA → Mac
 
@@ -99,4 +101,5 @@ Lo stato "aperta" e "premuta" sono da implementare. **Da verificare** la visibil
 - Fase 3 (`gba/src/scale.rs`): scala intera per schermi grandi, letterbox centrato con banda `T0`. Il disegno resta 240×160; test host in `gba/host/test_scale.rs`. Da verificare: schermo reale o VM grafica, barra e finestre ridimensionabili (non fatti).
 - Fase 2 (`gba/src/desktop.rs`): orologio della barra in T0, come il resto del testo sulla barra. Il resto del desktop già rispetta palette, spaziature e griglia.
 - Fase 4 (x86, `gui/src/shell.rs`, `render.rs`): menu HAIKUOS con ricerca (tasto Win), pulsanti finestra nella barra (riduci = icona, click sul pulsante attivo), orologio RTC in T0, trascinamento dal titolo, massimizza sotto la barra. Screenshot: `/mnt/project-files/haikuos/render-x86/`. Da verificare: ora in UTC (nessun fuso), contenuto delle app nelle finestre (ancora vuoto), temi alternativi, ombre e animazioni non fatte (voluto).
+- Fase 1 (icone, `gui/src/icons.rs`): glifi 16×16 per GBA e x86. Da fare: versione 32×32 x86; `gba/host` screenshot. **Da verificare**.
 - Da verificare su hardware GBA: leggibilità del 3×5 su schermo reale, contrasto T2 su T1, tempi di ridisegno.

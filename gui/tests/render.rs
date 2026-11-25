@@ -18,7 +18,8 @@ fn bar_background_icons_and_window_colors() {
     assert_eq!(b.at(0, 0), Tok::T3);
     assert_eq!(b.at(0, BAR_H), Tok::T0);
     assert_eq!(b.at(GRID_X, GRID_Y), Tok::T1); // icona 0 selezionata
-    assert_eq!(b.at(GRID_X + PITCH_X, GRID_Y), Tok::T2); // icona 1 normale
+    assert_eq!(b.at(GRID_X + PITCH_X + 1, GRID_Y + 1), Tok::T2); // icona 1 normale: blocco
+    assert_eq!(b.at(GRID_X + PITCH_X + 3, GRID_Y + 4), Tok::T0); // segno del glifo TERM
 
     s.key(Key::A);
     let f = s.wm.top().unwrap().frame;
