@@ -3,6 +3,7 @@
 #![no_std]
 #![no_main]
 
+mod alloc;
 mod fs;
 mod monolith;
 mod persist;
@@ -120,6 +121,12 @@ pub extern "C" fn rust_main() -> ! {
     m.revoke(1);
     let _ = m.request(3, SLOT_BYTES);
 
+    // Allocatore: il programma 0 alloca 4 KB dentro la sua quota e li libera.
+    let alloc_ok = match m.alloc(0, 4096) {
+        Ok(off) => m.free(0, off, 4096),
+        Err(_) => false,
+    };
+
     let granted = [m.grant_of(0), m.grant_of(1), m.grant_of(2), m.grant_of(3)];
 
     unsafe { write_volatile(DISPCNT, 0x0403) }; // mode 3, BG2 attivo
@@ -139,6 +146,7 @@ pub extern "C" fn rust_main() -> ! {
     let boots = if found { b[0].wrapping_add(1) } else { 1 };
     let ok = p.write(b"boots", 0, 1, &[boots]).is_ok() && p.sync().is_ok();
     fill(60, 130, 16, 16, if ok { GREEN } else { ORANGE }); // persistenza: ok
+    fill(84, 130, 16, 16, if alloc_ok { GREEN } else { ORANGE }); // allocatore: ok
     for i in 0..(boots as usize).min(8) {
         fill(12 + i * 20, 146, 12, 10, BLUE); // avvii salvati
     }

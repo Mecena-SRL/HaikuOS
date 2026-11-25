@@ -10,6 +10,10 @@ use crate::fs::{Fs, FsError, FILES, MAX_FILE, NAME_MAX};
 
 /// Profilo dichiarato dal livello sottile: quando salvare.
 /// Salva quando si accumulano `units` modifiche, oppure dopo `max_frames` frame se c'è almeno una modifica.
+/// Profilo macchina potente (file su disco): soglia 4 modifiche o 6 frame (0,1 s), nessun limite di salvataggi.
+/// Valori scelti senza misure: da verificare.
+pub const POWERFUL: Profile = Profile { units: 4, max_frames: 6, max_writes_per_min: u32::MAX };
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Profile {
     /// Soglia di modifiche (token) che fa partire un salvataggio.
@@ -34,6 +38,7 @@ const HDR_AREA: usize = 2 * SLOT;
 const K_CREATE: u8 = 1;
 const K_WRITE: u8 = 2;
 const K_REMOVE: u8 = 3;
+const K_MKDIR: u8 = 4;
 const FNV0: u32 = 0x811c_9dc5;
 
 fn upd(mut h: u32, b: &[u8]) -> u32 {
@@ -176,7 +181,7 @@ impl<M: Medium> Persist<M> {
             }
             self.m.read(base + off, &mut h);
             let (kind, owner, nl) = (h[0], h[1], h[2] as usize);
-            if !(K_CREATE..=K_REMOVE).contains(&kind) || nl == 0 || nl > NAME_MAX {
+            if !(K_CREATE..=K_MKDIR).contains(&kind) || nl == 0 || nl > NAME_MAX {
                 break;
             }
             let hl = 3 + nl + 2;
@@ -213,6 +218,9 @@ impl<M: Medium> Persist<M> {
                     let _ = self.fs.write(id, o, MAX_FILE, data);
                 }
             }
+            K_MKDIR => {
+                let _ = self.fs.mkdir(name, owner);
+            }
             K_REMOVE => {
                 if let Some(id) = self.fs.find_name(name) {
                     let o = self.fs.info(id).map_or(0, |x| x.1);
@@ -247,26 +255,31 @@ impl<M: Medium> Persist<M> {
                 let (nm, nl, owner) = self.removed[i];
                 put(&mut self.m, base, &mut off, self.region, K_REMOVE, owner, &nm[..nl as usize], &[])?;
             }
-            for id in 0..FILES {
-                if self.dirty & (1 << id) == 0 {
-                    continue;
-                }
-                let (nm, nl, owner) = match self.fs.info(id) {
-                    Some((n, o)) => {
-                        let mut nm = [0u8; NAME_MAX];
-                        nm[..n.len()].copy_from_slice(n);
-                        (nm, n.len(), o)
+            for pass in 0..2 {
+                for id in 0..FILES {
+                    if self.dirty & (1 << id) == 0 || self.fs.is_dir(id) != (pass == 0) {
+                        continue;
                     }
-                    None => continue,
-                };
-                let name = &nm[..nl];
-                if self.fresh & (1 << id) != 0 {
-                    put(&mut self.m, base, &mut off, self.region, K_CREATE, owner, name, &[])?;
-                }
-                let len = self.fs.len_of(id).unwrap_or(0);
-                self.fs.read(id, owner, &mut buf[..len])?;
-                if len > 0 {
-                    put(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &buf[..len])?;
+                    let (nm, nl, owner) = match self.fs.info(id) {
+                        Some((n, o)) => {
+                            let mut nm = [0u8; NAME_MAX];
+                            nm[..n.len()].copy_from_slice(n);
+                            (nm, n.len(), o)
+                        }
+                        None => continue,
+                    };
+                    let name = &nm[..nl];
+                    if self.fresh & (1 << id) != 0 {
+                        let kind = if pass == 0 { K_MKDIR } else { K_CREATE };
+                        put(&mut self.m, base, &mut off, self.region, kind, owner, name, &[])?;
+                    }
+                    if pass == 1 {
+                        let len = self.fs.len_of(id).unwrap_or(0);
+                        self.fs.read(id, owner, &mut buf[..len])?;
+                        if len > 0 {
+                            put(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &buf[..len])?;
+                        }
+                    }
                 }
             }
             Ok(())
@@ -291,21 +304,30 @@ impl<M: Medium> Persist<M> {
         let base = HDR_AREA + new * self.region;
         let mut off = 0;
         let mut buf = [0u8; MAX_FILE];
-        for id in 0..FILES {
-            let (nm, nl, owner) = match self.fs.info(id) {
-                Some((n, o)) => {
-                    let mut nm = [0u8; NAME_MAX];
-                    nm[..n.len()].copy_from_slice(n);
-                    (nm, n.len(), o)
+        for pass in 0..2 {
+            for id in 0..FILES {
+                if self.fs.is_dir(id) != (pass == 0) {
+                    continue;
                 }
-                None => continue,
-            };
-            let name = &nm[..nl];
-            let len = self.fs.len_of(id).unwrap_or(0);
-            self.fs.read(id, owner, &mut buf[..len])?;
-            put(&mut self.m, base, &mut off, self.region, K_CREATE, owner, name, &[])?;
-            if len > 0 {
-                put(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &buf[..len])?;
+                let (nm, nl, owner) = match self.fs.info(id) {
+                    Some((n, o)) => {
+                        let mut nm = [0u8; NAME_MAX];
+                        nm[..n.len()].copy_from_slice(n);
+                        (nm, n.len(), o)
+                    }
+                    None => continue,
+                };
+                let name = &nm[..nl];
+                if pass == 0 {
+                    put(&mut self.m, base, &mut off, self.region, K_MKDIR, owner, name, &[])?;
+                } else {
+                    let len = self.fs.len_of(id).unwrap_or(0);
+                    self.fs.read(id, owner, &mut buf[..len])?;
+                    put(&mut self.m, base, &mut off, self.region, K_CREATE, owner, name, &[])?;
+                    if len > 0 {
+                        put(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &buf[..len])?;
+                    }
+                }
             }
         }
         self.terminate(base, off);
@@ -338,6 +360,13 @@ impl<M: Medium> Persist<M> {
 
     pub fn create(&mut self, name: &[u8], owner: u8) -> Result<(), FsError> {
         self.fs.create(name, owner)?;
+        let id = self.fs.find_name(name).ok_or(FsError::NotFound)?;
+        self.mark(id, true);
+        Ok(())
+    }
+
+    pub fn mkdir(&mut self, name: &[u8], owner: u8) -> Result<(), FsError> {
+        self.fs.mkdir(name, owner)?;
         let id = self.fs.find_name(name).ok_or(FsError::NotFound)?;
         self.mark(id, true);
         Ok(())
@@ -596,6 +625,31 @@ mod tests {
         let per_min = p.saves - before;
         assert!(per_min <= GBA_PROFILE.max_writes_per_min, "salvataggi al minuto: {per_min}");
         assert!(per_min >= 1, "nessun salvataggio");
+    }
+
+    #[test]
+    fn powerful_profile_saves_fast() {
+        let mut p = Persist::open(Counting { inner: fresh(), writes: 0, profile: POWERFUL }, R);
+        let base = p.saves;
+        p.create(b"f", 0).unwrap();
+        for _ in 0..3 {
+            p.write(b"f", 0, 1024, b"x").unwrap();
+        }
+        p.frame().unwrap();
+        assert_eq!(p.saves, base + 1);
+    }
+
+    #[test]
+    fn directories_survive_reopen() {
+        let mut p = Persist::open(fresh(), R);
+        p.mkdir(b"docs", 0).unwrap();
+        p.create(b"docs/a", 0).unwrap();
+        p.write(b"docs/a", 0, 1024, b"hi").unwrap();
+        p.sync().unwrap();
+        let p2 = Persist::open(p.into_medium(), R);
+        let mut out = [0u8; 2];
+        assert_eq!(p2.read(b"docs/a", 0, &mut out), Ok(2));
+        assert_eq!(&out, b"hi");
     }
 
     #[test]

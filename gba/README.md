@@ -16,7 +16,7 @@ cargo build --release
 
 - Barra in alto: memoria del pool (verde monolite, blu agente, arancio slot assegnati, grigio scuro libero).
 - Quattro quadrati: arancio = slot assegnato, grigio = libero. Sequenza di boot: 3 concessi, il 4° negato, revoca, riassegnazione.
-- Tre quadretti in basso: monolite (verde), agente (blu), persistenza (verde = ok).
+- Quattro quadretti in basso: monolite (verde), agente (blu), persistenza (verde = ok), allocatore (verde = ok).
 - Riga blu in basso: un quadretto per ogni avvio salvato (il contatore sopravvive al riavvio).
 
 ## File system (`src/fs.rs`)
@@ -26,7 +26,7 @@ cargo build --release
 - Scrittura atomica: blocchi nuovi prima, cambio di testa poi, liberazione del vecchio. Se manca spazio, il file resta uguale.
 - Permessi: solo l'owner. Quota: la scrittura non supera i byte concessi dall'agente.
 - Test host: `cd gba && rustc --edition 2021 --test src/fs.rs -o /tmp/fs_test && /tmp/fs_test` (5 test, tutti ok).
-- Non ancora: directory (solo lista piatta).
+- Directory: percorsi "a/b" (max 24 byte), `mkdir`, `list`. Un file richiede la directory padre. Una directory non vuota non si cancella.
 
 ## Verificato
 
@@ -59,3 +59,15 @@ cargo build --release
 - Cicli di scrittura della SRAM e della flash GBA: non misurati. Il profilo sceglie frequenza bassa per questo motivo.
 - Su hardware reale: non testato. SRAM e tempi di scrittura sono da misurare.
 - Stack: il file system e il persistente stanno nell'IWRAM da 32 KB. Non misurato oltre a quello che mGBA mostra.
+
+## Directory e allocatore
+
+- Directory nel file system: `mkdir`, percorsi con `/`, `list`. Persistite con il record `MKDIR`, prima delle loro voci.
+- Allocatore per slot (`src/alloc.rs`): bitmap di 512 blocchi da 64 byte (32 KB). `Monolith::alloc` e `free` per programma, entro la quota concessa. Oltre la quota: `OverQuota`.
+- Profilo macchina potente (`persist::POWERFUL`): soglia 4 modifiche o 6 frame (0,1 s), nessun limite di salvataggi. Scelto senza misure: da verificare.
+- Test host: 23 test. Comando invariato.
+
+## Da verificare (aggiunte)
+
+- Profilo macchina potente: valori scelti a tavolino, non misurati.
+- Allocatore: costo in cicli su ARM7TDMI non misurato.
