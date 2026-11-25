@@ -147,3 +147,20 @@ fn input_editing_pick_and_backspace() {
     }
     assert_eq!(t.input().len(), terminal::INPUT_MAX);
 }
+
+#[test]
+fn comandi_chess_e_read_richiedono_la_finestra() {
+    let f = sample();
+    let mut t = Terminal::new();
+    assert_eq!(t.take_open(), None);
+    t.toggle_typing();
+    for c in b"CHESS" {
+        let i = terminal::ALPHA.iter().position(|a| a == c).unwrap();
+        while t.pick != i { t.pick_step(1); }
+        t.type_pick();
+    }
+    t.run_input(&f);
+    assert_eq!(t.take_open(), Some(terminal::Open::Chess));
+    assert_eq!(t.take_open(), None);
+    assert_eq!(t.line(0), b"SCACCHI");
+}
