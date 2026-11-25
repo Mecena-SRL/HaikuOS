@@ -73,6 +73,7 @@ pub const KEY_RIGHT: u16 = 1 << 4;
 pub const KEY_LEFT: u16 = 1 << 5;
 pub const KEY_UP: u16 = 1 << 6;
 pub const KEY_DOWN: u16 = 1 << 7;
+pub const KEY_SELECT: u16 = 1 << 2;
 
 /// Stato del desktop: icona selezionata, programma in finestra (indice icona), calcolatrice.
 pub struct Desktop {
@@ -118,6 +119,9 @@ impl Desktop {
             self.calc.calc().err.is_some(),
             self.term.sel,
             self.term.lines(),
+            self.term.typing,
+            self.term.pick,
+            self.term.input().len(),
         );
         match self.win {
             Some(App::Calc) => {
@@ -127,17 +131,39 @@ impl Desktop {
                 }
             }
             Some(App::Term) => {
-                if pressed & KEY_UP != 0 {
-                    self.term.step_sel(fs, -1);
+                if pressed & KEY_SELECT != 0 {
+                    self.term.toggle_typing();
                 }
-                if pressed & KEY_DOWN != 0 {
-                    self.term.step_sel(fs, 1);
-                }
-                if pressed & KEY_A != 0 {
-                    self.term.run(fs, self.term.sel);
-                }
-                if pressed & KEY_B != 0 {
-                    self.win = None;
+                if self.term.typing {
+                    // Digitazione: su/giù scelgono il carattere, A lo aggiunge, B cancella, sinistra esegue.
+                    if pressed & KEY_UP != 0 {
+                        self.term.pick_step(-1);
+                    }
+                    if pressed & KEY_DOWN != 0 {
+                        self.term.pick_step(1);
+                    }
+                    if pressed & KEY_A != 0 {
+                        self.term.type_pick();
+                    }
+                    if pressed & KEY_B != 0 {
+                        self.term.backspace();
+                    }
+                    if pressed & KEY_LEFT != 0 {
+                        self.term.run_input(fs);
+                    }
+                } else {
+                    if pressed & KEY_UP != 0 {
+                        self.term.step_sel(fs, -1);
+                    }
+                    if pressed & KEY_DOWN != 0 {
+                        self.term.step_sel(fs, 1);
+                    }
+                    if pressed & KEY_A != 0 {
+                        self.term.run(fs, self.term.sel);
+                    }
+                    if pressed & KEY_B != 0 {
+                        self.win = None;
+                    }
                 }
             }
             _ => {
@@ -166,6 +192,9 @@ impl Desktop {
                 self.calc.calc().err.is_some(),
                 self.term.sel,
                 self.term.lines(),
+                self.term.typing,
+                self.term.pick,
+                self.term.input().len(),
             )
     }
 }
@@ -245,12 +274,22 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
     }
     crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"TERMINALE", TEXT);
     // Prompt: "$ " e la voce del menu scelta con su/giù. A la esegue.
-    let mut lab = [0u8; terminal::LABEL_MAX];
-    let ln = d.term.label(fs, d.term.sel, &mut lab);
-    let mut prompt = [0u8; terminal::LABEL_MAX + 2];
+    let mut prompt = [0u8; terminal::INPUT_MAX + terminal::LABEL_MAX + 4];
     prompt[0] = b'$';
     prompt[1] = b' ';
-    let n = upper_into(&mut prompt[2..], &lab[..ln]);
+    let n = if d.term.typing {
+        // Digitazione: testo scritto e carattere scelto (lo spazio si vede come _).
+        let inp = d.term.input();
+        let mut n = upper_into(&mut prompt[2..], inp);
+        let c = terminal::ALPHA[d.term.pick];
+        prompt[2 + n] = if c == b' ' { b'_' } else { c };
+        n += 1;
+        n
+    } else {
+        let mut lab = [0u8; terminal::LABEL_MAX];
+        let ln = d.term.label(fs, d.term.sel, &mut lab);
+        upper_into(&mut prompt[2..], &lab[..ln])
+    };
     crate::font::draw(fb, W, H, WIN_X + 4, by + 2, &prompt[..2 + n], TEXT);
     // Output: sotto il prompt, una riga per voce.
     for k in 0..d.term.lines() {
