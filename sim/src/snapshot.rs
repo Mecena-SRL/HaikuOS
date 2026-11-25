@@ -81,6 +81,8 @@ fn check_table(t: &Table) -> Result<(), SnapError> {
 pub struct Diff {
     pub put: Vec<(String, Vec<u8>)>,
     pub del: Vec<String>,
+    /// Impronta dello stato di arrivo (nomi e contenuti in chiaro), per verificare la replica.
+    pub root: u32,
 }
 
 pub struct Store {
@@ -357,6 +359,18 @@ impl Store {
         slot::seal(content, &self.key, &nonce, TRANSIT_SLOT, SNAP_MAX_FILE * 2).map_err(|_| SnapError::TooLarge)
     }
 
+    /// Impronta di una tabella: nomi e contenuti in ordine.
+    fn state_root(&self, t: &Table) -> Result<u32, SnapError> {
+        let mut h = 0x811c_9dc5;
+        for (name, m) in t {
+            let c = self.unpack(m)?;
+            h = fnv_with(h, name.as_bytes());
+            h = fnv_with(h, &(c.len() as u32).to_le_bytes());
+            h = fnv_with(h, &c);
+        }
+        Ok(h)
+    }
+
     /// Cosa serve per passare dallo stato `from` (None = vuoto) allo snapshot `to`.
     /// I contenuti da scrivere sono cifrati per il trasporto (chiave condivisa tra le repliche).
     pub fn diff(&mut self, from: Option<&str>, to: &str) -> Result<Diff, SnapError> {
@@ -381,11 +395,13 @@ impl Store {
                 d.del.push(name.clone());
             }
         }
+        d.root = self.state_root(&new)?;
         Ok(d)
     }
 
-    /// Applica una differenza. Prima apre e autentica tutto il contenuto: se un pezzo è alterato
-    /// non si scrive nulla. Se poi manca spazio a metà, lo stato è parziale: va ripetuta.
+    /// Applica una differenza a una replica nello stato `from`. Autentica tutto prima di scrivere.
+    /// Dopo la scrittura verifica l'impronta: se non coincide, lo stato è scorretto (`Corrupt`).
+    /// Se manca spazio a metà, lo stato è parziale: va ripetuta.
     pub fn apply(&mut self, d: &Diff) -> Result<(), SnapError> {
         let mut plain = Vec::with_capacity(d.put.len());
         for (name, sealed) in &d.put {
@@ -397,6 +413,9 @@ impl Store {
         }
         for (name, data) in &plain {
             self.write(name, data)?;
+        }
+        if self.state_root(&self.files.clone())? != d.root {
+            return Err(SnapError::Corrupt);
         }
         Ok(())
     }
