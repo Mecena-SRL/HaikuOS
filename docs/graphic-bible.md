@@ -62,7 +62,7 @@ Unità logica = 1 px GBA. Tutte le misure sono in unità logiche.
 - Titolo **attivo**: fondo T2, testo T0.
 - Titolo **inattivo**: fondo T1, testo T0. Pulsanti riduci, massimizza, chiudi: quadrati 8×8 T0 (x86).
 - Corpo: fondo T1. Il programma disegna solo qui dentro.
-- Angoli: retti su GBA. Su Mac, raggio 4 px. **Da verificare**.
+- Angoli: retti su GBA. Su x86, smussati con raggio 4 px (fondo T0). Niente ombre (decisione di design). **Da verificare** a schermo.
 
 ## 7. Barra superiore
 

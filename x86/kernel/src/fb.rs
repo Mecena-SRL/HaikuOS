@@ -87,6 +87,10 @@ impl<'a> Scaled<'a> {
 }
 
 impl<'a> Canvas for Scaled<'a> {
+    fn rounded(&self) -> bool {
+        true
+    }
+
     fn fill(&mut self, r: Rect, t: Tok) {
         let c = self.pal[t as usize];
         for y in r.y.max(0)..(r.y + r.h).min(self.lh) {

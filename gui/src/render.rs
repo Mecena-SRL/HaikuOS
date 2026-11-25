@@ -9,6 +9,25 @@ use crate::icons::{cuts, BLOCK};
 pub trait Canvas {
     fn fill(&mut self, r: Rect, t: Tok);
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok);
+    /// Angoli arrotondati delle finestre: solo x86 (bibbia, sezione 6). GBA: retti.
+    fn rounded(&self) -> bool {
+        false
+    }
+}
+
+/// Smussa i quattro angoli della finestra `f` con il fondo T0 (raggio 4 px logici).
+fn round_corners<C: Canvas>(c: &mut C, f: Rect) {
+    const CUT: [i32; 4] = [3, 2, 1, 0];
+    for (dy, &w) in CUT.iter().enumerate() {
+        let dy = dy as i32;
+        if w == 0 {
+            continue;
+        }
+        c.fill(Rect::new(f.x, f.y + dy, w, 1), T0);
+        c.fill(Rect::new(f.x + f.w - w, f.y + dy, w, 1), T0);
+        c.fill(Rect::new(f.x, f.y + f.h - 1 - dy, w, 1), T0);
+        c.fill(Rect::new(f.x + f.w - w, f.y + f.h - 1 - dy, w, 1), T0);
+    }
 }
 
 /// Prefisso di `s` che entra in `cols` colonne di testo (4 px per carattere).
@@ -201,6 +220,9 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         c.fill(min_button(f), T0);
         c.fill(body(f), T1);
         draw_app(c, s, w.app, content(f));
+        if c.rounded() {
+            round_corners(c, f);
+        }
     }
 
     // Menu applicazioni: riga di ricerca, poi le voci che corrispondono; in cima a tutto.
