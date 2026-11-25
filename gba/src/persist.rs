@@ -6,7 +6,7 @@
 //! Ogni record: [tipo][owner][lun. nome][nome][lun. dati u16][dati][checksum FNV-1a u32].
 //! Dopo la coda del log c'è sempre un byte 0, così il replay non legge record vecchi.
 #![allow(dead_code)]
-use crate::fs::{Fs, FsError, FILES, MAX_FILE, NAME_MAX};
+use crate::fs::{Fs, FsError, BLOCK, FILES, MAX_FILE, NAME_MAX};
 
 /// Profilo dichiarato dal livello sottile: quando salvare.
 /// Salva quando si accumulano `units` modifiche, oppure dopo `max_frames` frame se c'è almeno una modifica.
@@ -87,6 +87,31 @@ fn put<M: Medium>(m: &mut M, base: usize, off: &mut usize, cap: usize, kind: u8,
     m.write(at, &h[..hl]);
     m.write(at + hl, data);
     m.write(at + hl + data.len(), &upd(upd(FNV0, &h[..hl]), data).to_le_bytes());
+    *off += total;
+    Ok(())
+}
+
+/// Scrive un record i cui dati stanno nei blocchi di `fs`, a blocchi (nessun buffer grande).
+fn put_stream<M: Medium>(m: &mut M, base: usize, off: &mut usize, cap: usize, kind: u8, owner: u8, name: &[u8], fs: &Fs, id: usize, dl: usize) -> Result<(), FsError> {
+    let total = rec_len(name.len(), dl);
+    if *off + total > cap {
+        return Err(FsError::NoSpace);
+    }
+    let (h, hl) = head(kind, owner, name, dl);
+    let at = base + *off;
+    m.write(at, &h[..hl]);
+    let mut crc = upd(FNV0, &h[..hl]);
+    let mut blk = [0u8; BLOCK];
+    let mut pos = 0;
+    let mut i = 0;
+    while pos < dl {
+        let n = fs.read_block(id, i, &mut blk)?.min(dl - pos);
+        m.write(at + hl + pos, &blk[..n]);
+        crc = upd(crc, &blk[..n]);
+        pos += n;
+        i += 1;
+    }
+    m.write(at + hl + dl, &crc.to_le_bytes());
     *off += total;
     Ok(())
 }
@@ -249,7 +274,6 @@ impl<M: Medium> Persist<M> {
         }
         let base = HDR_AREA + self.active * self.region;
         let mut off = self.end;
-        let mut buf = [0u8; MAX_FILE];
         let res = (|| -> Result<(), FsError> {
             for i in 0..self.rm_len {
                 let (nm, nl, owner) = self.removed[i];
@@ -275,9 +299,8 @@ impl<M: Medium> Persist<M> {
                     }
                     if pass == 1 {
                         let len = self.fs.len_of(id).unwrap_or(0);
-                        self.fs.read(id, owner, &mut buf[..len])?;
                         if len > 0 {
-                            put(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &buf[..len])?;
+                            put_stream(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &self.fs, id, len)?;
                         }
                     }
                 }
@@ -303,7 +326,6 @@ impl<M: Medium> Persist<M> {
         let new = 1 - self.active;
         let base = HDR_AREA + new * self.region;
         let mut off = 0;
-        let mut buf = [0u8; MAX_FILE];
         for pass in 0..2 {
             for id in 0..FILES {
                 if self.fs.is_dir(id) != (pass == 0) {
@@ -322,10 +344,9 @@ impl<M: Medium> Persist<M> {
                     put(&mut self.m, base, &mut off, self.region, K_MKDIR, owner, name, &[])?;
                 } else {
                     let len = self.fs.len_of(id).unwrap_or(0);
-                    self.fs.read(id, owner, &mut buf[..len])?;
                     put(&mut self.m, base, &mut off, self.region, K_CREATE, owner, name, &[])?;
                     if len > 0 {
-                        put(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &buf[..len])?;
+                        put_stream(&mut self.m, base, &mut off, self.region, K_WRITE, owner, name, &self.fs, id, len)?;
                     }
                 }
             }
@@ -373,6 +394,10 @@ impl<M: Medium> Persist<M> {
     }
 
     pub fn write(&mut self, name: &[u8], caller: u8, grant: usize, data: &[u8]) -> Result<(), FsError> {
+        // Il record (più il byte di fine log) deve stare in una regione, altrimenti la compattazione fallirebbe.
+        if rec_len(name.len(), data.len()) + 1 > self.region {
+            return Err(FsError::TooLarge);
+        }
         let id = self.fs.find_name(name).ok_or(FsError::NotFound)?;
         self.fs.write(id, caller, grant, data)?;
         self.mark(id, false);
@@ -654,6 +679,24 @@ mod tests {
         let mut out = [0u8; 2];
         assert_eq!(p2.read(b"docs/a", 0, &mut out), Ok(2));
         assert_eq!(&out, b"hi");
+    }
+
+    #[test]
+    fn oversize_write_refused_and_big_file_survives() {
+        let mut p = Persist::open(fresh(), R);
+        p.create(b"big", 0).unwrap();
+        p.write(b"big", 0, 4096, &[1u8; 100]).unwrap();
+        assert_eq!(p.write(b"big", 0, 4096, &[2u8; 1100]), Err(FsError::TooLarge));
+        // Un file quasi pieno: si riscrive più volte, forzando compattazioni, e sopravvive al riavvio.
+        let data = [3u8; 1000];
+        for _ in 0..3 {
+            p.write(b"big", 0, 4096, &data).unwrap();
+            p.sync().unwrap();
+        }
+        let p2 = Persist::open(p.into_medium(), R);
+        let mut out = [0u8; 1000];
+        assert_eq!(p2.read(b"big", 0, &mut out), Ok(1000));
+        assert_eq!(out, data);
     }
 
     #[test]
