@@ -36,13 +36,19 @@ static void compose_expected(const char *text, char pending, const char *status)
         {10, 20, rgb(4, 24, 6)}, {50, 50, rgb(6, 14, 28)}, {100, 70, rgb(30, 16, 2)}};
     for (int i = 0; i < W * H; i++) expect[i] = 0;
     size_t n = strlen(text);
+    /* Come glyph::draw_wrapped: 15 colonne, 6 righe visibili, origine (2,2), riga di 6 px. */
+    size_t total_lines = n / 15 + 1;
+    size_t start = total_lines > 6 ? total_lines - 6 : 0;
     for (size_t i = 0; i <= n; i++) {
         char ch = i < n ? text[i] : pending;
         uint16_t col = i < n ? s[0].c : rgb(30, 16, 2);
+        size_t line = i / 15;
+        if (line < start) continue;
+        int row = (int)(line - start);
         for (int ry = 0; ry < 5; ry++)
             for (int col3 = 0; col3 < 3; col3++) {
                 if (!(glyph(ch)[ry] & (0x4 >> col3))) continue;
-                int gx = 2 + (int)i * 4 + col3, gy = 2 + ry;
+                int gx = 2 + (int)(i % 15) * 4 + col3, gy = 2 + row * 6 + ry;
                 if (gx < SW && gy < SH) expect[(s[0].y + gy) * W + s[0].x + gx] = col;
             }
     }
@@ -52,7 +58,7 @@ static void compose_expected(const char *text, char pending, const char *status)
             for (int ry = 0; ry < 5; ry++)
                 for (int col3 = 0; col3 < 3; col3++) {
                     if (!(glyph(status[i])[ry] & (0x4 >> col3))) continue;
-                    int gx = 2 + (int)i * 4 + col3, gy = 10 + ry;
+                    int gx = 2 + (int)i * 4 + col3, gy = 40 + ry;
                     if (gx < SW && gy < SH) expect[(s[0].y + gy) * W + s[0].x + gx] = rgb(6, 14, 28);
                 }
     }
@@ -97,20 +103,26 @@ int main(int argc, char **argv) {
      * save: Su a 450, A a 470 (aggiunge 'A'), Select a 490 (salva). Controllo a 520.
      * load: nessun tasto. Controllo a 400: il testo salvato deve essere ricaricato. */
     int diff = 0;
-    for (int f = 0; f <= 640; f++) {
+    for (int f = 0; f <= 760; f++) {
         int k = 0;
         if (f >= 300 && f < 302) k = 1;
         if (save && f >= 450 && f < 452) k = 0x40;
         if (save && f >= 470 && f < 472) k = 1;
+        /* Dodici A dopo 660 (pending 'A'): il testo va a capo. */
+        if (save && f >= 654 && f < 656) k = 0x40; /* Su: pending diventa 'A' */
+        if (save && f >= 660 && f < 732 && ((f - 660) % 6) < 2) k = 1;
         if (save && f >= 490 && f < 492) k = 4;
         /* Start esce dall'editor; A entra in docs e apre docs/hello dallo spazio di lavoro. */
         if (save && f >= 540 && f < 542) k = 8;
-        if (save && ((f >= 560 && f < 562) || (f >= 580 && f < 582) || (f >= 600 && f < 602))) k = 1;
+        /* Il desktop esce con Start; poi A entra in docs e apre docs/hello. */
+        if (save && f >= 560 && f < 562) k = 8;
+        if (save && ((f >= 580 && f < 582) || (f >= 600 && f < 602))) k = 1;
         c->setKeys(c, k);
         c->runFrame(c);
         if (!save && f == 400) diff += check(c, "caricato (400)", "hello haikuosA", ' ', NULL);
         if (save && f == 520) diff += check(c, "salvato (520)", "hello haikuosA", 'A', "SALVATO");
         if (save && f == 640) diff += check_rect(c, "file aperto dallo spazio di lavoro (640)", "hello haikuosA", ' ', NULL, 1);
+        if (save && f == 760) diff += check_rect(c, "a capo (760)", "hello haikuosAAAAAAAAAAAAA", 'A', NULL, 1);
     }
     if (save) {
         /* Riavvio nella stessa SRAM: il testo salvato deve tornare nella demo. */

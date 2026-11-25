@@ -195,11 +195,9 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
 fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor, status: Option<&[u8]>) {
     if let Some(px) = surf.pixels_mut(0) {
         px.fill(BLACK);
-        glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 2, ed.text(), GREEN);
-        let x = 2 + ed.text().len() * glyph::ADVANCE;
-        glyph::draw_text(px, surfaces::SW, surfaces::SH, x, 2, &[ed.pending()], ORANGE);
+        glyph::draw_wrapped(px, surfaces::SW, surfaces::SH, ed.text(), ed.pending(), GREEN, ORANGE);
         if let Some(msg) = status {
-            glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 10, msg, BLUE);
+            glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 40, msg, BLUE);
         }
     }
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
@@ -352,10 +350,10 @@ pub extern "C" fn rust_main() -> ! {
         px.fill(ORANGE);
     }
     // Primo programma grafico: visualizzatore di testo. Legge docs/hello dal file system.
-    let mut t = [0u8; 32];
+    let mut t = [0u8; editor::MAX];
     let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
     run_editor(surf, &mut m, &t[..n], &mut |txt| {
-        sp.usr.write(b"docs/hello", 0, 64, txt).is_ok() && sp.usr.sync().is_ok()
+        sp.usr.write(b"docs/hello", 0, editor::MAX, txt).is_ok() && sp.usr.sync().is_ok()
     });
     // Chiusura: ogni programma riottiene la sua quota.
     for p in [2, 3] {
@@ -406,12 +404,12 @@ pub extern "C" fn rust_main() -> ! {
                     if let Some((nm, _)) = sp.usr.fs().info(id) {
                         name[..nl].copy_from_slice(&nm[..nl]);
                     }
-                    let mut buf = [0u8; 24];
+                    let mut buf = [0u8; editor::MAX];
                     let n = sp.usr.read(&name[..nl], 0, &mut buf).unwrap_or(0);
                     fill(0, 0, W, 160, BLACK);
                     let surf = unsafe { &mut *core::ptr::addr_of_mut!(SURFACES) };
                     run_editor(surf, &mut m, &buf[..n], &mut |txt| {
-                        sp.usr.write(&name[..nl], 0, 64, txt).is_ok() && sp.usr.sync().is_ok()
+                        sp.usr.write(&name[..nl], 0, editor::MAX, txt).is_ok() && sp.usr.sync().is_ok()
                     });
                 }
                 ws.dirty = true;
