@@ -23,6 +23,7 @@ pub mod net;
 pub mod memory;
 pub mod partition;
 pub mod power;
+pub mod reminders;
 pub mod process;
 pub mod resource;
 pub mod slot;

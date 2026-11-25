@@ -60,11 +60,11 @@ Conseguenza: le app locali si possono fare subito sul GBA e sul simulatore; le a
 ## 4. Browser: versione per fasi
 
 - **Fase 1, testo:** scarica una pagina (HTTP/1.1, TCP, TLS escluso), estrae il testo, lo impagina. Nessun JavaScript, nessuna immagine. Dimensione pagina con limite fisso.
-- **Fase 2, HTML minimo:** titoli, paragrafi, liste, link, immagini semplici (GIF o bitmap). Nessun CSS complesso, nessun form.
-- **Fase 3, moduli e TLS:** form semplici, TLS 1.3 (rischio: RAM e crittografia su macchine piccole). **da verificare** la RAM necessaria.
+- **Fase 2, solo testo (scelta di Ivan, via coordinatore):** titoli, paragrafi, liste, link. Nessuna immagine, nessun CSS, nessun form.
+- **Fase 3, immagini e moduli:** immagini semplici (GIF o bitmap), form semplici, TLS 1.3 (rischio: RAM e crittografia su macchine piccole). **da verificare** la RAM necessaria.
 - **Fuori scope:** JavaScript, CSS completo, video web.
 
-Decisione aperta (filosofia): quanto HTML supportare nella fase 2. Proposta: solo ciò che serve a leggere articoli.
+Decisione presa: fase 2 solo testo, come consigliato. Le immagini vengono dopo.
 
 ## 5. Prototipo nel simulatore
 
