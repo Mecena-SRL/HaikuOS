@@ -6,6 +6,7 @@
 mod alloc;
 mod compositor;
 mod fs;
+mod glyph;
 mod monolith;
 mod persist;
 mod surfaces;
@@ -276,8 +277,11 @@ pub extern "C" fn rust_main() -> ! {
     let _ = surf.open(&mut m, 0, 10, 20);
     let _ = surf.open(&mut m, 2, 50, 50);
     let _ = surf.open(&mut m, 3, 100, 70);
+    // Primo programma grafico: visualizzatore di testo. Legge docs/hello dal file system.
+    let mut t = [0u8; 32];
+    let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
     if let Some(px) = surf.pixels_mut(0) {
-        px.fill(GREEN);
+        glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 2, &t[..n], GREEN);
     }
     if let Some(px) = surf.pixels_mut(2) {
         px.fill(BLUE);
