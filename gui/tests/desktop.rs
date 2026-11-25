@@ -1,7 +1,7 @@
 // Menu, ricerca, finestre: riduci, massimizza, trascina, barra.
 mod common;
 use haiku_gui::layout::*;
-use haiku_gui::{Event, Icon, Key, Shell};
+use haiku_gui::{Event, Icon, Key, Shell, Tok};
 
 static ICONS: [Icon; 3] = [
     Icon { label: "FILE", app: 1, title: "FILE", w: 120, h: 80 },
@@ -145,4 +145,13 @@ fn enter_on_desktop_opens_selected_icon_and_text_goes_to_app() {
     assert_eq!(s.text(0x0D), Event::Launch(1));
     assert_eq!(s.text(b'5'), Event::None);
     assert_eq!(s.calc.show(&mut [0u8; 21]), "0"); // è FILE, non CALC: nessun effetto
+}
+
+#[test]
+fn wallpaper_is_wordmark_bottom_right_in_t3() {
+    let s = Shell::new(&ICONS, 320, 240);
+    let mut b = common::Buf::new(320, 240);
+    haiku_gui::render::draw(&mut b, &s);
+    assert_eq!(b.at(0, 239), Tok::T0, "sfondo piatto");
+    assert!(b.texts.iter().any(|t| t == "HAIKUOS"));
 }
