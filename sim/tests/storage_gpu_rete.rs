@@ -58,16 +58,17 @@ fn gpu_coda_piena_rifiuta() {
 
 #[test]
 fn frame_round_trip() {
-    let f = Frame { dst: [1; 6], src: [2; 6], ethertype: 0x0800, payload: vec![3, 4, 5] };
-    let raw = f.encode().unwrap();
-    assert_eq!(Frame::parse(&raw).unwrap(), f);
+    let mut b = [0u8; FRAME_MAX];
+    let n = encode_frame(&mut b, &[1; 6], &[2; 6], 0x0800, &[3, 4, 5]).unwrap();
+    let f = FrameRef::parse(&b[..n]).unwrap();
+    assert_eq!((f.dst, f.src, f.ethertype, f.payload), ([1; 6], [2; 6], 0x0800, &[3u8, 4, 5][..]));
 }
 
 #[test]
 fn frame_mtu_e_lunghezza_minima() {
-    let big = Frame { dst: [0; 6], src: [0; 6], ethertype: 0, payload: vec![0; MTU + 1] };
-    assert_eq!(big.encode(), Err(NetError::TooLarge));
-    assert_eq!(Frame::parse(&[0; 13]), Err(NetError::TooShort));
+    let mut b = [0u8; FRAME_MAX + 1];
+    assert_eq!(encode_frame(&mut b, &[0; 6], &[0; 6], 0, &[0; MTU + 1]), Err(NetError::TooLarge));
+    assert_eq!(FrameRef::parse(&[0; 13]), Err(NetError::TooShort));
 }
 
 #[test]
