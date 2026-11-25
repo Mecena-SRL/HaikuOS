@@ -202,3 +202,43 @@ fn both_copies_lost_is_reported_by_scrub() {
     s.flip_mirror_byte(blk);
     assert_eq!(s.scrub(), Err(SnapError::Corrupt));
 }
+
+#[test]
+fn clone_shares_block_without_copying() {
+    let mut s = Store::new(KEY);
+    s.write("a", b"dati").unwrap();
+    let before = s.free_blocks();
+    s.clone_file("a", "b").unwrap();
+    assert_eq!(s.free_blocks(), before);
+    assert_eq!(s.read_checked("b").unwrap().unwrap(), b"dati");
+    assert!(s.verify().is_ok());
+}
+
+#[test]
+fn writing_clone_leaves_source_intact() {
+    let mut s = Store::new(KEY);
+    s.write("a", b"uno").unwrap();
+    s.clone_file("a", "b").unwrap();
+    s.write("b", b"due").unwrap();
+    assert_eq!(s.read("a").unwrap(), b"uno");
+    assert_eq!(s.read("b").unwrap(), b"due");
+}
+
+#[test]
+fn shared_block_freed_only_after_last_name() {
+    let mut s = Store::new(KEY);
+    s.write("a", b"x").unwrap();
+    let before = s.free_blocks();
+    s.clone_file("a", "b").unwrap();
+    s.delete("a");
+    assert_eq!(s.free_blocks(), before);
+    assert_eq!(s.read("b").unwrap(), b"x");
+    s.delete("b");
+    assert_eq!(s.free_blocks(), before + 1);
+}
+
+#[test]
+fn clone_of_missing_file_is_refused() {
+    let mut s = Store::new(KEY);
+    assert_eq!(s.clone_file("nessuno", "b"), Err(SnapError::NoSuchFile));
+}
