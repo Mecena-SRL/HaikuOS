@@ -53,6 +53,30 @@ Regole del contratto:
 | **Alimentazione** | stato batteria e modi di riposo | regolatori specifici | GBA: nessuno. ARM64: da verificare. x86: da verificare | Non tocca la CPU direttamente: chiede al monolite. |
 | **Crittografia** | Ascon-AEAD128 (ovunque) | AES hardware, ChaCha20 software | tutte | Vedi memory-security.md. |
 
+## 4.1 Elenco completo dei microkernel
+
+Priorità: **P1** necessario per avviare e far girare un programma; **P2** necessario per un sistema utilizzabile; **P3** utile, più avanti.
+
+| # | Microkernel | Ruolo | Generico (sempre) | Specifico (componenti) | Priorità | Stato |
+|---|---|---|---|---|---|---|
+| 1 | CPU | ammissione, capacità (bit, core, MMU), scheduling via monolite | `cpu.rs`, `process.rs` | tabelle per core (SMP, futuro) | P1 | prototipo |
+| 2 | Memoria RAM/VRAM | pool a blocchi, quote, revoca con azzeramento | `memory.rs` | gestione VRAM del driver GPU | P1 | prototipo |
+| 3 | Storage | blocchi, checksum metadati | blocchi su SRAM/flash/SD | NVMe, SATA, USB, flash cartuccia | P1 | da fare |
+| 4 | Rete | link layer (ethernet) e stack TCP/IP separato sopra | ethernet, TCP/IP essenziale | Wi-Fi, schede specifiche | P1 | da fare |
+| 5 | Video / GPU | framebuffer e code di comandi | framebuffer lineare, VRAM | NVIDIA, AMD, GPU integrata | P1 | da fare |
+| 6 | Input e periferiche | eventi da tastiera, pulsanti, mouse, touch | pulsanti GBA, polling | USB, controller, touch | P2 | da fare |
+| 7 | Alimentazione | stati di riposo, batteria | stati minimi | regolatori specifici | P2 | da fare |
+| 8 | Crittografia | AEAD, chiavi per slot | Ascon-AEAD128 | AES hardware, ChaCha20 software | P2 | prototipo (`slot.rs`) |
+| 9 | Swap e compressione | compressione offline, swap su disco | LZSS offline (GBA) | LZ4/Zstd runtime, swap su SSD | P2 | prototipo (`lzss.rs`) |
+| 10 | Audio | buffer e mix a campioni | registri audio GBA | codec specifici | P3 | da fare |
+
+### Rete: scelte
+
+- **Link layer (ethernet):** driver generico: frame con MAC, MTU fisso. Ogni scheda è un componente specifico che dichiara `archs` e `bytes`.
+- **Wi-Fi:** componente specifico, non generico: firmware e gestione dell'associazione dipendono dal chip. Caricato solo se rilevato. Da verificare: quali chip e quali firmware sono redistribuibili.
+- **TCP/IP:** microkernel separato, sopra il link layer. Comunica con gli altri solo tramite il monolite e il contratto comune. Versione essenziale: IPv4, TCP semplice, DNS fuori scope. Da verificare la RAM necessaria sulla GBA: probabilmente non fattibile, quindi la rete sul GBA resta da decidere.
+- Nessun programma accede al link layer direttamente: passa dallo stack.
+
 ## 5. Regole di caricamento
 
 1. **Rilevamento:** all'avvio il livello basso costruisce `Target { arch, ram_free }`. Architettura sconosciuta: nulla caricato (fail closed).
