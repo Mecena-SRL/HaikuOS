@@ -303,14 +303,22 @@ pub extern "C" fn rust_main() -> ! {
         sram::vblank();
         let _ = sp.sys.frame();
         let _ = sp.usr.frame();
-        if ws.step(sp.usr.fs(), keys()) == Action::Create {
-            let mut ids = [0usize; FILES];
-            let n = sp.usr.fs().list(ws.cwd(), &mut ids) as u8;
-            let (nm, nl) = child_name(ws.cwd(), n);
-            if nl > 0 && sp.usr.create(&nm[..nl], 0).is_ok() {
-                let _ = sp.usr.write(&nm[..nl], 0, 64, &[n; 8]);
+        match ws.step(sp.usr.fs(), keys()) {
+            Action::Create => {
+                let mut ids = [0usize; FILES];
+                let n = sp.usr.fs().list(ws.cwd(), &mut ids) as u8;
+                let (nm, nl) = child_name(ws.cwd(), n);
+                if nl > 0 && sp.usr.create(&nm[..nl], 0).is_ok() {
+                    let _ = sp.usr.write(&nm[..nl], 0, 64, &[n; 8]);
+                }
+                ws.dirty = true;
             }
-            ws.dirty = true;
+            Action::FormatSys => {
+                // Il workspace agisce con la capacità di sistema: formatta solo lo spazio di sistema.
+                let _ = sp.format_system(space::SYS_CAP);
+                ws.dirty = true;
+            }
+            _ => {}
         }
         if ws.dirty {
             draw_workspace(&ws, &sp.usr);
