@@ -62,7 +62,8 @@ In questa PR nessuna specifica è stata scaricata: i link sotto vanno letti prim
 
 ## 9. Scrittura FAT32 (simulatore, flag `fat32-write`)
 
-- `sim/src/fat32_write.rs`: `format` (FAT32, 1 settore per cluster) e `create_file` (radice piatta, nomi 8.3). 7 test round-trip in `sim/tests/fat32_write.rs`, eseguiti con `cargo test --features fat32-write`.
+- `sim/src/fat32_write.rs`: `format`, `create_file`, `create_file_in`, `create_dir`, `check`, `reclaim_lost`. 12 test in `sim/tests/fat32_write.rs`, con `cargo test --features fat32-write`.
 - Ordine di scrittura: dati, FAT (due copie), voce di directory per ultima. Un errore prima dell'ultimo passo non lascia voci nuove.
-- Limiti: niente sottodirectory, niente nomi lunghi in scrittura, niente cancellazione, niente FSInfo aggiornato. Nessun test su hardware o su Mac/Windows: **da verificare**.
-- Un crash a metà scrittura può lasciare cluster allocati e non referenziati: serve un controllo di coerenza (fsck) prima del uso reale.
+- Sottodirectory: `create_dir` e `create_file_in`, una directory per cluster (max 16 voci). Nessun nome lungo in scrittura, niente cancellazione, niente FSInfo aggiornato.
+- Controllo `check`: trova cluster allocati e non raggiungibili (persi) e cluster condivisi. `reclaim_lost` libera i persi, ma si rifiuta se ci sono cluster condivisi.
+- Nessun test su hardware o su Mac/Windows: **da verificare**.

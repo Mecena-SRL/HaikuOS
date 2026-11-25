@@ -28,6 +28,8 @@ pub enum FatError {
     Exists,
     /// Scrittura: la radice (un cluster) non ha voci libere.
     DirFull,
+    /// Controllo: due oggetti usano lo stesso cluster. Non si ripara da soli.
+    CrossLinked,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
