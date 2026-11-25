@@ -1,4 +1,8 @@
 [workspace]
-members = ["sysapps"]
+members = ["sysapps", "setup", "kernel"]
 exclude = ["sim"]
 resolver = "2"
+
+[profile.release]
+opt-level = 3
+panic = "abort"
