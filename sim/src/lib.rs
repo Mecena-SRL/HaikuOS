@@ -3,6 +3,7 @@
 //! Scelta: `std` (Vec) solo per la simulazione; la logica è piccola e portabile a `no_std` + `alloc`.
 
 pub mod agent;
+pub mod install;
 pub mod process;
 pub use agent::{Agent, GreedyAgent, Proposal, QuotaRequest};
 
