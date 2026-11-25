@@ -8,7 +8,15 @@ pub const TL: usize = 32;
 pub const HN: usize = 8;
 
 /// File di sistema, letti dal terminale e dall'app FILE.
-pub const FILES: &[(&str, &str)] = &[("leggimi.txt", "Benvenuto in HaikuOS"), ("note.txt", "Prima nota")];
+pub const FILES: &[(&str, &str)] = &[
+    ("leggimi.txt", "Benvenuto in HaikuOS"),
+    ("note.txt", "Prima nota"),
+    ("home.txt", "# HAIKUOS\n=> leggimi.txt LEGGIMI\n=> script.txt SCRIPT\nPagine offline"),
+    ("script.txt", "echo ciao\necho due"),
+];
+/// Pagina iniziale del browser e script caricato nell'editor.
+pub const HOME: &str = "home.txt";
+pub const SCRIPT: &str = "script.txt";
 
 pub struct Disk;
 
@@ -18,14 +26,6 @@ impl Store for Disk {
     }
 }
 
-/// Testo statico per le app non ancora collegate.
-pub fn lines(app: u8) -> &'static [&'static str] {
-    match app {
-        4 => &["BENVENUTO IN HAIKUOS", "PAGINE OFFLINE"],
-        5 => &["-- SCRIPT --", "ECHO CIAO"],
-        _ => &[],
-    }
-}
 
 /// Numero in decimale, senza heap.
 pub fn num_str(v: i64, buf: &mut [u8; 21]) -> &str {

@@ -2,6 +2,7 @@
 use crate::layout::*;
 use crate::palette::Tok::{self, T0, T1, T2, T3};
 use crate::apps::{num_str, FILES, LINE_H, TL};
+use sysapps::browser::{parse_line, Line};
 use crate::shell::{Shell, MENU_MAX};
 
 pub trait Canvas {
@@ -23,7 +24,9 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
     match app {
         1 if s.files.open => {
             let (_, body) = FILES[s.files.sel];
-            c.text(cc.x, row_y(0), clip(body, cols), T0);
+            for (k, line) in body.lines().take(rows).enumerate() {
+                c.text(cc.x, row_y(k), clip(line, cols), T0);
+            }
         }
         1 => {
             for (k, (name, _)) in FILES.iter().enumerate() {
@@ -61,11 +64,38 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             c.text(cc.x, row_y(0), shown, T0);
             c.text(cc.x, row_y(2), clip("0-9 + - * / = C", cols), T0);
         }
-        _ => {
-            for (k, line) in crate::apps::lines(app).iter().enumerate() {
-                c.text(cc.x, row_y(k), line, T0);
+        4 => {
+            // Pagina: titoli e testo; i collegamenti con la selezione in T2.
+            if let Some(body) = s.browser.current() {
+                let mut link = 0usize;
+                for (k, line) in body.lines().take(rows).enumerate() {
+                    let y = row_y(k);
+                    match parse_line(line) {
+                        Line::Heading(t) | Line::Text(t) => c.text(cc.x, y, clip(t, cols), T0),
+                        Line::Link { label, .. } => {
+                            if link == s.bsel {
+                                c.fill(Rect::new(cc.x, y, cc.w, LINE_H), T2);
+                            }
+                            c.text(cc.x + 1, y + 1, clip(label, cols - 1), T0);
+                            link += 1;
+                        }
+                    }
+                }
             }
         }
+        5 => {
+            // Buffer dell'editor e cursore come blocco T2.
+            let ed = &s.editor;
+            for i in 0..ed.lines().min(rows) {
+                c.text(cc.x, row_y(i), clip(ed.line(i), cols), T0);
+            }
+            let (r, col) = ed.cursor();
+            let cx = cc.x + col as i32 * (FONT_W + 1);
+            if r < rows && cx + FONT_W <= cc.x + cc.w {
+                c.fill(Rect::new(cx, row_y(r), FONT_W, FONT_H), T2);
+            }
+        }
+        _ => {}
     }
 }
 

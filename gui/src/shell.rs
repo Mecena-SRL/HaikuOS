@@ -1,5 +1,8 @@
 //! Scrivania: icone, finestre, menu, pannello, regole di input. Nessun disegno qui.
-use crate::apps::{Calc, FileView, Term, FILES};
+use crate::apps::{Calc, Disk, FileView, Term, FILES, HOME, SCRIPT};
+use sysapps::browser::{parse_line, Browser, Line};
+use sysapps::editor::Editor;
+use sysapps::Store;
 use crate::input::Key;
 use crate::layout::*;
 use crate::wm::Wm;
@@ -54,6 +57,10 @@ pub struct Shell {
     pub calc: Calc,
     pub term: Term,
     pub files: FileView,
+    pub browser: Browser<8>,
+    /// Collegamento selezionato nella pagina.
+    pub bsel: usize,
+    pub editor: Editor<8, 27>,
 }
 
 impl Shell {
@@ -74,6 +81,9 @@ impl Shell {
             calc: Calc::new(),
             term: Term::new(),
             files: FileView::new(),
+            browser: Browser::new(),
+            bsel: 0,
+            editor: Editor::new(),
         }
     }
 
@@ -99,16 +109,16 @@ impl Shell {
         (start, (self.icons.len() - start).min(PER_PAGE))
     }
 
-    /// Voci del menu: icone il cui titolo contiene la ricerca (maiuscole).
+    /// Voci del menu: icone la cui etichetta o titolo contiene la ricerca (maiuscole).
     pub fn match_count(&self) -> usize {
         let q = self.query();
-        self.icons.iter().filter(|ic| ic.title.contains(q)).count()
+        self.icons.iter().filter(|ic| ic.title.contains(q) || ic.label.contains(q)).count()
     }
 
     /// k-esima icona tra quelle che corrispondono alla ricerca.
     pub fn nth_match(&self, k: usize) -> Option<usize> {
         let q = self.query();
-        self.icons.iter().enumerate().filter(|(_, ic)| ic.title.contains(q)).nth(k).map(|(i, _)| i)
+        self.icons.iter().enumerate().filter(|(_, ic)| ic.title.contains(q) || ic.label.contains(q)).nth(k).map(|(i, _)| i)
     }
 
     pub fn toggle_menu(&mut self) {
@@ -157,26 +167,84 @@ impl Shell {
         Event::None
     }
 
+    /// Stato iniziale di un'app appena aperta.
+    fn init_app(&mut self, app: u8) {
+        match app {
+            4 => {
+                let _ = self.browser.open(&Disk, HOME);
+                self.bsel = 0;
+            }
+            5 => {
+                if let Some(text) = Disk.file(SCRIPT) {
+                    let _ = self.editor.load(text);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn app_text(&mut self, app: u8, c: u8) {
         match app {
             1 if c == 0x0D => self.files.open = !self.files.open,
             2 if c == 0x0D => self.term.enter(),
             2 => self.term.type_char(c),
             3 => self.calc.key(c),
+            4 => match c {
+                0x0D => {
+                    if self.browser.follow(&Disk, self.bsel).is_ok() {
+                        self.bsel = 0;
+                    }
+                }
+                0x08 => {
+                    if self.browser.back().is_some() {
+                        self.bsel = 0;
+                    }
+                }
+                _ => {}
+            },
+            5 => match c {
+                0x0D => {
+                    let _ = self.editor.newline();
+                }
+                0x08 => {
+                    let _ = self.editor.backspace();
+                }
+                0x05 => {
+                    // F5: esegue il buffer; l'uscita va nella cronologia del terminale.
+                    let term = &mut self.term;
+                    let mut out = |s: &str| term.add(s.as_bytes());
+                    if self.editor.run(&Disk, &mut out).is_err() {
+                        self.term.add(b"ERRORE SCRIPT");
+                    }
+                }
+                b' '..=b'~' => {
+                    let _ = self.editor.insert(c);
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
 
     /// Frecce nell'app FILE: scelgono il file.
     fn app_key(&mut self, app: u8, k: Key) {
-        if app != 1 || self.files.open {
-            return;
-        }
-        match k {
-            Key::Up if self.files.sel > 0 => self.files.sel -= 1,
-            Key::Down if self.files.sel + 1 < FILES.len() => self.files.sel += 1,
+        match (app, k) {
+            (1, _) if self.files.open => {}
+            (1, Key::Up) if self.files.sel > 0 => self.files.sel -= 1,
+            (1, Key::Down) if self.files.sel + 1 < FILES.len() => self.files.sel += 1,
+            (4, Key::Up) if self.bsel > 0 => self.bsel -= 1,
+            (4, Key::Down) if self.bsel + 1 < self.link_count() => self.bsel += 1,
+            (5, Key::Up) => self.editor.up(),
+            (5, Key::Down) => self.editor.down(),
+            (5, Key::Left) => self.editor.left(),
+            (5, Key::Right) => self.editor.right(),
             _ => {}
         }
+    }
+
+    /// Collegamenti della pagina corrente del browser.
+    pub fn link_count(&self) -> usize {
+        self.browser.current().map_or(0, |b| b.lines().filter(|l| matches!(parse_line(l), Line::Link { .. })).count())
     }
 
     /// Apre l'app `i` o la porta in primo piano: mai due copie.
@@ -189,6 +257,7 @@ impl Shell {
         }
         if self.wm.open(ic.app, ic.title, ic.w, ic.h, self.w, self.h) {
             self.desk = false;
+            self.init_app(ic.app);
             Event::Launch(ic.app)
         } else {
             Event::None

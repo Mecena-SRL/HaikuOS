@@ -71,4 +71,14 @@ key("ret")                                     # esegue con sysapps
 shot("04_terminale.png")
 key("f2")                                      # tema successivo
 shot("05_tema_verde.png")
+key("meta_l")
+type_text("web")
+key("ret")                                     # browser: pagina home
+shot("06_browser.png")
+key("f4")
+key("meta_l")
+type_text("edit")
+key("ret")                                     # editor: script di prova
+key("f5")                                      # esegue: uscita nel terminale
+shot("07_editor.png")
 qemu.terminate(); qemu.wait()
