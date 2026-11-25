@@ -75,6 +75,7 @@ const ORANGE: u16 = rgb(30, 16, 2);
 const GREY: u16 = rgb(10, 10, 10);
 const DARK: u16 = rgb(3, 3, 4);
 const WHITE: u16 = rgb(31, 31, 31);
+const RED: u16 = rgb(31, 0, 0);
 
 /// Superfici di prova del compositore: tinta piena.
 const fn solid<const N: usize>(c: u16) -> [u16; N] {
@@ -199,6 +200,12 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
         let len = p.fs().len_of(id).unwrap_or(0);
         fill(4, 140, (len * 2).min(232), 8, GREEN);
     }
+    // Conferma formattazione: fascia rossa, A = formatta (verde), B = annulla (grigio).
+    if ws.confirming() {
+        fill(0, 100, W, 40, RED);
+        fill(20, 110, 60, 20, GREEN);
+        fill(W - 80, 110, 60, 20, WHITE);
+    }
 }
 
 #[no_mangle]
@@ -318,6 +325,7 @@ pub extern "C" fn rust_main() -> ! {
                 let _ = sp.format_system(space::SYS_CAP);
                 ws.dirty = true;
             }
+            Action::FormatAsk => {}
             _ => {}
         }
         if ws.dirty {
