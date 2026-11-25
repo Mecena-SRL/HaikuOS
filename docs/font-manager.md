@@ -45,7 +45,8 @@ Ordine di sicurezza: il font di sistema è sempre attivo, quindi l'interfaccia n
 
 - **Gestore dei font**: programma separato in `apps/fontmgr` (prototipo host: comandi da stdin, anteprima, attivazione, collezioni, font di sistema). Non è parte del monolite. Nessuna persistenza ancora.
 - **Logica di registro**: `sim/src/fonts.rs` (test in `sim/tests/fonts.rs`). Il codice è scritto in modo da poter diventare `no_std` + `alloc`.
-- **Lettore OpenType** in sola lettura: `sim/src/opentype.rs` (famiglia, unitsPerEm, numero di glifi; controlli sui limiti; test in `sim/tests/opentype.rs`).
+- **Lettore OpenType** in sola lettura: `sim/src/opentype.rs` (famiglia, metriche, cmap formato 4, hmtx, glifi semplici loca/glyf; controlli sui limiti; test in `sim/tests/opentype.rs`). I glifi composti non sono supportati.
+- **Rendering**: `sim/src/raster.rs` riempie i contorni (regola non-zero, curve quadratiche appiattite) in un canvas di bit. Anteprima reale in `apps/fontmgr`: a 16 px/em in terminale con `#`.
 - **Font GBA**: `gba/src/font.rs` resta il font di sistema di partenza (3×5); il formato 8×8 si aggiunge dopo.
 
 ## 5. Verificabile su host
@@ -55,7 +56,8 @@ Ordine di sicurezza: il font di sistema è sempre attivo, quindi l'interfaccia n
 - Font di sistema: non disattivabile, attiva il font, deve esistere.
 - Collezioni: creazione, aggiunta, limite dei membri, id sconosciuti.
 - Anteprima solo su font installato.
-- Lettura OpenType: intestazioni, magic, tabelle mancanti, file troncati, nome Windows e nome Mac.
+- Lettura OpenType: intestazioni, magic, tabelle mancanti, file troncati, nome Windows e nome Mac, cmap, glifo mancante.
+- Rendering: quadrato sintetico a pixel noti, testo con avanzo, curve quadratiche (area), anteprima via comando.
 
 **Non verificabile su host**: rendering sul GBA, lettura reale di TTF/OTF, interfaccia grafica, comportamento della SRAM.
 
@@ -63,5 +65,5 @@ Ordine di sicurezza: il font di sistema è sempre attivo, quindi l'interfaccia n
 
 - Limiti numerici (font installati, attivi, collezioni, membri). I valori del prototipo sono scelte iniziali.
 - Dimensione e posizione dell'archivio dei font su GBA (ROM, SRAM o flash).
-- Parser OpenType: il lettore attuale legge solo head, maxp e name. Nessun glifo né cmap. Da decidere se servono altre tabelle.
+- Parser OpenType: legge head, maxp, name, cmap (formato 4), hhea, hmtx, loca, glyf semplici. Niente glifi composti, GPOS/GSUB, hinting, cmap formato 12.
 - Estetica dell'anteprima e dell'elenco (decisione di Ivan).
