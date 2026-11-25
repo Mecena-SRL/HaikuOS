@@ -1,7 +1,8 @@
 //! Terminale del desktop: `ls` e `cd` dal menu col keypad, o digitati lettera per lettera.
 //! Menu: 0 = LS, 1 = CD .., poi CD per ogni sottodirectory di cwd (max 6).
 //! Digitazione (SELECT): su/giù scelgono il carattere, A lo aggiunge, B cancella, sinistra esegue.
-//! Comandi digitati: LS, UP (= cd ..), CD nome. Il font ha solo alcune lettere: vedi ALPHA.
+//! Comandi digitati: LS, UP (= cd ..), CD nome, CHESS, READ. Il font ha solo alcune lettere: vedi ALPHA.
+//! CHESS e READ non aprono nulla da soli: lasciano una richiesta che il desktop legge con `take_open`.
 
 use crate::fs::{parent_of, Fs, FILES, NAME_MAX};
 
@@ -12,6 +13,13 @@ pub const INPUT_MAX: usize = 16;
 /// Caratteri scelti in digitazione: solo quelli che il font disegna (vedi font.rs).
 pub const ALPHA: &[u8] = b" ABCDEFGHIKLMNORSTUW012";
 const DIRS: usize = 6;
+
+/// Finestra richiesta dal terminale: il desktop la apre dopo il comando.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Open {
+    Chess,
+    Reader,
+}
 
 #[derive(Clone, Copy, PartialEq)]
 enum Cmd {
@@ -31,6 +39,7 @@ pub struct Terminal {
     out: [[u8; LINE_MAX]; LINES],
     out_len: [usize; LINES],
     out_n: usize,
+    open: Option<Open>,
 }
 
 fn push(buf: &mut [u8], n: &mut usize, s: &[u8]) {
@@ -63,6 +72,7 @@ impl Terminal {
             out: [[0; LINE_MAX]; LINES],
             out_len: [0; LINES],
             out_n: 0,
+            open: None,
         }
     }
 
@@ -167,6 +177,14 @@ impl Terminal {
             self.run_cmd(fs, Cmd::Ls);
         } else if line.eq_ignore_ascii_case(b"UP") {
             self.run_cmd(fs, Cmd::Up);
+        } else if line.eq_ignore_ascii_case(b"CHESS") {
+            self.out_n = 0;
+            self.open = Some(Open::Chess);
+            self.set_line(b"SCACCHI");
+        } else if line.eq_ignore_ascii_case(b"READ") {
+            self.out_n = 0;
+            self.open = Some(Open::Reader);
+            self.set_line(b"LETTORE");
         } else if line.len() > 3 && line[..3].eq_ignore_ascii_case(b"CD ") {
             match self.find_child(fs, trim(&line[3..])) {
                 Some(id) => self.run_cmd(fs, Cmd::Cd(id)),
@@ -252,6 +270,11 @@ impl Terminal {
         self.cwd_len = n;
         self.sel = 0;
         self.out_n = 0;
+    }
+
+    /// Finestra richiesta dall'ultimo comando (CHESS o READ), se c'è. La prende una volta sola.
+    pub fn take_open(&mut self) -> Option<Open> {
+        self.open.take()
     }
 
     pub fn lines(&self) -> usize {

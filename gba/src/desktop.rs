@@ -276,6 +276,12 @@ impl Desktop {
                     }
                     if pressed & KEY_LEFT != 0 {
                         self.term.run_input(fs);
+                        // CHESS e READ dal terminale aprono la finestra corrispondente.
+                        match self.term.take_open() {
+                            Some(terminal::Open::Chess) => self.win = Some(App::Chess),
+                            Some(terminal::Open::Reader) => self.win = Some(App::Reader),
+                            None => {}
+                        }
                     }
                 } else {
                     if pressed & KEY_UP != 0 {
