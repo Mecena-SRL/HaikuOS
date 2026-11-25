@@ -130,5 +130,5 @@ Misurate sul build release (`gba/`, `llvm-size` sull'ELF):
 - `Fs` (store in RAM, host x86_64): 10 056 byte. Budget di test: 16 KB.
 - SRAM della cartuccia: 32 KB. Il wear è già gestito in `persist.rs`: due regioni alternate e limite di salvataggi al minuto (`Profile`).
 
-Non misurato: esecuzione in mGBA. `libmgba` non è installato nel sandbox, quindi i numeri sono del binario, non dell'emulatore. **Da verificare** con `host/*.c` (`-lmgba`).
+Eseguito in mGBA 0.10 (`libmgba-dev` installato): `host/desktop_check.c` e `host/launch_check.c` passano. Le cifre dei cicli sono dell'emulatore, non del hardware reale.
 
