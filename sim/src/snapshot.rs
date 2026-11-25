@@ -401,6 +401,35 @@ impl Store {
         Ok(())
     }
 
+    /// Rotazione manuale della chiave: ricifra ogni blocco in uso (entrambe le copie) con la chiave nuova.
+    /// Ogni riscrittura conta come riscrittura per l'usura. Le lunghezze cifrate nelle tabelle si aggiornano.
+    pub fn rotate_key(&mut self, new_key: [u8; 16]) -> Result<(), SnapError> {
+        self.verify()?;
+        for b in 0..SNAP_BLOCKS {
+            if self.refs[b] == 0 {
+                continue;
+            }
+            let plain = self.open_copy(b, &self.blocks[b], self.stored_len[b]).ok_or(SnapError::Corrupt)?;
+            let mut nonce = [0u8; 16];
+            nonce[8..].copy_from_slice(&self.nonce_ctr.to_le_bytes());
+            self.nonce_ctr += 1;
+            let sealed = slot::seal(&plain, &new_key, &nonce, b as u8, SNAP_BLOCK_BYTES).map_err(|_| SnapError::TooLarge)?;
+            self.blocks[b][..sealed.len()].copy_from_slice(&sealed);
+            self.mirror[b][..sealed.len()].copy_from_slice(&sealed);
+            self.stored_len[b] = sealed.len();
+            self.wear[b] += 1;
+        }
+        self.key = new_key;
+        let stored = self.stored_len.clone();
+        for t in std::iter::once(&mut self.files).chain(self.snaps.iter_mut().map(|(_, t)| t)) {
+            for (name, m) in t.iter_mut() {
+                m.stored = stored[m.blk];
+                m.sum = meta_sum(name, m);
+            }
+        }
+        Ok(())
+    }
+
     /// Solo per i test: indice del blocco di una voce viva.
     #[doc(hidden)]
     pub fn files_block(&self, name: &str) -> usize {
