@@ -1,11 +1,16 @@
-//! Terminale del desktop: `ls` e `cd` scelti dal menu con il keypad. Stato puro, senza hardware.
-//! Il menu è: 0 = LS, 1 = CD .., poi CD per ogni sottodirectory di cwd (max 6).
+//! Terminale del desktop: `ls` e `cd` dal menu col keypad, o digitati lettera per lettera.
+//! Menu: 0 = LS, 1 = CD .., poi CD per ogni sottodirectory di cwd (max 6).
+//! Digitazione (SELECT): su/giù scelgono il carattere, A lo aggiunge, B cancella, sinistra esegue.
+//! Comandi digitati: LS, UP (= cd ..), CD nome. Il font ha solo alcune lettere: vedi ALPHA.
 
 use crate::fs::{parent_of, Fs, FILES, NAME_MAX};
 
 pub const LINES: usize = 4;
 pub const LINE_MAX: usize = 14;
 pub const LABEL_MAX: usize = 24;
+pub const INPUT_MAX: usize = 16;
+/// Caratteri scelti in digitazione: solo quelli che il font disegna (vedi font.rs).
+pub const ALPHA: &[u8] = b" ABCDEFGHIKLMNORSTUW012";
 const DIRS: usize = 6;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -19,6 +24,10 @@ pub struct Terminal {
     cwd: [u8; NAME_MAX],
     cwd_len: usize,
     pub sel: usize,
+    pub typing: bool,
+    pub pick: usize,
+    input: [u8; INPUT_MAX],
+    input_len: usize,
     out: [[u8; LINE_MAX]; LINES],
     out_len: [usize; LINES],
     out_n: usize,
@@ -47,6 +56,10 @@ impl Terminal {
             cwd: [0; NAME_MAX],
             cwd_len: 0,
             sel: 0,
+            typing: false,
+            pick: 0,
+            input: [0; INPUT_MAX],
+            input_len: 0,
             out: [[0; LINE_MAX]; LINES],
             out_len: [0; LINES],
             out_n: 0,
@@ -115,6 +128,73 @@ impl Terminal {
         self.sel = (self.sel as isize + delta).rem_euclid(m) as usize;
     }
 
+    pub fn toggle_typing(&mut self) {
+        self.typing = !self.typing;
+    }
+
+    pub fn pick_step(&mut self, delta: isize) {
+        self.pick = (self.pick as isize + delta).rem_euclid(ALPHA.len() as isize) as usize;
+    }
+
+    /// Aggiunge un byte alla riga digitata (se c'è spazio).
+    pub fn type_byte(&mut self, c: u8) {
+        if self.input_len < INPUT_MAX {
+            self.input[self.input_len] = c;
+            self.input_len += 1;
+        }
+    }
+
+    /// Aggiunge il carattere scelto con su/giù.
+    pub fn type_pick(&mut self) {
+        self.type_byte(ALPHA[self.pick]);
+    }
+
+    pub fn backspace(&mut self) {
+        self.input_len = self.input_len.saturating_sub(1);
+    }
+
+    pub fn input(&self) -> &[u8] {
+        &self.input[..self.input_len]
+    }
+
+    /// Esegue la riga digitata e la svuota. LS, UP, CD nome (senza distinguere maiuscole).
+    pub fn run_input(&mut self, fs: &Fs) {
+        let line = self.input; // copia: la riga non è più in uso dopo il comando
+        let line = &line[..self.input_len];
+        let line = trim(line);
+        self.input_len = 0;
+        if line.eq_ignore_ascii_case(b"LS") {
+            self.run_cmd(fs, Cmd::Ls);
+        } else if line.eq_ignore_ascii_case(b"UP") {
+            self.run_cmd(fs, Cmd::Up);
+        } else if line.len() > 3 && line[..3].eq_ignore_ascii_case(b"CD ") {
+            match self.find_child(fs, trim(&line[3..])) {
+                Some(id) => self.run_cmd(fs, Cmd::Cd(id)),
+                None => {
+                    self.out_n = 0;
+                    self.set_line(b"NON TROVATO");
+                }
+            }
+        } else {
+            self.out_n = 0;
+            self.set_line(b"ERRORE");
+        }
+    }
+
+    /// Sottodirectory di cwd con questo nome (ultimo componente, senza distinguere maiuscole).
+    fn find_child(&self, fs: &Fs, want: &[u8]) -> Option<usize> {
+        let mut ids = [0usize; FILES];
+        let n = fs.list(self.cwd(), &mut ids);
+        for &id in &ids[..n] {
+            if let Some((name, _)) = fs.info(id) {
+                if fs.is_dir(id) && last(name).eq_ignore_ascii_case(want) {
+                    return Some(id);
+                }
+            }
+        }
+        None
+    }
+
     fn set_line(&mut self, s: &[u8]) {
         if self.out_n < LINES {
             let k = self.out_n;
@@ -125,12 +205,14 @@ impl Terminal {
         }
     }
 
-    /// Esegue la voce `i` del menu. `ls` riempie l'output; `cd` cambia cwd e pulisce l'output.
+    /// Esegue la voce `i` del menu.
     pub fn run(&mut self, fs: &Fs, i: usize) {
-        let cmd = match self.cmd(fs, i) {
-            Some(c) => c,
-            None => return,
-        };
+        if let Some(cmd) = self.cmd(fs, i) {
+            self.run_cmd(fs, cmd);
+        }
+    }
+
+    fn run_cmd(&mut self, fs: &Fs, cmd: Cmd) {
         self.out_n = 0;
         match cmd {
             Cmd::Ls => {
@@ -167,4 +249,11 @@ impl Terminal {
     pub fn line(&self, k: usize) -> &[u8] {
         &self.out[k][..self.out_len[k]]
     }
+}
+
+/// Toglie gli spazi iniziali e finali.
+fn trim(s: &[u8]) -> &[u8] {
+    let a = s.iter().position(|&c| c != b' ').unwrap_or(s.len());
+    let b = s.iter().rposition(|&c| c != b' ').map_or(a, |i| i + 1);
+    &s[a..b.max(a)]
 }
