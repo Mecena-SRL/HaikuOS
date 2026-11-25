@@ -29,7 +29,7 @@ static const uint8_t *glyph(char ch) {
 
 /* Composizione attesa: sfondo nero; superficie 0 = `text` in verde e `pending` in arancio;
  * superficie 2 blu, superficie 3 arancio (sopra). */
-static void compose_expected(const char *text, char pending) {
+static void compose_expected(const char *text, char pending, const char *status) {
     struct { int x, y; uint16_t c; } s[3] = {
         {10, 20, rgb(4, 24, 6)}, {50, 50, rgb(6, 14, 28)}, {100, 70, rgb(30, 16, 2)}};
     for (int i = 0; i < W * H; i++) expect[i] = 0;
@@ -44,15 +44,25 @@ static void compose_expected(const char *text, char pending) {
                 if (gx < SW && gy < SH) expect[(s[0].y + gy) * W + s[0].x + gx] = col;
             }
     }
+    if (status) {
+        size_t m = strlen(status);
+        for (size_t i = 0; i < m; i++)
+            for (int ry = 0; ry < 5; ry++)
+                for (int col3 = 0; col3 < 3; col3++) {
+                    if (!(glyph(status[i])[ry] & (0x4 >> col3))) continue;
+                    int gx = 2 + (int)i * 4 + col3, gy = 10 + ry;
+                    if (gx < SW && gy < SH) expect[(s[0].y + gy) * W + s[0].x + gx] = rgb(6, 14, 28);
+                }
+    }
     for (int k = 1; k < 3; k++)
         for (int y = 0; y < SH; y++)
             for (int x = 0; x < SW; x++) expect[(s[k].y + y) * W + s[k].x + x] = s[k].c;
 }
 
 /* Confronta la VRAM con l'atteso. Ritorna il numero di pixel diversi. */
-static int check(struct mCore *c, const char *label, const char *text, char pending) {
+static int check(struct mCore *c, const char *label, const char *text, char pending, const char *status) {
     for (int i = 0; i < W * H; i++) vram[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);
-    compose_expected(text, pending);
+    compose_expected(text, pending, status);
     int diff = 0, first = -1;
     for (int i = 0; i < W * H; i++)
         if (vram[i] != expect[i]) { diff++; if (first < 0) first = i; }
@@ -63,24 +73,36 @@ static int check(struct mCore *c, const char *label, const char *text, char pend
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2) return 1;
+    if (argc < 3) { puts("uso: vram_check ROM save|load"); return 1; }
+    int save = strcmp(argv[2], "save") == 0;
     struct mCore *c = mCoreCreate(mPLATFORM_GBA);
     if (!c || !c->init(c)) { puts("init fail"); return 1; }
     mCoreInitConfig(c, NULL);
     if (!mCoreLoadFile(c, argv[1])) { puts("load fail"); return 1; }
     c->reset(c);
-    /* Fasi di tasti (maschera GBA): A (1) a 300 esce dalla misura; Su (0x40) a 450 e A a 470
-     * scelgono e aggiungono 'A' al testo. */
+    /* Maschera GBA: A=1, Start=8, Select=4, Su=0x40.
+     * save: Su a 450, A a 470 (aggiunge 'A'), Select a 490 (salva). Controllo a 520.
+     * load: nessun tasto. Controllo a 400: il testo salvato deve essere ricaricato. */
     int diff = 0;
     for (int f = 0; f <= 520; f++) {
         int k = 0;
         if (f >= 300 && f < 302) k = 1;
-        if (f >= 450 && f < 452) k = 0x40;
-        if (f >= 470 && f < 472) k = 1;
+        if (save && f >= 450 && f < 452) k = 0x40;
+        if (save && f >= 470 && f < 472) k = 1;
+        if (save && f >= 490 && f < 492) k = 4;
         c->setKeys(c, k);
         c->runFrame(c);
-        if (f == 400) diff += check(c, "demo (400)", "hello haikuos", ' ');
-        if (f == 520) diff += check(c, "dopo Su+A (520)", "hello haikuosA", 'A');
+        if (!save && f == 400) diff += check(c, "caricato (400)", "hello haikuosA", ' ', NULL);
+        if (save && f == 520) diff += check(c, "salvato (520)", "hello haikuosA", 'A', "SALVATO");
+    }
+    if (save) {
+        /* Riavvio nella stessa SRAM: il testo salvato deve tornare nella demo. */
+        c->reset(c);
+        for (int f = 0; f <= 400; f++) {
+            c->setKeys(c, (f >= 300 && f < 302) ? 1 : 0);
+            c->runFrame(c);
+        }
+        diff += check(c, "dopo riavvio (400)", "hello haikuosA", ' ', NULL);
     }
     printf(diff == 0 ? "ESITO: OK\n" : "ESITO: FALLITO\n");
     c->deinit(c);

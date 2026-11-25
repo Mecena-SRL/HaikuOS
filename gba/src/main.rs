@@ -189,13 +189,17 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
     }
 }
 
-/// Ridisegna il visualizzatore: testo verde, carattere in attesa arancio, poi compone in VRAM.
-fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor) {
+/// Ridisegna il visualizzatore: testo verde, carattere in attesa arancio, riga di stato blu,
+/// poi compone in VRAM. `status`: messaggio dopo un salvataggio.
+fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor, status: Option<&[u8]>) {
     if let Some(px) = surf.pixels_mut(0) {
         px.fill(BLACK);
         glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 2, ed.text(), GREEN);
         let x = 2 + ed.text().len() * glyph::ADVANCE;
         glyph::draw_text(px, surfaces::SW, surfaces::SH, x, 2, &[ed.pending()], ORANGE);
+        if let Some(msg) = status {
+            glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 10, msg, BLUE);
+        }
     }
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     surf.compose_into(fb);
@@ -251,8 +255,11 @@ pub extern "C" fn rust_main() -> ! {
     let boots = if found { b[0].wrapping_add(1) } else { 1 };
     let ok = sp.sys.write(b"boots", space::SYS_CAP, 1, &[boots]).is_ok() && sp.sys.sync().is_ok();
     let _ = sp.usr.mkdir(b"docs", 0);
-    let _ = sp.usr.create(b"docs/hello", 0);
-    let _ = sp.usr.write(b"docs/hello", 0, 64, b"hello haikuos");
+    // Il file di esempio si crea solo al primo avvio: non sovrascrive il testo salvato.
+    if sp.usr.read(b"docs/hello", 0, &mut [0u8; 1]).is_err() {
+        let _ = sp.usr.create(b"docs/hello", 0);
+        let _ = sp.usr.write(b"docs/hello", 0, 64, b"hello haikuos");
+    }
     fill(60, 130, 16, 16, if ok { GREEN } else { ORANGE }); // persistenza: ok
     fill(84, 130, 16, 16, if alloc_ok { GREEN } else { ORANGE }); // allocatore: ok
     for i in 0..(boots as usize).min(8) {
@@ -308,7 +315,7 @@ pub extern "C" fn rust_main() -> ! {
     let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
     let mut ed = editor::Editor::new();
     ed.load(&t[..n]);
-    draw_editor(surf, &ed);
+    draw_editor(surf, &ed, None);
     // Il testo si modifica con il keypad: su/giù, A aggiunge, B cancella, Start esce.
     let mut prev = keys();
     loop {
@@ -317,6 +324,13 @@ pub extern "C" fn rust_main() -> ! {
         prev = keys();
         if pressed & workspace::KEY_START != 0 {
             break;
+        }
+        if pressed & workspace::KEY_SELECT != 0 {
+            // Salva la riga in docs/hello (il file è riscritto per intero), poi sincronizza la SRAM.
+            let ok = sp.usr.write(b"docs/hello", 0, 64, ed.text()).is_ok() && sp.usr.sync().is_ok();
+            let msg: &[u8] = if ok { b"SALVATO" } else { b"ERRORE" };
+            draw_editor(surf, &ed, Some(msg));
+            continue;
         }
         let changed = if pressed & workspace::KEY_UP != 0 {
             ed.up();
@@ -332,7 +346,7 @@ pub extern "C" fn rust_main() -> ! {
             false
         };
         if changed {
-            draw_editor(surf, &ed);
+            draw_editor(surf, &ed, None);
         }
     }
     // Chiusura: ogni programma riottiene la sua quota.
