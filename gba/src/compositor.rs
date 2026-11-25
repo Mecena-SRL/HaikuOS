@@ -1,6 +1,7 @@
 //! Compositor di prova: copia superfici rettangolari in un framebuffer 240x160.
 //! Nessuna dipendenza da hardware: il test host controlla i byte prodotti.
 //! Ordine: la superficie successiva nello slice sta sopra quella precedente.
+//! Trasparenza: un pixel uguale alla chiave `key` non viene copiato.
 
 pub const W: usize = 240;
 pub const H: usize = 160;
@@ -13,6 +14,8 @@ pub struct Surface<'a> {
     pub h: usize,
     /// Pixel in ordine di riga, lunghi `w * h`.
     pub pixels: &'a [u16],
+    /// Colore trasparente: i pixel uguali a questo valore lasciano vedere lo sfondo.
+    pub key: Option<u16>,
 }
 
 /// Disegna le superfici in `fb` (`W * H` pixel). Ritorna quanti pixel sono stati scritti.
@@ -36,7 +39,11 @@ pub fn compose(fb: &mut [u16], surfaces: &[Surface]) -> usize {
             let src_row = (y as i32 - s.y) as usize * s.w;
             let dst_row = y * W;
             for x in x0..x1 {
-                fb[dst_row + x] = s.pixels[src_row + (x as i32 - s.x) as usize];
+                let c = s.pixels[src_row + (x as i32 - s.x) as usize];
+                if s.key == Some(c) {
+                    continue;
+                }
+                fb[dst_row + x] = c;
                 written += 1;
             }
         }
@@ -56,7 +63,7 @@ mod tests {
     fn una_superficie_nel_punto_giusto() {
         let px = [1u16, 2, 3, 4];
         let mut f = fb();
-        let n = compose(&mut f, &[Surface { x: 10, y: 5, w: 2, h: 2, pixels: &px }]);
+        let n = compose(&mut f, &[Surface { x: 10, y: 5, w: 2, h: 2, pixels: &px, key: None }]);
         assert_eq!(n, 4);
         assert_eq!(f[5 * W + 10], 1);
         assert_eq!(f[5 * W + 11], 2);
@@ -74,8 +81,8 @@ mod tests {
         compose(
             &mut f,
             &[
-                Surface { x: 0, y: 0, w: 2, h: 2, pixels: &a },
-                Surface { x: 1, y: 1, w: 2, h: 2, pixels: &b },
+                Surface { x: 0, y: 0, w: 2, h: 2, pixels: &a, key: None },
+                Surface { x: 1, y: 1, w: 2, h: 2, pixels: &b, key: None },
             ],
         );
         assert_eq!(f[0], 7);
@@ -88,7 +95,7 @@ mod tests {
     fn taglio_ai_bordi() {
         let px = [5u16; 16];
         let mut f = fb();
-        let n = compose(&mut f, &[Surface { x: -2, y: 158, w: 4, h: 4, pixels: &px }]);
+        let n = compose(&mut f, &[Surface { x: -2, y: 158, w: 4, h: 4, pixels: &px, key: None }]);
         assert_eq!(n, 2 * 2);
         assert_eq!(f[158 * W], 5);
         assert_eq!(f[159 * W + 1], 5);
@@ -102,8 +109,8 @@ mod tests {
         let n = compose(
             &mut f,
             &[
-                Surface { x: 240, y: 0, w: 2, h: 2, pixels: &px },
-                Surface { x: 0, y: -2, w: 2, h: 2, pixels: &px },
+                Surface { x: 240, y: 0, w: 2, h: 2, pixels: &px, key: None },
+                Surface { x: 0, y: -2, w: 2, h: 2, pixels: &px, key: None },
             ],
         );
         assert_eq!(n, 0);
@@ -111,9 +118,28 @@ mod tests {
     }
 
     #[test]
+    fn pixel_trasparenti_lasciano_vedere_lo_sfondo() {
+        let sotto = [3u16; 4];
+        let sopra = [8u16, 0xFFFF, 0xFFFF, 8];
+        let mut f = fb();
+        let n = compose(
+            &mut f,
+            &[
+                Surface { x: 0, y: 0, w: 2, h: 2, pixels: &sotto, key: None },
+                Surface { x: 0, y: 0, w: 2, h: 2, pixels: &sopra, key: Some(0xFFFF) },
+            ],
+        );
+        assert_eq!(n, 4 + 2);
+        assert_eq!(f[0], 8);
+        assert_eq!(f[1], 3);
+        assert_eq!(f[W], 3);
+        assert_eq!(f[W + 1], 8);
+    }
+
+    #[test]
     fn pixel_mancanti_ignorati() {
         let px = [5u16; 2];
         let mut f = fb();
-        assert_eq!(compose(&mut f, &[Surface { x: 0, y: 0, w: 2, h: 2, pixels: &px }]), 0);
+        assert_eq!(compose(&mut f, &[Surface { x: 0, y: 0, w: 2, h: 2, pixels: &px, key: None }]), 0);
     }
 }
