@@ -59,7 +59,7 @@ Unità logica = 1 px GBA. Tutte le misure sono in unità logiche.
 
 - Struttura: barra del titolo, corpo, bordo di 1 px in T3.
 - Titolo **attivo**: fondo T2, testo T0.
-- Titolo **inattivo**: fondo T1, testo T0. *Da implementare: oggi esiste solo lo stato attivo.*
+- Titolo **inattivo**: fondo T1, testo T0. Pulsanti riduci, massimizza, chiudi: quadrati 8×8 T0 (x86).
 - Corpo: fondo T1. Il programma disegna solo qui dentro.
 - Angoli: retti su GBA. Su Mac, raggio 4 px. **Da verificare**.
 
@@ -98,4 +98,5 @@ Lo stato "aperta" e "premuta" sono da implementare. **Da verificare** la visibil
 - Fase 1: questo documento.
 - Fase 3 (`gba/src/scale.rs`): scala intera per schermi grandi, letterbox centrato con banda `T0`. Il disegno resta 240×160; test host in `gba/host/test_scale.rs`. Da verificare: schermo reale o VM grafica, barra e finestre ridimensionabili (non fatti).
 - Fase 2 (`gba/src/desktop.rs`): orologio della barra in T0, come il resto del testo sulla barra. Il resto del desktop già rispetta palette, spaziature e griglia.
+- Fase 4 (x86, `gui/src/shell.rs`, `render.rs`): menu HAIKUOS con ricerca (tasto Win), pulsanti finestra nella barra (riduci = icona, click sul pulsante attivo), orologio RTC in T0, trascinamento dal titolo, massimizza sotto la barra. Screenshot: `/mnt/project-files/haikuos/render-x86/`. Da verificare: ora in UTC (nessun fuso), contenuto delle app nelle finestre (ancora vuoto), temi alternativi, ombre e animazioni non fatte (voluto).
 - Da verificare su hardware GBA: leggibilità del 3×5 su schermo reale, contrasto T2 su T1, tempi di ridisegno.

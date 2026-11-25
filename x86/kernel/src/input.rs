@@ -1,6 +1,7 @@
 //! Tastiera e mouse PS/2 in polling (niente IRQ). Tastiera: set 1 (default QEMU/PC).
-//! Mappa tasti: frecce = croce, Z = A, X = B, Tab = Select, Invio = Start.
-//! Mouse: pacchetti di 3 byte; il tasto sinistro è il click.
+//! Mappa tasti: frecce = croce, Z = A, X = B, Tab = Select, Invio = Start, Win = menu.
+//! Lettere, cifre, spazio, Esc e Backspace arrivano come caratteri (ch) per la ricerca.
+//! Mouse: pacchetti di 3 byte; il tasto sinistro è il click e il trascinamento.
 use crate::io::{inb, outb};
 use haiku_gui::Key;
 
@@ -8,7 +9,10 @@ const DATA: u16 = 0x60;
 const STATUS: u16 = 0x64;
 
 pub enum Input {
-    Key(Key),
+    /// `key` è il tasto della croce/A/B; `ch` il carattere (0 se nessuno).
+    Key { key: Option<Key>, ch: u8 },
+    /// Tasto Windows: apre o chiude il menu applicazioni.
+    Super,
     Mouse { dx: i32, dy: i32, left: bool },
 }
 
@@ -50,11 +54,11 @@ impl Ps2 {
             if st & 0x20 != 0 {
                 return self.mouse(b);
             }
-            self.keyboard(b).map(Input::Key)
+            self.keyboard(b)
         }
     }
 
-    fn keyboard(&mut self, b: u8) -> Option<Key> {
+    fn keyboard(&mut self, b: u8) -> Option<Input> {
         if b == 0xE0 {
             self.e0 = true;
             return None;
@@ -64,17 +68,29 @@ impl Ps2 {
         if b & 0x80 != 0 {
             return None; // rilascio
         }
-        Some(match (ext, b) {
-            (true, 0x48) => Key::Up,
-            (true, 0x50) => Key::Down,
-            (true, 0x4B) => Key::Left,
-            (true, 0x4D) => Key::Right,
-            (false, 0x2C) => Key::A,  // Z
-            (false, 0x2D) => Key::B,  // X
-            (false, 0x0F) => Key::Select,
-            (false, 0x1C) => Key::Start,
-            _ => return None,
-        })
+        if ext {
+            let key = match b {
+                0x5B => return Some(Input::Super),
+                0x48 => Key::Up,
+                0x50 => Key::Down,
+                0x4B => Key::Left,
+                0x4D => Key::Right,
+                _ => return None,
+            };
+            return Some(Input::Key { key: Some(key), ch: 0 });
+        }
+        let key = match b {
+            0x2C => Some(Key::A), // Z
+            0x2D => Some(Key::B), // X
+            0x0F => Some(Key::Select),
+            0x1C => Some(Key::Start),
+            _ => None,
+        };
+        let ch = ascii(b);
+        if key.is_none() && ch == 0 {
+            return None;
+        }
+        Some(Input::Key { key, ch })
     }
 
     fn mouse(&mut self, b: u8) -> Option<Input> {
@@ -92,5 +108,20 @@ impl Ps2 {
         let dx = self.pkt[1] as i8 as i32 - if f & 0x10 != 0 { 256 } else { 0 };
         let dy = self.pkt[2] as i8 as i32 - if f & 0x20 != 0 { 256 } else { 0 };
         Some(Input::Mouse { dx, dy, left: f & 1 != 0 })
+    }
+}
+
+/// Carattere di un tasto del set 1 (layout US); 0 se non è stampabile né di controllo utile.
+fn ascii(sc: u8) -> u8 {
+    match sc {
+        0x01 => 0x1B,                             // Esc
+        0x02..=0x0A => b'1' + (sc - 0x02),        // 1..9
+        0x0B => b'0',
+        0x0E => 0x08,                             // Backspace
+        0x10..=0x19 => b"qwertyuiop"[(sc - 0x10) as usize],
+        0x1E..=0x26 => b"asdfghjkl"[(sc - 0x1E) as usize],
+        0x2C..=0x32 => b"zxcvbnm"[(sc - 0x2C) as usize],
+        0x39 => b' ',
+        _ => 0,
     }
 }

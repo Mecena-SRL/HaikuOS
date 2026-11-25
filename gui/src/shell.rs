@@ -1,10 +1,14 @@
-//! Scrivania: icone, finestre, regole di input. Nessun disegno qui.
+//! Scrivania: icone, finestre, menu, pannello, regole di input. Nessun disegno qui.
 use crate::input::Key;
-use crate::layout::{content, icon_cell, COLS};
+use crate::layout::*;
+use crate::wm::Wm;
 
 /// Icone per pagina: 3 righe da 4. La quarta riga finirebbe con l'etichetta fuori dallo schermo.
 pub const PER_PAGE: usize = 12;
-use crate::wm::Wm;
+/// Lunghezza massima della ricerca nel menu.
+pub const QMAX: usize = 12;
+/// Voci mostrate nel menu.
+pub const MENU_MAX: usize = 10;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Icon {
@@ -36,11 +40,42 @@ pub struct Shell {
     pub h: i32,
     /// true: il fuoco è sul desktop; false: sulla finestra attiva.
     pub desk: bool,
+    /// Orologio della barra "HH:MM".
+    pub clock: [u8; 5],
+    /// Menu applicazioni aperto.
+    pub menu: bool,
+    pub query: [u8; QMAX],
+    pub qlen: usize,
+    /// Voce evidenziata nel menu (indice tra le voci filtrate).
+    pub msel: usize,
+    /// Trascinamento in corso: app, offset del puntatore dall'angolo della finestra.
+    drag: Option<(u8, i32, i32)>,
 }
 
 impl Shell {
     pub const fn new(icons: &'static [Icon], w: i32, h: i32) -> Shell {
-        Shell { icons, sel: 0, wm: Wm::new(), w, h, desk: true }
+        Shell {
+            icons,
+            sel: 0,
+            wm: Wm::new(),
+            w,
+            h,
+            desk: true,
+            clock: *b"00:00",
+            menu: false,
+            query: [0; QMAX],
+            qlen: 0,
+            msel: 0,
+            drag: None,
+        }
+    }
+
+    pub fn set_clock(&mut self, h: u8, m: u8) {
+        self.clock = [b'0' + h / 10, b'0' + h % 10, b':', b'0' + m / 10, b'0' + m % 10];
+    }
+
+    pub fn query(&self) -> &str {
+        core::str::from_utf8(&self.query[..self.qlen]).unwrap_or("")
     }
 
     pub fn pages(&self) -> usize {
@@ -57,11 +92,50 @@ impl Shell {
         (start, (self.icons.len() - start).min(PER_PAGE))
     }
 
+    /// Voci del menu: icone il cui titolo contiene la ricerca (maiuscole).
+    pub fn match_count(&self) -> usize {
+        let q = self.query();
+        self.icons.iter().filter(|ic| ic.title.contains(q)).count()
+    }
+
+    /// k-esima icona tra quelle che corrispondono alla ricerca.
+    pub fn nth_match(&self, k: usize) -> Option<usize> {
+        let q = self.query();
+        self.icons.iter().enumerate().filter(|(_, ic)| ic.title.contains(q)).nth(k).map(|(i, _)| i)
+    }
+
+    pub fn toggle_menu(&mut self) {
+        self.menu = !self.menu;
+        self.qlen = 0;
+        self.msel = 0;
+    }
+
+    /// Caratteri per la ricerca del menu. Esc chiude, Backspace cancella.
+    pub fn text(&mut self, c: u8) -> Event {
+        if !self.menu {
+            return Event::None;
+        }
+        match c {
+            0x1B => self.menu = false,
+            0x08 => {
+                self.qlen = self.qlen.saturating_sub(1);
+                self.msel = 0;
+            }
+            b' ' | b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' if self.qlen < QMAX => {
+                self.query[self.qlen] = c.to_ascii_uppercase();
+                self.qlen += 1;
+                self.msel = 0;
+            }
+            _ => {}
+        }
+        Event::None
+    }
+
     /// Apre l'app `i` o la porta in primo piano: mai due copie.
     fn launch(&mut self, i: usize) -> Event {
         let ic = self.icons[i];
         if let Some(j) = self.wm.find_app(ic.app) {
-            self.wm.raise(j);
+            self.wm.restore(j);
             self.desk = false;
             return Event::Launch(ic.app);
         }
@@ -73,13 +147,38 @@ impl Shell {
         }
     }
 
-    /// Tasto. Con una finestra aperta: B chiude, Select cambia finestra, il resto va all'app.
+    /// Tasto. Con il menu aperto: frecce scelgono, Enter apre, il resto va alla ricerca.
+    /// Con una finestra aperta: B chiude, Select cambia finestra, il resto va all'app.
     /// Sul desktop: croce sceglie l'icona, A la apre.
     pub fn key(&mut self, k: Key) -> Event {
+        if self.menu {
+            let n = self.match_count();
+            return match k {
+                Key::Up if self.msel > 0 => {
+                    self.msel -= 1;
+                    Event::None
+                }
+                Key::Down if self.msel + 1 < n => {
+                    self.msel += 1;
+                    Event::None
+                }
+                Key::Start => match self.nth_match(self.msel) {
+                    Some(i) => {
+                        self.menu = false;
+                        self.launch(i)
+                    }
+                    None => Event::None,
+                },
+                _ => Event::None, // A e B sono anche lettere della ricerca
+            };
+        }
         if !self.desk && self.wm.top().is_some() {
             return match k {
-                Key::B => match self.wm.close(self.wm.len() - 1) {
-                    Some(app) => Event::Closed(app),
+                Key::B => match self.wm.active() {
+                    Some(i) => match self.wm.close(i) {
+                        Some(app) => Event::Closed(app),
+                        None => Event::None,
+                    },
                     None => Event::None,
                 },
                 Key::Select | Key::R => {
@@ -118,27 +217,80 @@ impl Shell {
         Event::None
     }
 
-    /// Puntatore (x86): click su icona, pulsante chiudi, contenuto o finestra.
-    pub fn click(&mut self, x: i32, y: i32) -> Event {
+    /// Pulsante della finestra `i` nella barra: entra prima dell'orologio.
+    fn task_fits(&self, i: usize) -> bool {
+        task_button(i).x + TASK_W <= clock_x(self.w) - 2
+    }
+
+    /// Puntatore premuto (x86). Barra: menu e pulsanti finestra. Menu: voce. Finestre: pulsanti,
+    /// trascinamento dal titolo, contenuto. Desktop: icone.
+    pub fn press(&mut self, x: i32, y: i32) -> Event {
+        if y < BAR_H {
+            if menu_button().contains(x, y) {
+                self.toggle_menu();
+                return Event::None;
+            }
+            for i in 0..self.wm.len() {
+                if self.task_fits(i) && task_button(i).contains(x, y) {
+                    let Some(w) = self.wm.get(i) else { break };
+                    if w.min {
+                        self.wm.restore(i);
+                    } else if self.wm.active() == Some(i) {
+                        self.wm.minimize(i);
+                    } else {
+                        self.wm.raise(i);
+                    }
+                    self.desk = self.wm.top().is_none();
+                    break;
+                }
+            }
+            return Event::None;
+        }
+        if self.menu {
+            let rows = self.match_count().min(MENU_MAX);
+            let r = menu_rect(rows);
+            if r.contains(x, y) && y >= BAR_H + MENU_ROW {
+                let k = ((y - BAR_H) / MENU_ROW - 1) as usize;
+                if let Some(i) = self.nth_match(k) {
+                    self.menu = false;
+                    return self.launch(i);
+                }
+            }
+            self.menu = false; // click fuori dal menu: lo chiude
+            return Event::None;
+        }
         if let Some(i) = self.wm.hit(x, y) {
+            let Some(w) = self.wm.get(i) else { return Event::None };
+            let f = w.frame;
+            self.desk = false;
             if self.wm.close_hit(i, x, y) {
                 return match self.wm.close(i) {
                     Some(app) => Event::Closed(app),
                     None => Event::None,
                 };
             }
-            self.desk = false;
-            let top = self.wm.len() - 1;
-            let frame = self.wm.get(i).map(|w| w.frame);
-            if i == top {
-                if let (Some(w), Some(f)) = (self.wm.top(), frame) {
-                    let c = content(f);
-                    if c.contains(x, y) {
-                        return Event::Tap { app: w.app, x: x - c.x, y: y - c.y };
-                    }
-                }
-            } else {
+            if self.wm.max_hit(i, x, y) {
+                self.wm.toggle_max(i, self.w, self.h);
                 self.wm.raise(i);
+                return Event::None;
+            }
+            if self.wm.min_hit(i, x, y) {
+                self.wm.minimize(i);
+                self.desk = self.wm.top().is_none();
+                return Event::None;
+            }
+            if title_bar(f).contains(x, y) {
+                self.wm.raise(i);
+                self.drag = Some((w.app, x - f.x, y - f.y));
+                return Event::None;
+            }
+            if self.wm.active() != Some(i) {
+                self.wm.raise(i);
+                return Event::None;
+            }
+            let c = content(f);
+            if c.contains(x, y) {
+                return Event::Tap { app: w.app, x: x - c.x, y: y - c.y };
             }
             return Event::None;
         }
@@ -150,5 +302,26 @@ impl Shell {
             }
         }
         Event::None
+    }
+
+    /// Puntatore trascinato con il tasto premuto: sposta la finestra afferrata.
+    pub fn drag(&mut self, x: i32, y: i32) {
+        if let Some((app, dx, dy)) = self.drag {
+            if let Some(i) = self.wm.find_app(app) {
+                self.wm.move_win(i, x - dx, y - dy, self.w, self.h);
+            }
+        }
+    }
+
+    /// Puntatore rilasciato.
+    pub fn release(&mut self) {
+        self.drag = None;
+    }
+
+    /// Clic completo (premi e rilascia).
+    pub fn click(&mut self, x: i32, y: i32) -> Event {
+        let e = self.press(x, y);
+        self.release();
+        e
     }
 }

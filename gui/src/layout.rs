@@ -14,6 +14,17 @@ pub const UNDERLINE_DY: i32 = ICON + 1;
 pub const FONT_W: i32 = 3;
 pub const FONT_H: i32 = 5;
 pub const CONTENT_INSET: i32 = 4;
+/// Pulsante HAIKUOS (apre il menu applicazioni): a sinistra della barra.
+pub const MENU_W: i32 = 36;
+/// Pulsanti finestra nella barra: primo a x=38, passo 42, larghi 40.
+pub const TASK_X: i32 = 38;
+pub const TASK_W: i32 = 40;
+pub const TASK_PITCH: i32 = 42;
+/// Orologio "HH:MM": 5 caratteri da 4 px meno lo spazio finale.
+pub const CLOCK_W: i32 = 19;
+/// Menu applicazioni: riga di 10 px (ricerca e voci), larghezza 100 px.
+pub const MENU_ROW: i32 = 10;
+pub const MENU_LIST_W: i32 = 100;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Rect {
@@ -50,6 +61,36 @@ pub fn close_button(frame: Rect) -> Rect {
 
 pub fn title_bar(frame: Rect) -> Rect {
     Rect::new(frame.x + 1, frame.y + 1, frame.w - 2, TITLE_H)
+}
+
+/// Pulsante riduci: a sinistra del massimizza, stesso passo di 2 px.
+pub fn min_button(frame: Rect) -> Rect {
+    let m = max_button(frame);
+    Rect::new(m.x - CLOSE - 2, m.y, CLOSE, CLOSE)
+}
+
+/// Pulsante massimizza: a sinistra del chiudi.
+pub fn max_button(frame: Rect) -> Rect {
+    let c = close_button(frame);
+    Rect::new(c.x - CLOSE - 2, c.y, CLOSE, CLOSE)
+}
+
+pub fn menu_button() -> Rect {
+    Rect::new(0, 0, MENU_W, BAR_H)
+}
+
+/// Pulsante della finestra `i` nella barra (solo se entra prima dell'orologio).
+pub fn task_button(i: usize) -> Rect {
+    Rect::new(TASK_X + i as i32 * TASK_PITCH, 1, TASK_W, BAR_H - 2)
+}
+
+pub fn clock_x(screen_w: i32) -> i32 {
+    screen_w - 2 - CLOCK_W
+}
+
+/// Menu applicazioni con `rows` voci più la riga di ricerca.
+pub fn menu_rect(rows: usize) -> Rect {
+    Rect::new(0, BAR_H, MENU_LIST_W, MENU_ROW * (rows as i32 + 1))
 }
 
 /// Corpo finestra: sotto la barra del titolo, dentro il bordo di 1 px.

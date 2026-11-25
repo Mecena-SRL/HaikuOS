@@ -6,6 +6,7 @@ mod console;
 mod ata;
 mod fb;
 mod input;
+mod rtc;
 mod boot;
 mod fs;
 mod io;
@@ -43,12 +44,28 @@ pub extern "C" fn kmain() -> ! {
             let mut left_prev = false;
             let mut acc = (0i32, 0i32);
             let mut draw_now = true;
+            let mut clock = (u8::MAX, u8::MAX);
             loop {
                 let mut dirty = draw_now;
                 draw_now = false;
+                let now = rtc::time();
+                if now != clock {
+                    clock = now;
+                    shell.set_clock(now.0, now.1);
+                    dirty = true;
+                }
                 match ps2.poll() {
-                    Some(input::Input::Key(k)) => {
-                        shell.key(k);
+                    Some(input::Input::Key { key, ch }) => {
+                        if let Some(k) = key {
+                            shell.key(k);
+                        }
+                        if ch != 0 {
+                            shell.text(ch);
+                        }
+                        dirty = true;
+                    }
+                    Some(input::Input::Super) => {
+                        shell.toggle_menu();
                         dirty = true;
                     }
                     Some(input::Input::Mouse { dx, dy, left }) => {
@@ -58,7 +75,11 @@ pub extern "C" fn kmain() -> ! {
                         cy = (cy + acc.1 / 2).clamp(0, lh - 1);
                         acc = (acc.0 % 2, acc.1 % 2);
                         if left && !left_prev {
-                            shell.click(cx, cy);
+                            shell.press(cx, cy);
+                        } else if left {
+                            shell.drag(cx, cy);
+                        } else if left_prev {
+                            shell.release();
                         }
                         left_prev = left;
                         dirty = true;
@@ -79,10 +100,13 @@ pub extern "C" fn kmain() -> ! {
     halt()
 }
 
-static ICONS: [haiku_gui::Icon; 3] = [
+// App di sistema (sysapps: browser, editor; shell = terminale). Titoli in maiuscole per il font 3×5.
+static ICONS: [haiku_gui::Icon; 5] = [
     haiku_gui::Icon { label: "FILE", app: 1, title: "FILE", w: 120, h: 80 },
     haiku_gui::Icon { label: "TERM", app: 2, title: "TERMINALE", w: 120, h: 80 },
     haiku_gui::Icon { label: "CALC", app: 3, title: "CALCOLATRICE", w: 80, h: 80 },
+    haiku_gui::Icon { label: "WEB", app: 4, title: "BROWSER", w: 120, h: 80 },
+    haiku_gui::Icon { label: "EDIT", app: 5, title: "EDITOR", w: 120, h: 80 },
 ];
 
 fn halt() -> ! {
