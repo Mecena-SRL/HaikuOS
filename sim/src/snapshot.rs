@@ -74,6 +74,13 @@ fn check_table(t: &Table) -> Result<(), SnapError> {
     Ok(())
 }
 
+/// Differenza tra due stati: nomi da scrivere (con contenuto in chiaro) e nomi da cancellare.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Diff {
+    pub put: Vec<(String, Vec<u8>)>,
+    pub del: Vec<String>,
+}
+
 pub struct Store {
     key: [u8; 16],
     /// Contatore di riscritture per blocco (un'allocazione = una riscrittura).
@@ -331,6 +338,50 @@ impl Store {
                 m.blk = new_blk;
             }
         }
+    }
+
+    fn table_of(&self, label: Option<&str>) -> Result<Table, SnapError> {
+        match label {
+            None => Ok(Table::new()),
+            Some(l) => self.snaps.iter().find(|(x, _)| x == l).map(|(_, t)| t.clone()).ok_or(SnapError::NoSuchSnapshot),
+        }
+    }
+
+    /// Cosa serve per passare dallo stato `from` (None = vuoto) allo snapshot `to`.
+    /// Il contenuto è in chiaro: l'invio è verificato e cifrato solo a riposo.
+    pub fn diff(&self, from: Option<&str>, to: &str) -> Result<Diff, SnapError> {
+        let old = self.table_of(from)?;
+        let new = self.table_of(Some(to))?;
+        check_table(&old)?;
+        check_table(&new)?;
+        let mut d = Diff::default();
+        for (name, m) in &new {
+            let content = self.unpack(m)?;
+            let same = match old.get(name) {
+                Some(om) => self.unpack(om)? == content,
+                None => false,
+            };
+            if !same {
+                d.put.push((name.clone(), content));
+            }
+        }
+        for name in old.keys() {
+            if !new.contains_key(name) {
+                d.del.push(name.clone());
+            }
+        }
+        Ok(d)
+    }
+
+    /// Applica una differenza. Se manca spazio a metà, lo stato è parziale: va ripetuta.
+    pub fn apply(&mut self, d: &Diff) -> Result<(), SnapError> {
+        for name in &d.del {
+            self.delete(name);
+        }
+        for (name, data) in &d.put {
+            self.write(name, data)?;
+        }
+        Ok(())
     }
 
     /// Solo per i test: indice del blocco di una voce viva.
