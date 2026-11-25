@@ -1,7 +1,7 @@
 /* Harness headless (libmgba): controlla i colori di desktop::paint in VRAM (mode 3).
  * Build: gcc -O1 -o desktop_check host/desktop_check.c -lmgba
  * Uso:   ./desktop_check haiku-gba.gba
- * Sequenza: A a frame 300 (fine misure), Start a frame 500 (fine editor); controllo a frame 650.
+ * Sequenza: A a 300 (fine misure), Start a 500 (fine editor), Destra a 600, A a 610 (apre il terminale); controllo a 650.
  * Verifica: ogni pixel è una delle 4 tinte, e alcuni punti chiave hanno la tinta attesa.
  */
 #include <stdio.h>
@@ -13,6 +13,7 @@
 #define H 160
 #define KEY_A 1
 #define KEY_START 8
+#define KEY_RIGHT 16
 
 static uint16_t vram[W * H];
 
@@ -34,7 +35,8 @@ int main(int argc, char **argv) {
     if (!mCoreLoadFile(c, argv[1])) { puts("load fail"); return 1; }
     c->reset(c);
     for (int f = 0; f <= 650; f++) {
-        c->setKeys(c, (f >= 300 && f < 302) ? KEY_A : (f >= 500 && f < 502) ? KEY_START : 0);
+        c->setKeys(c, (f >= 300 && f < 302) ? KEY_A : (f >= 500 && f < 502) ? KEY_START
+                      : (f >= 600 && f < 602) ? KEY_RIGHT : (f >= 610 && f < 612) ? KEY_A : 0);
         c->runFrame(c);
     }
     for (int i = 0; i < W * H; i++) vram[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);
@@ -50,9 +52,9 @@ int main(int argc, char **argv) {
     /* Punti chiave: barra, orologio, icona 0 (evidenziata), icona 1, titolo, chiudi, corpo, testo, bordo. */
     punto p[] = {
         {0, 0, 3, "barra"}, {10, 5, 1, "orologio"}, {1, 20, 0, "sfondo"},
-        {16, 32, 1, "icona 0"}, {64, 32, 2, "icona 1"},
+        {16, 32, 2, "icona 0"}, {64, 32, 1, "icona 1 (selezionata)"},
         {127, 32, 2, "titolo"}, {227, 33, 1, "chiudi"},
-        {127, 43, 1, "corpo"}, {129, 45, 0, "testo prompt"}, {124, 30, 0, "bordo"},
+        {127, 43, 1, "corpo"}, {129, 45, 0, "testo prompt"}, {124, 30, 3, "bordo"},
     };
     int errori = fuori;
     for (size_t k = 0; k < sizeof p / sizeof p[0]; k++) {

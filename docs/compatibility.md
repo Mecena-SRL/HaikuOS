@@ -51,4 +51,10 @@ In questa PR nessuna specifica è stata scaricata: i link sotto vanno letti prim
 - Testi ufficiali di tutte le specifiche: non letti in questa PR.
 - Licenze e brevetti: FAT LFN, exFAT, NTFS, APFS, HFS+.
 - Limiti del prototipo GPT: massimo 128 voci da 128 byte, settori da 512 byte (niente 4Kn), intestazione di backup non letta.
-- Il programma disco potrà cambiare nome e posizione dopo la decisione di Ivan sulla filosofia del componente.
+- Il programma disco ha nome provvisorio, deciso da Ivan.
+
+## 8. Stato FAT32 ed exFAT (aggiornato)
+
+- FAT32: lettore in sola lettura in `sim/src/fat32.rs`, 8 test in `sim/tests/fat32.rs`. Offset e regole verificati sull'implementazione Linux (fs/fat, GPL), non sul testo Microsoft: il sandbox non ha raggiunto `download.microsoft.com`. **Da verificare** sul fatgen103.
+- exFAT: specifica Microsoft non raggiunta dal sandbox. Nessun codice ancora. **Da verificare**.
+- Limiti del lettore FAT32: nomi solo dalla voce corta se il checksum LFN non combacia; niente bit di minuscole del nome corto; niente scrittura.
