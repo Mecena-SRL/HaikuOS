@@ -64,10 +64,10 @@ Priorità: **P1** necessario per avviare e far girare un programma; **P2** neces
 | 3 | Storage | blocchi, checksum metadati | `storage.rs` (checksum per blocco) | NVMe, SATA, USB, flash cartuccia | P1 | prototipo |
 | 4 | Rete | link layer (ethernet) e stack TCP/IP separato sopra | `net.rs`: frame ethernet, checksum IPv4 | Wi-Fi, schede specifiche | P1 | prototipo |
 | 5 | Video / GPU | VRAM propria e code di comandi | `gpu.rs`: VRAM separata, comandi asincroni | NVIDIA, AMD, GPU integrata | P1 | prototipo |
-| 6 | Input e periferiche | eventi da tastiera, pulsanti, mouse, touch | pulsanti GBA, polling | USB, controller, touch | P2 | da fare |
-| 7 | Alimentazione | stati di riposo, batteria | stati minimi | regolatori specifici | P2 | da fare |
-| 8 | Crittografia | AEAD, chiavi per slot | Ascon-AEAD128 | AES hardware, ChaCha20 software | P2 | prototipo (`slot.rs`) |
-| 9 | Swap e compressione | compressione offline, swap su disco | LZSS offline (GBA) | LZ4/Zstd runtime, swap su SSD | P2 | prototipo (`lzss.rs`) |
+| 6 | Input e periferiche | eventi da tastiera, pulsanti, mouse, touch | `input.rs`: coda fissa, scarto contato | USB, controller, touch | P2 | prototipo |
+| 7 | Alimentazione | stati di riposo, batteria | `power.rs`: macchina a stati, soglia batteria | regolatori specifici | P2 | prototipo |
+| 8 | Crittografia | AEAD, chiavi per slot, nonce a contatore | `crypto.rs` su `slot.rs` | AES hardware, ChaCha20 software | P2 | prototipo |
+| 9 | Swap e compressione | pagine compresse e cifrate su storage | `swap.rs`: LZSS poi Ascon, blocco con checksum | LZ4/Zstd runtime, swap su SSD | P2 | prototipo |
 | 10 | Audio | buffer e mix a campioni | registri audio GBA | codec specifici | P3 | da fare |
 
 ### Rete: scelte
@@ -76,6 +76,7 @@ Priorità: **P1** necessario per avviare e far girare un programma; **P2** neces
 - **Wi-Fi:** componente specifico, non generico: firmware e gestione dell'associazione dipendono dal chip. Caricato solo se rilevato. Da verificare: quali chip e quali firmware sono redistribuibili.
 - **TCP/IP:** microkernel separato, sopra il link layer. Comunica con gli altri solo tramite il monolite e il contratto comune. Versione essenziale: IPv4, TCP semplice, DNS fuori scope. Da verificare la RAM necessaria sulla GBA: probabilmente non fattibile, quindi la rete sul GBA resta da decidere.
 - Nessun programma accede al link layer direttamente: passa dallo stack.
+- Prototipo P2: `sim/src/input.rs`, `power.rs`, `crypto.rs`, `swap.rs`; test in `sim/tests/p2.rs` (8 test). Lo swap usa `storage.rs` e `slot.rs`.
 - Prototipo: `sim/src/net.rs` (frame, MTU 1500, checksum RFC 1071 con vettore di prova) in `sim/tests/storage_gpu_rete.rs`. Storage (`storage.rs`) e GPU (`gpu.rs`) hanno test nello stesso file.
 
 ## 5. Regole di caricamento
