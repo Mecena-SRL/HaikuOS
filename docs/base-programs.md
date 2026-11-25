@@ -14,7 +14,7 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 
 | # | Programma | Scopo | Usa | Stato | Da verificare sul GBA |
 |---|---|---|---|---|---|
-| 1 | File manager | Elenca e apre directory e file | File system (lettura), superficie | Prototipo: logica e test (`gba/src/filemanager.rs`) | Righe visibili (8?), leggibilità del testo a 8 px |
+| 1 | File manager | Elenca e apre directory e file | File system (lettura), superficie | Sulla ROM: spazio di lavoro (`gba/src/workspace.rs`), su/giù, A apre, B su, Start crea file. Manca lo scorrimento | Leggibilità del testo a 8 px; righe visibili |
 | 2 | Calcolatrice | Somma, sottrazione, moltiplicazione, divisione intere su tastierino | Superficie, tastiera | Prototipo: logica e test (`gba/src/calc.rs`), 4 operazioni, 2 decimali, errori su divisione per zero e overflow | Tastierino dentro 240×160; overflow a 16 bit (`i32` in centesimi) |
 | 3 | Editor di testo | Modifica un file di testo | File system (lettura/scrittura), superficie | Parziale: visualizzatore/editor di riga (vedi sotto) | Dimensione massima file (8 KB totali nello store) |
 | 4 | Task manager | Elenca programmi attivi, memoria e slot, chiude un programma | Monolite (stato), superficie | Nuovo | Dati letti dal monolite senza costi extra |
