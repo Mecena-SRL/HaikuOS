@@ -206,6 +206,46 @@ fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor, status: Optio
     surf.compose_into(fb);
 }
 
+/// Editor a schermo intero della superficie 0 (il programma del visualizzatore).
+/// Su/Giù/A/B modificano la riga; Select chiama `save`; Start esce e chiude la superficie.
+fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save: &mut dyn FnMut(&[u8]) -> bool) {
+    let _ = surf.open(m, 0, 10, 20);
+    let mut ed = editor::Editor::new();
+    ed.load(text);
+    draw_editor(surf, &ed, None);
+    let mut prev = keys();
+    loop {
+        sram::vblank();
+        let pressed = keys() & !prev;
+        prev = keys();
+        if pressed & workspace::KEY_START != 0 {
+            break;
+        }
+        if pressed & workspace::KEY_SELECT != 0 {
+            let msg: &[u8] = if save(ed.text()) { b"SALVATO" } else { b"ERRORE" };
+            draw_editor(surf, &ed, Some(msg));
+            continue;
+        }
+        let changed = if pressed & workspace::KEY_UP != 0 {
+            ed.up();
+            true
+        } else if pressed & workspace::KEY_DOWN != 0 {
+            ed.down();
+            true
+        } else if pressed & workspace::KEY_A != 0 {
+            ed.commit()
+        } else if pressed & workspace::KEY_B != 0 {
+            ed.backspace()
+        } else {
+            false
+        };
+        if changed {
+            draw_editor(surf, &ed, None);
+        }
+    }
+    let _ = surf.close(m, 0);
+}
+
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
 
 impl surfaces::Quota for Monolith {
@@ -314,44 +354,11 @@ pub extern "C" fn rust_main() -> ! {
     // Primo programma grafico: visualizzatore di testo. Legge docs/hello dal file system.
     let mut t = [0u8; 32];
     let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
-    let mut ed = editor::Editor::new();
-    ed.load(&t[..n]);
-    draw_editor(surf, &ed, None);
-    // Il testo si modifica con il keypad: su/giù, A aggiunge, B cancella, Start esce.
-    let mut prev = keys();
-    loop {
-        sram::vblank();
-        let pressed = keys() & !prev;
-        prev = keys();
-        if pressed & workspace::KEY_START != 0 {
-            break;
-        }
-        if pressed & workspace::KEY_SELECT != 0 {
-            // Salva la riga in docs/hello (il file è riscritto per intero), poi sincronizza la SRAM.
-            let ok = sp.usr.write(b"docs/hello", 0, 64, ed.text()).is_ok() && sp.usr.sync().is_ok();
-            let msg: &[u8] = if ok { b"SALVATO" } else { b"ERRORE" };
-            draw_editor(surf, &ed, Some(msg));
-            continue;
-        }
-        let changed = if pressed & workspace::KEY_UP != 0 {
-            ed.up();
-            true
-        } else if pressed & workspace::KEY_DOWN != 0 {
-            ed.down();
-            true
-        } else if pressed & workspace::KEY_A != 0 {
-            ed.commit()
-        } else if pressed & workspace::KEY_B != 0 {
-            ed.backspace()
-        } else {
-            false
-        };
-        if changed {
-            draw_editor(surf, &ed, None);
-        }
-    }
+    run_editor(surf, &mut m, &t[..n], &mut |txt| {
+        sp.usr.write(b"docs/hello", 0, 64, txt).is_ok() && sp.usr.sync().is_ok()
+    });
     // Chiusura: ogni programma riottiene la sua quota.
-    for p in [0, 2, 3] {
+    for p in [2, 3] {
         let _ = surf.close(&mut m, p);
     }
 
@@ -391,6 +398,24 @@ pub extern "C" fn rust_main() -> ! {
                 ws.dirty = true;
             }
             Action::FormatAsk => {}
+            Action::File => {
+                // A su un file: lo apre nel visualizzatore. Start torna allo spazio di lavoro.
+                if let Some(id) = ws.open_id() {
+                    let mut name = [0u8; 24];
+                    let nl = sp.usr.fs().info(id).map(|(nm, _)| nm.len().min(name.len())).unwrap_or(0);
+                    if let Some((nm, _)) = sp.usr.fs().info(id) {
+                        name[..nl].copy_from_slice(&nm[..nl]);
+                    }
+                    let mut buf = [0u8; 24];
+                    let n = sp.usr.read(&name[..nl], 0, &mut buf).unwrap_or(0);
+                    fill(0, 0, W, 160, BLACK);
+                    let surf = unsafe { &mut *core::ptr::addr_of_mut!(SURFACES) };
+                    run_editor(surf, &mut m, &buf[..n], &mut |txt| {
+                        sp.usr.write(&name[..nl], 0, 64, txt).is_ok() && sp.usr.sync().is_ok()
+                    });
+                }
+                ws.dirty = true;
+            }
             _ => {}
         }
         if ws.dirty {
