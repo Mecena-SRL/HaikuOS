@@ -11,6 +11,7 @@ pub mod render;
 pub mod shell;
 pub mod wm;
 
+pub use apps::{Calc, FileView, Term};
 pub use input::Key;
 pub use palette::Tok;
 pub use shell::{Event, Icon, Shell};

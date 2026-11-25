@@ -1,4 +1,5 @@
 //! Scrivania: icone, finestre, menu, pannello, regole di input. Nessun disegno qui.
+use crate::apps::{Calc, FileView, Term, FILES};
 use crate::input::Key;
 use crate::layout::*;
 use crate::wm::Wm;
@@ -50,6 +51,9 @@ pub struct Shell {
     pub msel: usize,
     /// Trascinamento in corso: app, offset del puntatore dall'angolo della finestra.
     drag: Option<(u8, i32, i32)>,
+    pub calc: Calc,
+    pub term: Term,
+    pub files: FileView,
 }
 
 impl Shell {
@@ -67,6 +71,9 @@ impl Shell {
             qlen: 0,
             msel: 0,
             drag: None,
+            calc: Calc::new(),
+            term: Term::new(),
+            files: FileView::new(),
         }
     }
 
@@ -110,13 +117,32 @@ impl Shell {
         self.msel = 0;
     }
 
-    /// Caratteri per la ricerca del menu. Esc chiude, Backspace cancella.
+    /// Caratteri: nel menu e nelle app della finestra attiva; Invio apre l'icona sul desktop.
+    /// Esc torna al desktop.
     pub fn text(&mut self, c: u8) -> Event {
-        if !self.menu {
-            return Event::None;
+        if self.menu {
+            return self.menu_text(c);
         }
+        if self.desk || self.wm.top().is_none() {
+            return if c == 0x0D && !self.icons.is_empty() { self.launch(self.sel) } else { Event::None };
+        }
+        if c == 0x1B {
+            self.desk = true;
+        } else if let Some(w) = self.wm.top() {
+            self.app_text(w.app, c);
+        }
+        Event::None
+    }
+
+    fn menu_text(&mut self, c: u8) -> Event {
         match c {
             0x1B => self.menu = false,
+            0x0D => {
+                if let Some(i) = self.nth_match(self.msel) {
+                    self.menu = false;
+                    return self.launch(i);
+                }
+            }
             0x08 => {
                 self.qlen = self.qlen.saturating_sub(1);
                 self.msel = 0;
@@ -129,6 +155,28 @@ impl Shell {
             _ => {}
         }
         Event::None
+    }
+
+    fn app_text(&mut self, app: u8, c: u8) {
+        match app {
+            1 if c == 0x0D => self.files.open = !self.files.open,
+            2 if c == 0x0D => self.term.enter(),
+            2 => self.term.type_char(c),
+            3 => self.calc.key(c),
+            _ => {}
+        }
+    }
+
+    /// Frecce nell'app FILE: scelgono il file.
+    fn app_key(&mut self, app: u8, k: Key) {
+        if app != 1 || self.files.open {
+            return;
+        }
+        match k {
+            Key::Up if self.files.sel > 0 => self.files.sel -= 1,
+            Key::Down if self.files.sel + 1 < FILES.len() => self.files.sel += 1,
+            _ => {}
+        }
     }
 
     /// Apre l'app `i` o la porta in primo piano: mai due copie.
@@ -173,6 +221,9 @@ impl Shell {
             };
         }
         if !self.desk && self.wm.top().is_some() {
+            if let Some(w) = self.wm.top() {
+                self.app_key(w.app, k);
+            }
             return match k {
                 Key::B => match self.wm.active() {
                     Some(i) => match self.wm.close(i) {

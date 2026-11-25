@@ -1,6 +1,6 @@
 //! Tastiera e mouse PS/2 in polling (niente IRQ). Tastiera: set 1 (default QEMU/PC).
-//! Mappa tasti: frecce = croce, Z = A, X = B, Tab = Select, Invio = Start, Win = menu.
-//! Lettere, cifre, spazio, Esc e Backspace arrivano come caratteri (ch) per la ricerca.
+//! Mappa tasti: frecce = croce, Tab = cambia finestra, F4 = chiudi, Win = menu.
+//! Lettere, cifre, spazio, Invio, Esc e Backspace arrivano come caratteri (ch).
 //! Mouse: pacchetti di 3 byte; il tasto sinistro è il click e il trascinamento.
 use crate::io::{inb, outb};
 use haiku_gui::Key;
@@ -22,6 +22,7 @@ pub struct Ps2 {
     pkt: [u8; 3],
     n: usize,
     e0: bool,
+    shift: bool,
 }
 
 fn wait_write() {
@@ -42,7 +43,7 @@ impl Ps2 {
             wait_write();
             outb(DATA, 0xF4);
         }
-        Ps2 { pkt: [0; 3], n: 0, e0: false }
+        Ps2 { pkt: [0; 3], n: 0, e0: false, shift: false }
     }
 
     /// Legge un byte se c'è; ritorna l'evento completo, se c'è.
@@ -67,6 +68,15 @@ impl Ps2 {
         }
         let ext = self.e0;
         self.e0 = false;
+        // Shift sinistro/destro: serve per + e *.
+        if !ext && (b == 0x2A || b == 0x36) {
+            self.shift = true;
+            return None;
+        }
+        if !ext && (b == 0xAA || b == 0xB6) {
+            self.shift = false;
+            return None;
+        }
         if b & 0x80 != 0 {
             return None; // rilascio
         }
@@ -84,14 +94,13 @@ impl Ps2 {
             };
             return Some(Input::Key { key: Some(key), ch: 0 });
         }
+        // Lettere e Invio sono testo (ch): nessuna lettera è un tasto di gioco.
         let key = match b {
-            0x2C => Some(Key::A), // Z
-            0x2D => Some(Key::B), // X
-            0x0F => Some(Key::Select),
-            0x1C => Some(Key::Start),
+            0x0F => Some(Key::Select), // Tab: cambia finestra
+            0x3E => Some(Key::B),      // F4: chiude la finestra attiva
             _ => None,
         };
-        let ch = ascii(b);
+        let ch = ascii(b, self.shift);
         if key.is_none() && ch == 0 {
             return None;
         }
@@ -117,12 +126,18 @@ impl Ps2 {
 }
 
 /// Carattere di un tasto del set 1 (layout US); 0 se non è stampabile né di controllo utile.
-fn ascii(sc: u8) -> u8 {
+fn ascii(sc: u8, shift: bool) -> u8 {
     match sc {
         0x01 => 0x1B,                             // Esc
+        0x09 if shift => b'*',
         0x02..=0x0A => b'1' + (sc - 0x02),        // 1..9
         0x0B => b'0',
+        0x0C => b'-',
+        0x0D if shift => b'+',
+        0x0D => b'=',
+        0x35 => b'/',
         0x0E => 0x08,                             // Backspace
+        0x1C => 0x0D,                             // Invio
         0x10..=0x19 => b"qwertyuiop"[(sc - 0x10) as usize],
         0x1E..=0x26 => b"asdfghjkl"[(sc - 0x1E) as usize],
         0x2C..=0x32 => b"zxcvbnm"[(sc - 0x2C) as usize],

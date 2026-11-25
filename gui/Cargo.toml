@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 # Crate separato: nessun dipendente, no_std, testabile su host.
+[dependencies]
+sysapps = { path = "../sysapps" }
+
 [workspace]
 
 [profile.release]
