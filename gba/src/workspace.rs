@@ -56,6 +56,16 @@ impl Workspace {
         self.confirm
     }
 
+    /// Spazio di lavoro che parte da `path` (la cartella del terminale). Se non è una directory, parte dalla radice.
+    pub fn new_at(fs: &Fs, path: &[u8]) -> Self {
+        let mut ws = Self::new();
+        let ok = path.is_empty() || fs.find_name(path).map_or(false, |id| fs.is_dir(id));
+        if ok && path.len() <= NAME_MAX {
+            ws.set_cwd(path);
+        }
+        ws
+    }
+
     fn set_cwd(&mut self, path: &[u8]) {
         self.cwd[..path.len()].copy_from_slice(path);
         self.cwd_len = path.len();
@@ -166,6 +176,14 @@ mod tests {
         assert_eq!(ws.step(&fs, 0), Action::None); // rilascio
         assert_eq!(ws.step(&fs, KEY_A), Action::File);
         assert_eq!(ws.open_id(), fs.find_name(b"b"));
+    }
+
+    #[test]
+    fn new_at_starts_in_given_dir_or_root() {
+        let fs = tree();
+        assert_eq!(Workspace::new_at(&fs, b"docs").cwd(), b"docs");
+        assert_eq!(Workspace::new_at(&fs, b"nope").cwd(), b"");
+        assert_eq!(Workspace::new_at(&fs, b"").cwd(), b"");
     }
 
     #[test]
