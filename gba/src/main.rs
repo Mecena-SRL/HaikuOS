@@ -8,10 +8,12 @@ mod compositor;
 mod fs;
 mod monolith;
 mod persist;
+mod space;
 mod sram;
 mod workspace;
 
 use core::arch::global_asm;
+use core::cell::RefCell;
 use core::panic::PanicInfo;
 use core::ptr::{read_volatile, write_volatile};
 use fs::FILES;
@@ -166,7 +168,7 @@ fn keys() -> u16 {
     !unsafe { read_volatile(KEYINPUT) } & 0x03FF
 }
 
-fn draw_workspace(ws: &Workspace, p: &persist::Persist<sram::Sram>) {
+fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::Sram>>) {
     fill(0, 0, W, 160, BLACK);
     // Barra della directory corrente: lunghezza = percorso.
     let bar = (ws.cwd().len() * 8 + 8).min(232);
@@ -217,18 +219,19 @@ pub extern "C" fn rust_main() -> ! {
     fill(12, 130, 16, 16, GREEN); // monolite: vivo
     fill(36, 130, 16, 16, BLUE); // agente: pronto
 
-    // Persistenza in SRAM: contatore di avvii e file di esempio.
-    let mut p = persist::Persist::open(sram::Sram, (sram::SIZE - 32) / 2);
+    // Due spazi nella SRAM: sistema (contatore di avvii) e utente (file e directory).
+    let dev = RefCell::new(sram::Sram);
+    let mut sp = space::Spaces::open(&dev, sram::SIZE / 2, sram::SIZE / 2);
     let mut b = [0u8; 1];
-    let found = p.read(b"boots", 0, &mut b) == Ok(1);
+    let found = sp.sys.read(b"boots", space::SYS_CAP, &mut b) == Ok(1);
     if !found {
-        let _ = p.create(b"boots", 0);
+        let _ = sp.sys.create(b"boots", space::SYS_CAP);
     }
     let boots = if found { b[0].wrapping_add(1) } else { 1 };
-    let ok = p.write(b"boots", 0, 1, &[boots]).is_ok() && p.sync().is_ok();
-    let _ = p.mkdir(b"docs", 0);
-    let _ = p.create(b"docs/hello", 0);
-    let _ = p.write(b"docs/hello", 0, 64, b"hello haikuos");
+    let ok = sp.sys.write(b"boots", space::SYS_CAP, 1, &[boots]).is_ok() && sp.sys.sync().is_ok();
+    let _ = sp.usr.mkdir(b"docs", 0);
+    let _ = sp.usr.create(b"docs/hello", 0);
+    let _ = sp.usr.write(b"docs/hello", 0, 64, b"hello haikuos");
     fill(60, 130, 16, 16, if ok { GREEN } else { ORANGE }); // persistenza: ok
     fill(84, 130, 16, 16, if alloc_ok { GREEN } else { ORANGE }); // allocatore: ok
     for i in 0..(boots as usize).min(8) {
@@ -239,7 +242,7 @@ pub extern "C" fn rust_main() -> ! {
     }
 
     // Misure (cicli di timer, emulatore mGBA): media di alloc+free e di sync con 100 byte.
-    let _ = p.create(b"bench", 0);
+    let _ = sp.usr.create(b"bench", 0);
     let mut sum_alloc = 0u32;
     for _ in 0..100 {
         sum_alloc = sum_alloc.wrapping_add(cycles(|| {
@@ -251,9 +254,9 @@ pub extern "C" fn rust_main() -> ! {
     let data = [0xA5u8; 100];
     let mut sum_sync = 0u32;
     for _ in 0..10 {
-        let _ = p.write(b"bench", 0, 128, &data);
+        let _ = sp.usr.write(b"bench", 0, 128, &data);
         sum_sync = sum_sync.wrapping_add(cycles(|| {
-            let _ = p.sync();
+            let _ = sp.usr.sync();
         }));
     }
     fill(0, 0, W, 160, BLACK);
@@ -284,22 +287,23 @@ pub extern "C" fn rust_main() -> ! {
         sram::vblank();
     }
 
-    // Spazio di lavoro: tasti per navigare, Start crea un file.
+    // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file.
     let mut ws = Workspace::new();
     loop {
         sram::vblank();
-        let _ = p.frame();
-        if ws.step(p.fs(), keys()) == Action::Create {
+        let _ = sp.sys.frame();
+        let _ = sp.usr.frame();
+        if ws.step(sp.usr.fs(), keys()) == Action::Create {
             let mut ids = [0usize; FILES];
-            let n = p.fs().list(ws.cwd(), &mut ids) as u8;
+            let n = sp.usr.fs().list(ws.cwd(), &mut ids) as u8;
             let (nm, nl) = child_name(ws.cwd(), n);
-            if nl > 0 && p.create(&nm[..nl], 0).is_ok() {
-                let _ = p.write(&nm[..nl], 0, 64, &[n; 8]);
+            if nl > 0 && sp.usr.create(&nm[..nl], 0).is_ok() {
+                let _ = sp.usr.write(&nm[..nl], 0, 64, &[n; 8]);
             }
             ws.dirty = true;
         }
         if ws.dirty {
-            draw_workspace(&ws, &p);
+            draw_workspace(&ws, &sp.usr);
             ws.dirty = false;
         }
     }

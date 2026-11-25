@@ -10,3 +10,5 @@ mod alloc;
 mod monolith;
 #[path = "../src/workspace.rs"]
 mod workspace;
+#[path = "../src/space.rs"]
+mod space;
