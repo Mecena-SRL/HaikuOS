@@ -156,6 +156,7 @@ fn flipped_cipher_byte_is_detected_on_read() {
     s.write("c", b"segreto").unwrap();
     let blk = s.files_block("c");
     s.flip_block_byte(blk);
+    s.flip_mirror_byte(blk);
     assert_eq!(s.read_checked("c"), Err(SnapError::Corrupt));
 }
 
@@ -179,4 +180,25 @@ fn worn_out_blocks_are_not_reused() {
     }
     s.delete("f0");
     assert_eq!(s.write("n", b"x"), Err(SnapError::Worn));
+}
+
+#[test]
+fn mirror_serves_read_and_scrub_repairs_primary() {
+    let mut s = Store::new(KEY);
+    s.write("m", b"copia").unwrap();
+    let blk = s.files_block("m");
+    s.flip_block_byte(blk);
+    assert_eq!(s.read_checked("m").unwrap().unwrap(), b"copia");
+    assert_eq!(s.scrub(), Ok(1));
+    assert_eq!(s.scrub(), Ok(0));
+}
+
+#[test]
+fn both_copies_lost_is_reported_by_scrub() {
+    let mut s = Store::new(KEY);
+    s.write("m", b"perso").unwrap();
+    let blk = s.files_block("m");
+    s.flip_block_byte(blk);
+    s.flip_mirror_byte(blk);
+    assert_eq!(s.scrub(), Err(SnapError::Corrupt));
 }

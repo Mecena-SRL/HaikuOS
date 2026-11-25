@@ -81,6 +81,10 @@ pub struct Store {
     /// Contatore per i nonce: ogni scrittura ne usa uno nuovo.
     nonce_ctr: u64,
     blocks: Vec<[u8; SNAP_BLOCK_BYTES]>,
+    /// Seconda copia di ogni blocco (mirror). Ogni copia si autentica da sola con Ascon.
+    mirror: Vec<[u8; SNAP_BLOCK_BYTES]>,
+    /// Byte cifrati occupati in ogni blocco.
+    stored_len: Vec<usize>,
     /// Riferimenti per blocco: 0 = libero.
     refs: Vec<u32>,
     files: Table,
@@ -99,6 +103,8 @@ impl Store {
             endurance,
             nonce_ctr: 0,
             blocks: vec![[0; SNAP_BLOCK_BYTES]; SNAP_BLOCKS],
+            mirror: vec![[0; SNAP_BLOCK_BYTES]; SNAP_BLOCKS],
+            stored_len: vec![0; SNAP_BLOCKS],
             refs: vec![0; SNAP_BLOCKS],
             files: Table::new(),
             snaps: Vec::new(),
@@ -150,6 +156,8 @@ impl Store {
             }
         };
         self.blocks[b][..sealed.len()].copy_from_slice(&sealed);
+        self.mirror[b][..sealed.len()].copy_from_slice(&sealed);
+        self.stored_len[b] = sealed.len();
         let m = seal_meta(name, Meta { blk: b, stored: sealed.len(), len: data.len(), sum: 0 });
         if let Some(old) = self.files.insert(name.to_string(), m) {
             self.release(old.blk);
@@ -157,9 +165,43 @@ impl Store {
         Ok(())
     }
 
+    /// Apre una copia di un blocco; `None` se l'autenticazione fallisce.
+    fn open_copy(&self, blk: usize, copy: &[u8; SNAP_BLOCK_BYTES], len: usize) -> Option<Vec<u8>> {
+        slot::open(&copy[..len], &self.key, blk as u8, SNAP_MAX_FILE).ok()
+    }
+
+    /// Legge da una copia, se valida, altrimenti dal mirror.
     fn unpack(&self, m: &Meta) -> Result<Vec<u8>, SnapError> {
-        let raw = &self.blocks[m.blk][..m.stored];
-        slot::open(raw, &self.key, m.blk as u8, SNAP_MAX_FILE).map_err(|_| SnapError::Corrupt)
+        self.open_copy(m.blk, &self.blocks[m.blk], m.stored)
+            .or_else(|| self.open_copy(m.blk, &self.mirror[m.blk], m.stored))
+            .ok_or(SnapError::Corrupt)
+    }
+
+    /// Verifica le copie di ogni blocco in uso e ripara quella danneggiata dall'altra.
+    /// Ritorna quante copie sono state riparate. `Err(Corrupt)` se entrambe sono perse.
+    pub fn scrub(&mut self) -> Result<usize, SnapError> {
+        let mut repaired = 0;
+        for b in 0..SNAP_BLOCKS {
+            if self.refs[b] == 0 {
+                continue;
+            }
+            let len = self.stored_len[b];
+            let p_ok = self.open_copy(b, &self.blocks[b], len).is_some();
+            let m_ok = self.open_copy(b, &self.mirror[b], len).is_some();
+            match (p_ok, m_ok) {
+                (true, true) => {}
+                (false, true) => {
+                    self.blocks[b] = self.mirror[b];
+                    repaired += 1;
+                }
+                (true, false) => {
+                    self.mirror[b] = self.blocks[b];
+                    repaired += 1;
+                }
+                (false, false) => return Err(SnapError::Corrupt),
+            }
+        }
+        Ok(repaired)
     }
 
     /// Lettura con verifica del checksum della voce e dell'autenticazione. `Err(Corrupt)` se alterata.
@@ -258,5 +300,11 @@ impl Store {
     #[doc(hidden)]
     pub fn flip_block_byte(&mut self, blk: usize) {
         self.blocks[blk][20] ^= 1;
+    }
+
+    /// Solo per i test: corrompe un byte della copia mirror di un blocco.
+    #[doc(hidden)]
+    pub fn flip_mirror_byte(&mut self, blk: usize) {
+        self.mirror[blk][20] ^= 1;
     }
 }
