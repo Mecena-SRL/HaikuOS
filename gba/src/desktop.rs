@@ -36,9 +36,9 @@ pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
 /// Numero di icone sulla riga (4 colonne, una sola riga nel primo schizzo).
-pub const ICONS: usize = 8;
+pub const ICONS: usize = 9;
 /// Etichette sotto le icone (files, term, giochi, notes).
-pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ"];
+pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ", b"REMIND"];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
 /// Icona che apre la calcolatrice.
@@ -67,10 +67,12 @@ pub enum App {
     Chess,
     /// Lettore di testo: finestra 64x48, Select chiude.
     Reader,
+    /// Promemoria: lista a 4 voci.
+    Reminders,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
-pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader];
+pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader, App::Reminders];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
 pub fn launchable(i: usize) -> Option<App> {
@@ -83,6 +85,7 @@ pub fn launchable(i: usize) -> Option<App> {
 use crate::apps::{clock::Clock, settings::Settings, view};
 use crate::media_ui::{self, ChessView, Key, Reader};
 use crate::calc_ui::{self, CalcUi};
+use crate::reminders::Reminders;
 use crate::fs::Fs;
 use crate::terminal::{self, Terminal};
 
@@ -107,11 +110,12 @@ pub struct Desktop {
     settings: Settings,
     chess: ChessView,
     reader: Reader,
+    pub rem: Reminders,
 }
 
 impl Desktop {
     pub fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new(), chess: ChessView::new(), reader: Reader::new(READER_TEXT) }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new(), chess: ChessView::new(), reader: Reader::new(READER_TEXT), rem: Reminders::new() }
     }
 
     /// Vero se c'è un programma a schermo intero da avviare.
@@ -159,9 +163,41 @@ impl Desktop {
         prima != self.clock.testo()
     }
 
+    /// Due promemoria di prova, da mostrare al primo avvio (la lista parte vuota).
+    pub fn demo_reminders(&mut self) {
+        self.rem.add(b"TELEFONA ANNA");
+        self.rem.add(b"LEGGI MAIL");
+    }
+
+    /// Stato della lista promemoria, per sapere se la finestra va ridisegnata.
+    fn rem_digest(&self) -> (usize, usize, usize) {
+        (self.rem.sel, self.rem.open(), self.rem.filled())
+    }
+
+    /// Tasti della lista promemoria. Fuori da `step` (inline(never)): dentro `step` la ROM non passava l'harness.
+    #[inline(never)]
+    fn rem_keys(&mut self, pressed: u16) {
+        if pressed & KEY_UP != 0 {
+            self.rem.step(-1);
+        }
+        if pressed & KEY_DOWN != 0 {
+            self.rem.step(1);
+        }
+        if pressed & KEY_A != 0 {
+            self.rem.toggle();
+        }
+        if pressed & KEY_SELECT != 0 {
+            self.rem.remove();
+        }
+        if pressed & KEY_B != 0 {
+            self.win = None;
+        }
+    }
+
     pub fn step(&mut self, keys: u16, fs: &Fs) -> bool {
         let pressed = keys & !self.prev;
         self.prev = keys;
+        let rb = self.rem_digest();
         let before = (
             self.sel,
             self.win,
@@ -214,6 +250,7 @@ impl Desktop {
                     self.win = None;
                 }
             }
+            Some(App::Reminders) => self.rem_keys(pressed),
             Some(App::Term) => {
                 if pressed & KEY_SELECT != 0 {
                     self.term.toggle_typing();
@@ -312,6 +349,7 @@ impl Desktop {
                 self.clock.hms(),
                 self.settings.theme(),
             )
+            || rb != self.rem_digest()
     }
 }
 
@@ -394,6 +432,20 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
         match app {
             App::Clock => view::clock(fb, W, H, bx, by, &d.clock, d.settings.palette()),
             _ => view::settings(fb, W, H, bx, by, &d.settings, d.settings.palette()),
+        }
+        return;
+    }
+    if app == App::Reminders {
+        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"REMIND", TEXT);
+        for i in 0..crate::reminders::SLOTS {
+            if let Some(it) = d.rem.item(i) {
+                // Riga: * se selezionata, + fatta o - aperta, poi il testo.
+                let mut row = [b' '; 3 + crate::reminders::TEXT_MAX];
+                row[0] = if i == d.rem.sel { b'*' } else { b' ' };
+                row[1] = if it.done { b'+' } else { b'-' };
+                row[3..3 + it.len].copy_from_slice(&it.text[..it.len]);
+                crate::font::draw(fb, W, H, WIN_X + 4, by + 2 + i * 10, &row[..3 + it.len], TEXT);
+            }
         }
         return;
     }

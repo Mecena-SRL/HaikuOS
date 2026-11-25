@@ -10,6 +10,7 @@ mod calc_ui;
 mod compositor;
 mod desktop;
 mod terminal;
+mod reminders;
 mod font;
 mod fs;
 mod chess;
@@ -389,6 +390,7 @@ pub extern "C" fn rust_main() -> ! {
     // Desktop del concept: croce per scegliere un'icona, A apre, B chiude la finestra.
     // Il lanciatore avvia a schermo intero FILES (spazio di lavoro) e NOTES (editor). Start = FILES.
     let mut dk = desktop::Desktop::new();
+    dk.demo_reminders();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
     let media = unsafe { &mut *core::ptr::addr_of_mut!(MEDIA_SURF) };
