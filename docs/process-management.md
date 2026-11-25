@@ -52,7 +52,7 @@ Nota: le fonti sopra sono state trovate con la ricerca; i dettagli di implementa
 
 ## 5. Limiti per piattaforma
 
-- **GBA (ARM7TDMI):** nessuna MMU, nessuna MPU. L'isolamento tra programmi è solo logico: il monolite e il linguaggio (Rust) lo fanno rispettare, ma un programma difettoso può scrivere in memoria altrui. Va deciso se accettarlo (vedi sezione 8).
+- **GBA (ARM7TDMI):** nessuna MMU, nessuna MPU. L'isolamento tra programmi è solo logico: il monolite e il linguaggio (Rust) lo fanno rispettare, ma un programma difettoso può scrivere in memoria altrui. **Decisione (Ivan):** su GBA l'isolamento è solo logico, accettato. Il monolite e Rust lo fanno rispettare.
 - **ARM64 e x86-64:** MMU disponibile. Ogni programma ha uno spazio di indirizzi proprio; il modello sopra resta uguale.
 
 ## 6. Prototipo e test (`sim/`)
@@ -71,4 +71,4 @@ Nota: le fonti sopra sono state trovate con la ricerca; i dettagli di implementa
 
 ## 8. Decisioni per Ivan
 
-1. **Isolamento su GBA:** accettare l'isolamento solo logico su GBA (più semplice, più piccolo) oppure limitare il sistema alle piattaforme con MMU/MPU?
+1. **Isolamento su GBA:** scelta **accettare l'isolamento solo logico** (più semplice, più piccolo). Decisa da Ivan.
