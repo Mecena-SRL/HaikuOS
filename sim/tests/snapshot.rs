@@ -1,6 +1,6 @@
 //! Snapshot copy-on-write: contenuti preservati, costo in blocchi, limiti e rollback.
 
-use haiku_alloc_sim::snapshot::{SnapError, Store, MAX_SNAPSHOTS, SNAP_BLOCKS, SNAP_BLOCK_BYTES};
+use haiku_alloc_sim::snapshot::{SnapError, Store, MAX_SNAPSHOTS, SNAP_BLOCKS, SNAP_MAX_FILE};
 
 #[test]
 fn snapshot_preserves_old_content_and_rolls_back() {
@@ -94,7 +94,7 @@ fn snapshots_hold_blocks_until_dropped() {
 #[test]
 fn limits_are_enforced() {
     let mut s = Store::new();
-    assert_eq!(s.write("big", &[0; SNAP_BLOCK_BYTES + 1]), Err(SnapError::TooLarge));
+    assert_eq!(s.write("big", &[0; SNAP_MAX_FILE + 1]), Err(SnapError::TooLarge));
     for i in 0..MAX_SNAPSHOTS {
         s.snapshot(&format!("s{i}")).unwrap();
     }
@@ -125,3 +125,24 @@ fn tampered_snapshot_blocks_rollback_without_changes() {
     assert_eq!(s.rollback("s"), Err(SnapError::Corrupt));
     assert_eq!(s.read("a").unwrap(), b"v2");
 }
+
+#[test]
+fn compressible_file_uses_one_block_and_round_trips() {
+    let mut s = Store::new();
+    let data = vec![b'a'; 200];
+    let before = s.free_blocks();
+    s.write("rep", &data).unwrap();
+    assert_eq!(s.free_blocks(), before - 1);
+    assert_eq!(s.read_checked("rep").unwrap().unwrap(), data);
+}
+
+#[test]
+fn incompressible_file_over_a_block_is_refused() {
+    let mut s = Store::new();
+    let mut x: u64 = 0x9E37_79B9;
+    let noise: Vec<u8> = (0..100).map(|_| { x ^= x << 13; x ^= x >> 7; x ^= x << 17; x as u8 }).collect();
+    assert_eq!(s.write("noise", &noise), Err(SnapError::TooLarge));
+    s.write("small", &noise[..60]).unwrap();
+    assert_eq!(s.read("small").unwrap(), &noise[..60]);
+}
+

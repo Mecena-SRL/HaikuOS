@@ -82,6 +82,7 @@ Non raggiungibili dal sandbox: docs.kernel.org e support.apple.com (rete bloccat
 - `sim/tests/snapshot.rs`: 9 test. Costo zero in blocchi allo snapshot; un blocco per overwrite; drop libera i blocchi; rollback recupera file cancellati; limiti (64 blocchi, 4 snapshot, 64 byte per file) **da verificare**.
 - Snapshot: `verify()` controlla i checksum di tabella viva e snapshot. Il rollback verifica lo snapshot prima di toccare i riferimenti: se è alterato, errore `Corrupt` e stato invariato. Test di manomissione.
 - Checksum sui metadati (nome, blocco, lunghezza) per ogni voce, verificato in `read_checked`; test di manomissione. È il passo 1 della priorità, portato nel sim.
+- Compressione nello snapshot (`sim/src/snapshot.rs`): LZSS per file, usato solo se sta in un blocco e riduce la dimensione; altrimenti in chiaro. Limite in chiaro 256 byte (da verificare). 13 test snapshot verdi.
 - `gba/src/fs.rs`: checksum dei metadati per ogni voce (nome, flag, owner, testa, lunghezza), verificato in `entry()`; checksum dei puntatori `next` per blocco, verificati lungo la catena; test di manomissione. 33 test host verdi, build GBA release ok.
 
 Limiti dichiarati: un file occupa un solo blocco (64 byte). Overwrite richiede un blocco libero, anche se il file è piccolo. Non c'è persistenza su disco.
