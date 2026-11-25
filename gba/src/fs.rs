@@ -179,6 +179,19 @@ impl Fs {
         }
     }
 
+    pub fn find_name(&self, name: &[u8]) -> Option<usize> {
+        self.find(name)
+    }
+
+    /// Nome e owner del file `id`, se esiste.
+    pub fn info(&self, id: usize) -> Option<(&[u8], u8)> {
+        self.files.get(id).filter(|e| e.used).map(|e| (&e.name[..e.name_len as usize], e.owner))
+    }
+
+    pub fn len_of(&self, id: usize) -> Option<usize> {
+        self.files.get(id).filter(|e| e.used).map(|e| e.len as usize)
+    }
+
     pub fn free_blocks(&self) -> usize {
         self.used.iter().filter(|&&u| !u).count()
     }
