@@ -30,7 +30,7 @@ cargo build --release
 
 ## Verificato
 
-- Scrivania (`src/desktop.rs`) in 4 tinte. Harness: `gcc -O1 -o desktop_check host/desktop_check.c -lmgba && ./desktop_check haiku-gba.gba` (0 pixel fuori tinta, punti chiave ok, ESITO OK).
+- Scrivania (`src/desktop.rs`) in 4 tinte, griglia e geometria dal crate `haiku-gui` (`../gui`). Harness guidato dallo stato: `gcc -O1 -o desktop_check host/desktop_check.c -lmgba && ./desktop_check haiku-gba.gba` (ESITO OK). Test host della scrivania: `rustc --crate-type rlib --crate-name haiku_gui ../gui/src/lib.rs -o /tmp/libhaiku_gui.rlib && rustc --edition 2021 --test host/test_desktop.rs --extern haiku_gui=/tmp/libhaiku_gui.rlib -o /tmp/desk_t && /tmp/desk_t`.
 
 - Compila con nightly (`thumbv4t-none-eabi`, `build-std`). Binario ~1,1 KB.
 - Header ROM corretto (branch d'ingresso, titolo, byte fisso 0x96). Entry a 0x08000000.

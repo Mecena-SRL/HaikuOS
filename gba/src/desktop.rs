@@ -25,12 +25,14 @@ pub const TEXT: u16 = T0;
 
 /// Barra superiore, in unità GBA (1 unità = 1 px).
 pub const BAR_H: usize = 12;
-/// Icone 16x16. Griglia di 5 colonne e 4 righe (passo 46x36): 19 icone su una sola pagina.
-/// Il concept (passo 48x40, 4 colonne) non entrava con 19 icone: 3 righe, 12 icone.
-pub const ICON_SIZE: usize = 16;
-pub const ICON_COLS: usize = 5;
-pub const ICON_STEP_X: usize = 46;
-pub const ICON_STEP_Y: usize = 36;
+/// Icone 16x16 nella griglia della bibbia (§5), dal crate `haiku-gui`: 4 colonne, passo 48x40,
+/// da (8, 24). Una pagina ha 3 righe (12 icone): la quarta riga porterebbe l'etichetta fuori schermo.
+/// Select sul desktop cambia pagina.
+pub const ICON_SIZE: usize = haiku_gui::layout::ICON as usize;
+pub const ICON_COLS: usize = haiku_gui::layout::COLS;
+pub const ICON_STEP_X: usize = haiku_gui::layout::PITCH_X as usize;
+pub const ICON_STEP_Y: usize = haiku_gui::layout::PITCH_Y as usize;
+pub const PER_PAGE: usize = 12;
 /// Finestra del terminale: posizione e misure.
 pub const WIN_X: usize = 124;
 pub const WIN_Y: usize = 30;
@@ -377,11 +379,23 @@ impl Desktop {
                 }
             }
             _ => {
-                if pressed & (KEY_RIGHT | KEY_DOWN) != 0 {
-                    self.sel = (self.sel + 1) % ICONS;
+                // Griglia della pagina: frecce non escono dalla pagina; Select passa alla pagina successiva.
+                let local = self.sel % PER_PAGE;
+                if pressed & KEY_RIGHT != 0 && local % ICON_COLS + 1 < ICON_COLS && self.sel + 1 < ICONS {
+                    self.sel += 1;
                 }
-                if pressed & (KEY_LEFT | KEY_UP) != 0 {
-                    self.sel = (self.sel + ICONS - 1) % ICONS;
+                if pressed & KEY_LEFT != 0 && local % ICON_COLS > 0 {
+                    self.sel -= 1;
+                }
+                if pressed & KEY_DOWN != 0 && local + ICON_COLS < PER_PAGE && self.sel + ICON_COLS < ICONS {
+                    self.sel += ICON_COLS;
+                }
+                if pressed & KEY_UP != 0 && local >= ICON_COLS {
+                    self.sel -= ICON_COLS;
+                }
+                if pressed & KEY_SELECT != 0 && ICONS > PER_PAGE {
+                    let pages = ICONS.div_ceil(PER_PAGE);
+                    self.sel = ((self.sel / PER_PAGE + 1) % pages) * PER_PAGE;
                 }
                 if pressed & KEY_A != 0 {
                     match launchable(self.sel) {
@@ -425,9 +439,15 @@ fn upper_into(dst: &mut [u8], src: &[u8]) -> usize {
     n
 }
 
-/// Posizione (x, y) dell'icona `i` nella griglia: 5 colonne.
+/// Posizione (x, y) dell'icona `i` nella sua pagina (cella del crate `haiku-gui`).
 pub fn icon_pos(i: usize) -> (usize, usize) {
-    (8 + (i % ICON_COLS) * ICON_STEP_X, BAR_H + 12 + (i / ICON_COLS) * ICON_STEP_Y)
+    let c = haiku_gui::layout::icon_cell(i % PER_PAGE);
+    (c.x as usize, c.y as usize)
+}
+
+/// Prima icona della pagina che contiene `sel`.
+pub fn page_start(sel: usize) -> usize {
+    sel / PER_PAGE * PER_PAGE
 }
 
 /// Titolo della finestra delle dieci app di sistema (None per le altre).
@@ -476,7 +496,8 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
     crate::font::draw(fb, W, H, W - 30, 3, &d.clock.testo(), t0);
 
     // Icone con etichetta. Riquadro chiaro = icona selezionata.
-    for i in 0..ICONS {
+    let first = page_start(d.sel());
+    for i in first..(first + PER_PAGE).min(ICONS) {
         let (x, y) = icon_pos(i);
         let c = if i == d.sel() { t1 } else { t2 };
         rect(fb, x, y, ICON_SIZE, ICON_SIZE, c);
@@ -490,7 +511,7 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
     // Finestra: titolo, corpo con bordo di 1 px, pulsante chiudi 8x8.
     rect(fb, WIN_X, WIN_Y, WIN_W, WIN_H, t3);
     rect(fb, WIN_X + 1, WIN_Y + 1, WIN_W - 2, TITLE_H, t2);
-    rect(fb, WIN_X + WIN_W - 9, WIN_Y + 1, 8, 8, t1);
+    rect(fb, WIN_X + WIN_W - 10, WIN_Y + 1, 8, 8, t1);
     rect(fb, WIN_X + 1, WIN_Y + TITLE_H + 1, WIN_W - 2, WIN_H - TITLE_H - 2, t1);
     let bx = WIN_X + 1;
     let by = WIN_Y + TITLE_H + 1;
@@ -650,11 +671,27 @@ mod tests {
         assert!(d.step(KEY_B, &Fs::new()));
         assert!(!d.win_open());
         d.step(0, &Fs::new());
+        d.step(KEY_DOWN, &Fs::new());
+        assert_eq!(d.sel(), TERM_ICON + ICON_COLS);
+        d.step(0, &Fs::new());
         d.step(KEY_UP, &Fs::new());
+        assert_eq!(d.sel(), TERM_ICON);
+        d.step(0, &Fs::new());
+        d.step(KEY_LEFT, &Fs::new());
         assert_eq!(d.sel(), 0);
         d.step(0, &Fs::new());
         d.step(KEY_LEFT, &Fs::new());
-        assert_eq!(d.sel(), ICONS - 1);
+        assert_eq!(d.sel(), 0); // ai bordi della pagina le frecce non escono
+    }
+
+    #[test]
+    fn select_turns_the_page_of_icons() {
+        let mut d = Desktop::new();
+        assert!(d.step(KEY_SELECT, &Fs::new()));
+        assert_eq!(d.sel(), PER_PAGE);
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_SELECT, &Fs::new()));
+        assert_eq!(d.sel(), 0); // due pagine: torna alla prima
     }
 
     #[test]
@@ -725,8 +762,8 @@ mod tests {
     }
 
     #[test]
-    fn diciannove_icone_entrano_nello_schermo_senza_sovrapporsi() {
-        for i in 0..ICONS {
+    fn dodici_icone_per_pagina_entrano_nello_schermo_senza_sovrapporsi() {
+        for i in 0..PER_PAGE {
             let (x, y) = icon_pos(i);
             assert!(x + ICON_SIZE <= W, "icona {i} fuori a destra");
             // Etichetta sotto l'icona: 2 px di spazio e 5 di altezza del font.
@@ -798,8 +835,23 @@ mod tests_apps {
     }
 
     fn open(d: &mut Desktop, icona: usize, app: App) {
+        // Va all'icona: Select cambia pagina, poi colonna e riga della griglia.
+        while d.sel() / PER_PAGE != icona / PER_PAGE {
+            d.step(KEY_SELECT, &Fs::new());
+            d.step(0, &Fs::new());
+        }
         while d.sel() != icona {
-            d.step(KEY_RIGHT, &Fs::new());
+            let s = d.sel();
+            let k = if s % ICON_COLS < icona % ICON_COLS {
+                KEY_RIGHT
+            } else if s % ICON_COLS > icona % ICON_COLS {
+                KEY_LEFT
+            } else if s < icona {
+                KEY_DOWN
+            } else {
+                KEY_UP
+            };
+            d.step(k, &Fs::new());
             d.step(0, &Fs::new());
         }
         d.step(KEY_A, &Fs::new());
