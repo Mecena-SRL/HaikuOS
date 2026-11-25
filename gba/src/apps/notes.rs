@@ -106,4 +106,32 @@ impl Notes {
             self.items[self.cur].down();
         }
     }
+
+    /// Testo della nota `i` (vuoto se non esiste).
+    pub fn testo_di(&self, i: usize) -> &[u8] {
+        if i >= self.len { b"" } else { self.items[i].text() }
+    }
+
+    /// Posizione del cursore nella nota selezionata.
+    pub fn pos(&self) -> usize {
+        if self.len == 0 { 0 } else { self.items[self.cur].pos() }
+    }
+
+    pub fn left(&mut self) -> bool {
+        self.len > 0 && self.items[self.cur].left()
+    }
+
+    pub fn right(&mut self) -> bool {
+        self.len > 0 && self.items[self.cur].right()
+    }
+
+    /// Seleziona la nota precedente (-1) o successiva (+1), senza giro.
+    pub fn scorri(&mut self, delta: i32) -> bool {
+        let nuovo = self.cur as i32 + delta;
+        if nuovo < 0 || nuovo >= self.len as i32 {
+            return false;
+        }
+        self.cur = nuovo as usize;
+        true
+    }
 }
