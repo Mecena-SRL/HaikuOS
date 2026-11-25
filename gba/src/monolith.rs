@@ -44,6 +44,10 @@ impl Monolith {
         }
     }
 
+    pub fn is_registered(&self, p: usize) -> bool {
+        self.registered.get(p).copied().unwrap_or(false)
+    }
+
     pub fn granted_count(&self) -> usize {
         self.grants.iter().filter(|&&b| b != 0).count()
     }
