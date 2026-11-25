@@ -5,6 +5,8 @@
 pub mod agent;
 pub mod audio;
 pub mod fat32;
+#[cfg(feature = "fat32-write")]
+pub mod fat32_write;
 pub mod exfat;
 pub mod gpu;
 pub mod input;
