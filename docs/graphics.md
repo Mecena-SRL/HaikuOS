@@ -62,7 +62,7 @@ Regola: il compositor non legge la memoria dei programmi. Riceve solo superfici 
 - **Primo programma grafico (visualizzatore di testo con input):** il programma 0 legge `docs/hello` dal file system e lo mostra con un font 3×5 (`gba/src/glyph.rs`). Con il keypad si modifica la riga (`gba/src/editor.rs`): Su/Giù scelgono il carattere in attesa (arancio), A lo inserisce al cursore, B cancella prima del cursore, L/R spostano il cursore, Select salva in `docs/hello` (riga di stato "SALVATO"), Start esce. Dallo spazio di lavoro, A su un file lo apre nello stesso visualizzatore (fino a 128 caratteri). Programmi 2 e 3: superfici piene blu e arancio.
 - **Verifica:**
   - test host: font e editor 6, compositore 6, superfici 10 (`gba/host/`);
-  - harness libmgba (`gba/host/vram_check.c`, con `host/font.h` generato da `glyph.rs`): confronta la VRAM dopo Su+A+Select (frame 520), dopo il testo a capo (760) e dopo un inserimento nel mezzo con L (840), la superficie del file aperto dallo spazio di lavoro (frame 640) e dopo un riavvio nella stessa SRAM (frame 400). Esito: 0 differenze.
+  - harness libmgba (`gba/host/vram_check.c`, con `host/font.h` generato da `glyph.rs`): confronta la VRAM dopo Su+A+Select (frame 520), dopo il testo a capo (760) e dopo un inserimento nel mezzo con L (840), la superficie del file aperto dallo spazio di lavoro (frame 640) e dopo un riavvio nella stessa SRAM (frame 400). Esito dichiarato: 0 differenze. **Rieseguito con libmgba 0.10:** fallisce con 55 pixel diversi dopo il riavvio (frame 400) e 10 dopo il caricamento, anche sul main precedente alla PR #97; l'atteso è da riallineare.
 - Non verificato su hardware reale. Lo screenshot di mGBA sotto Xvfb non funziona in questo ambiente.
 
 ## 7. Domande aperte
