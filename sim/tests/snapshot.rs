@@ -277,3 +277,35 @@ fn shared_content_freed_only_after_last_copy() {
     s.delete("b");
     assert_eq!(s.free_blocks(), before + 1);
 }
+
+#[test]
+fn incremental_send_brings_replica_to_snapshot_state() {
+    let mut a = Store::new(KEY);
+    a.write("a", b"uno").unwrap();
+    a.write("b", b"due").unwrap();
+    a.snapshot("s1").unwrap();
+    a.write("a", b"UNO").unwrap();
+    a.delete("b");
+    a.write("c", b"tre").unwrap();
+    a.snapshot("s2").unwrap();
+
+    let mut b = Store::new(KEY);
+    b.apply(&a.diff(None, "s1").unwrap()).unwrap();
+    b.snapshot("s1").unwrap();
+    let inc = a.diff(Some("s1"), "s2").unwrap();
+    assert_eq!(inc.put.len(), 2);
+    assert_eq!(inc.del, vec!["b".to_string()]);
+    b.apply(&inc).unwrap();
+    assert_eq!(b.read("a").unwrap(), b"UNO");
+    assert_eq!(b.read("c").unwrap(), b"tre");
+    assert!(b.read("b").is_none());
+    assert!(b.verify().is_ok());
+}
+
+#[test]
+fn diff_of_identical_states_is_empty() {
+    let mut a = Store::new(KEY);
+    a.write("a", b"x").unwrap();
+    a.snapshot("s1").unwrap();
+    assert_eq!(a.diff(Some("s1"), "s1").unwrap(), haiku_alloc_sim::snapshot::Diff::default());
+}
