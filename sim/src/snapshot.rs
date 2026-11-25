@@ -25,6 +25,7 @@ pub enum SnapError {
     TooManySnapshots,
     NoSuchSnapshot,
     Corrupt,
+    NoSuchFile,
     /// Restano solo blocchi liberi ma esauriti (endurance raggiunta).
     Worn,
 }
@@ -215,6 +216,18 @@ impl Store {
 
     pub fn read(&self, name: &str) -> Option<Vec<u8>> {
         self.read_checked(name).ok().flatten()
+    }
+
+    /// Crea `dst` come copia di `src` senza copiare dati: i due nomi condividono il blocco.
+    /// Una scrittura successiva su uno dei due alloca un blocco nuovo (copy-on-write).
+    pub fn clone_file(&mut self, src: &str, dst: &str) -> Result<(), SnapError> {
+        let m = *self.files.get(src).ok_or(SnapError::NoSuchFile)?;
+        self.refs[m.blk] += 1;
+        let m = seal_meta(dst, m);
+        if let Some(old) = self.files.insert(dst.to_string(), m) {
+            self.release(old.blk);
+        }
+        Ok(())
     }
 
     pub fn delete(&mut self, name: &str) -> bool {
