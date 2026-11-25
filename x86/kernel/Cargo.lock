@@ -3,5 +3,12 @@
 version = 4
 
 [[package]]
+name = "haiku-gui"
+version = "0.1.0"
+
+[[package]]
 name = "haiku-kernel"
 version = "0.1.0"
+dependencies = [
+ "haiku-gui",
+]

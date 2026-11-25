@@ -5,6 +5,9 @@ name = "haiku-kernel"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+haiku-gui = { path = "../../gui" }
+
 [profile.dev]
 panic = "abort"
 

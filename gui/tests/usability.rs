@@ -77,3 +77,14 @@ fn pointer_clicks_work_on_icons_close_and_content() {
     let cb = haiku_gui::layout::close_button(f);
     assert_eq!(s.click(cb.x + 1, cb.y + 1), Event::Closed(2));
 }
+
+#[test]
+fn icons_page_twelve_at_a_time_and_select_turns_page() {
+    static MANY: [Icon; 14] = [Icon { label: "APP", app: 1, title: "APP", w: 60, h: 40 }; 14];
+    let mut s = Shell::new(&MANY, 240, 160);
+    assert_eq!(s.visible(), (0, 12));
+    press(&mut s, &[Key::Select]);
+    assert_eq!(s.visible(), (12, 2));
+    assert_eq!(s.sel, 12);
+    assert_eq!(s.key(Key::A), Event::Launch(1));
+}

@@ -19,8 +19,11 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
     }
 
     // Icone: quadrato T2, selezionata T1, aperta con sottolineatura T2.
-    for (i, ic) in s.icons.iter().enumerate() {
-        let cell = icon_cell(i);
+    let (start, count) = s.visible();
+    for k in 0..count {
+        let i = start + k;
+        let ic = &s.icons[i];
+        let cell = icon_cell(k);
         let sq = if i == s.sel { T1 } else { T2 };
         c.fill(cell, sq);
         if s.wm.find_app(ic.app).is_some() {
