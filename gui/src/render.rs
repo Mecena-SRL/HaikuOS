@@ -13,6 +13,12 @@ pub trait Canvas {
     fn rounded(&self) -> bool {
         false
     }
+    /// Grafica x86 (bibbia §3.1, §8): accenti per app, icone vere, pulsanti colorati.
+    fn rich(&self) -> bool {
+        false
+    }
+    /// Icona vera nella cella `cell` (16×16 logici = 32×32 fisici; 8×8 nei titoli). False se non disponibile.
+    fn icon(&mut self, _cell: Rect, _label: &str, _app: u8) {}
 }
 
 /// Smussa i quattro angoli della finestra `f` con il fondo T0 (raggio 4 px logici).
@@ -174,7 +180,7 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         }
         let Some(w) = s.wm.get(i) else { continue };
         let tb = task_button(i);
-        c.fill(tb, if Some(i) == active { T2 } else if w.min { T3 } else { T1 });
+        c.fill(tb, if Some(i) == active { if c.rich() { Tok::A(w.app) } else { T2 } } else if w.min { T3 } else { T1 });
         c.text(tb.x + 2, tb.y + (tb.h - FONT_H) / 2, clip(w.title, (TASK_W - 4) / (FONT_W + 1)), T0);
         if w.min {
             c.fill(Rect::new(tb.x, tb.y + tb.h - 1, tb.w, 1), T0);
@@ -188,14 +194,21 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         let i = start + k;
         let ic = &s.icons[i];
         let cell = icon_cell(k);
-        if i == s.sel {
-            c.fill(cell, T1);
+        if c.rich() {
+            if i == s.sel {
+                c.fill(cell.inset(-1), T1);
+            }
+            c.icon(cell, ic.label, ic.app);
         } else {
-            let (bx, by, bw, bh) = BLOCK;
-            c.fill(Rect::new(cell.x + bx, cell.y + by, bw, bh), T2);
-        }
-        for &(x, y, w, h) in cuts(ic.label) {
-            c.fill(Rect::new(cell.x + x, cell.y + y, w, h), T0);
+            if i == s.sel {
+                c.fill(cell, T1);
+            } else {
+                let (bx, by, bw, bh) = BLOCK;
+                c.fill(Rect::new(cell.x + bx, cell.y + by, bw, bh), T2);
+            }
+            for &(x, y, w, h) in cuts(ic.label) {
+                c.fill(Rect::new(cell.x + x, cell.y + y, w, h), T0);
+            }
         }
         if s.wm.find_app(ic.app).is_some() {
             c.fill(Rect::new(cell.x, cell.y + UNDERLINE_DY, ICON, 1), T2);
@@ -212,12 +225,23 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         let f = w.frame;
         c.fill(f, T3);
         let tb = title_bar(f);
-        c.fill(tb, if Some(i) == active { T2 } else { T1 });
-        let cols = (min_button(f).x - tb.x - 4) / (FONT_W + 1);
-        c.text(tb.x + 2, tb.y + (TITLE_H - FONT_H) / 2, clip(w.title, cols), T0);
-        c.fill(close_button(f), T0);
-        c.fill(max_button(f), T0);
-        c.fill(min_button(f), T0);
+        let rich = c.rich();
+        // x86: titolo dell'app nel suo colore (attiva) con icona 8×8 a sinistra; GBA: T2/T1 come da bibbia.
+        let tx = if rich {
+            c.fill(tb, if Some(i) == active { Tok::A(w.app) } else { T1 });
+            let label = s.icons.iter().find(|ic| ic.app == w.app).map_or("", |ic| ic.label);
+            c.icon(Rect::new(tb.x + 1, tb.y + 1, TITLE_H - 2, TITLE_H - 2), label, w.app);
+            tb.x + TITLE_H
+        } else {
+            c.fill(tb, if Some(i) == active { T2 } else { T1 });
+            tb.x + 2
+        };
+        let cols = (min_button(f).x - tx - 4) / (FONT_W + 1);
+        c.text(tx, tb.y + (TITLE_H - FONT_H) / 2, clip(w.title, cols), T0);
+        let (cl, mx, mn) = if rich { (Tok::A(11), Tok::A(10), Tok::A(9)) } else { (T0, T0, T0) };
+        c.fill(close_button(f), cl);
+        c.fill(max_button(f), mx);
+        c.fill(min_button(f), mn);
         c.fill(body(f), T1);
         draw_app(c, s, w.app, content(f));
         if c.rounded() {

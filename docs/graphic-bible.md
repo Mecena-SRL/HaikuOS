@@ -31,6 +31,17 @@ Formato GBA: `r | g<<5 | b<<10` (5 bit per canale). Mac: sRGB esadecimale, conve
 
 Neutri ammessi solo su Mac: nessuno per ora. Se servono (es. testo disabilitato), si aggiungono qui e nel codice insieme.
 
+### 3.1 x86: colori a 32 bit (solo x86)
+
+Il framebuffer x86 è a 32 bit: i quattro token restano il tema (T0..T3), ma si aggiungono accenti fissi `A(k)` (`gui/src/palette.rs`, `ACCENTS`):
+
+| Indice | Uso | Colore |
+|---|---|---|
+| A(1)..A(8) | Titolo di ogni app (FILE, TERM, CALC, WEB, EDIT, SET, ORA, READ) | giallo, verde acqua, arancio, blu, lilla, grigio azzurro, rosa, verde |
+| A(9), A(10), A(11) | Pulsanti riduci, massimizza, chiudi | giallo, verde, rosso |
+
+Su GBA `A(_)` vale T2: il GBA non usa mai questi token e resta a 4 colori. Testo sugli accenti: T0.
+
 Temi alternativi (`apps/settings.rs`, `PALETTES`): restano varianti, il tema 0 è il riferimento. **Da verificare** la leggibilità di ciascuno.
 
 ## 4. Testo
@@ -63,6 +74,7 @@ Unità logica = 1 px GBA. Tutte le misure sono in unità logiche.
 - Titolo **inattivo**: fondo T1, testo T0. Pulsanti riduci, massimizza, chiudi: quadrati 8×8 T0 (x86).
 - Corpo: fondo T1. Il programma disegna solo qui dentro.
 - Angoli: retti su GBA. Su x86, smussati con raggio 4 px (fondo T0). Niente ombre (decisione di design). **Da verificare** a schermo.
+- **x86**: titolo attivo nel colore dell'app (A(app)), titolo inattivo T1; icona 8×8 logica a sinistra del titolo; pulsanti colorati (A(9..11)). Barra delle applicazioni: il pulsante attivo prende lo stesso colore.
 
 ## 7. Barra superiore
 
@@ -73,6 +85,8 @@ Unità logica = 1 px GBA. Tutte le misure sono in unità logiche.
 ## 8. Icone e stati
 
 Icona 16×16 = blocco 14×14 (T2) con segni a rettangoli in T0 (glifo, `gui/src/icons.rs`). Etichetta sconosciuta: riquadro vuoto.
+
+**x86**: icona vera 32×32 px fisici (cella 16×16 logica), in `icons::art`: piastra dell'accento dell'app con angoli smussati (raggio 4 px) e segni in T0/T1. Nei titoli la stessa icona a 16×16 px. Selezione: anello T1 di 1 px logico.
 
 | Stato | Icona | Etichetta |
 |---|---|---|
@@ -102,5 +116,6 @@ Glifi: FILE, TERM, CALC, WEB, EDIT, SET, ORA, READ. **Da verificare** su schermo
 - Fase 3 (`gba/src/scale.rs`): scala intera per schermi grandi, letterbox centrato con banda `T0`. Il disegno resta 240×160; test host in `gba/host/test_scale.rs`. Da verificare: schermo reale o VM grafica, barra e finestre ridimensionabili (non fatti).
 - Fase 2 (`gba/src/desktop.rs`): orologio della barra in T0, come il resto del testo sulla barra. Il resto del desktop già rispetta palette, spaziature e griglia.
 - Fase 4 (x86, `gui/src/shell.rs`, `render.rs`): menu HAIKUOS con ricerca (tasto Win), pulsanti finestra nella barra (riduci = icona, click sul pulsante attivo), orologio RTC in T0, trascinamento dal titolo, massimizza sotto la barra. Screenshot: `/mnt/project-files/haikuos/render-x86/`. Da verificare: ora in UTC (nessun fuso), contenuto delle app nelle finestre (ancora vuoto), temi alternativi, ombre e animazioni non fatte (voluto).
+- Fase 5 (x86, `gui/src/render.rs`, `x86/kernel/src/fb.rs`): accenti a 32 bit, icone vere 32×32, titoli colorati con icona, pulsanti colorati. Mouse: PS/2 in polling, verificato con `x86/scripts/mouse-qemu.py` (clic su FILE apre la finestra; posizione calibrata a mano, **da verificare** su hardware). Font: Spleen 5×8 (BSD-2, `x86/kernel/LICENSE-spleen.txt`), **da verificare** a schermo con altri font. Da verificare: contrasto del testo T0 sugli accenti A(1..8) su schermo reale.
 - Fase 1 (icone, `gui/src/icons.rs`): glifi 16×16 per GBA e x86. Da fare: versione 32×32 x86; `gba/host` screenshot. **Da verificare**.
 - Da verificare su hardware GBA: leggibilità del 3×5 su schermo reale, contrasto T2 su T1, tempi di ridisegno.
