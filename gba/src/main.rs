@@ -8,6 +8,7 @@ mod compositor;
 mod fs;
 mod monolith;
 mod persist;
+mod surfaces;
 mod space;
 mod sram;
 mod workspace;
@@ -76,28 +77,6 @@ const GREY: u16 = rgb(10, 10, 10);
 const DARK: u16 = rgb(3, 3, 4);
 const WHITE: u16 = rgb(31, 31, 31);
 
-/// Superfici di prova del compositore: tinta piena.
-const fn solid<const N: usize>(c: u16) -> [u16; N] {
-    let mut a = [0u16; N];
-    let mut i = 0;
-    while i < N {
-        a[i] = c;
-        i += 1;
-    }
-    a
-}
-/// Colonne pari blu, colonne dispari WHITE (trasparente): mostra il trasparente sopra la superficie A.
-const fn stripes<const N: usize>(w: usize) -> [u16; N] {
-    let mut a = [0u16; N];
-    let mut i = 0;
-    while i < N {
-        a[i] = if (i % w) % 2 == 0 { BLUE } else { WHITE };
-        i += 1;
-    }
-    a
-}
-const SURF_A: [u16; 100 * 60] = solid(GREEN);
-const SURF_B: [u16; 100 * 60] = stripes(100);
 
 fn fill(x: usize, y: usize, w: usize, h: usize, c: u16) {
     for yy in y..y + h {
@@ -201,6 +180,17 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
     }
 }
 
+static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
+
+impl surfaces::Quota for Monolith {
+    fn take(&mut self, p: usize, bytes: usize) -> Option<usize> {
+        self.alloc(p, bytes).ok()
+    }
+    fn give(&mut self, p: usize, off: usize, bytes: usize) -> bool {
+        self.free(p, off, bytes)
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
     // Stato iniziale: monolite attivo, agente pronto.
@@ -280,21 +270,32 @@ pub extern "C" fn rust_main() -> ! {
         sram::vblank();
     }
 
-    // Demo del compositore: due superfici, la seconda sopra la prima, con colonne trasparenti. Resta finché non si preme A.
+    // Demo: superfici dei programmi 0, 2 e 3 (quota dal monolite), composte in VRAM.
+    let surf = unsafe { &mut *core::ptr::addr_of_mut!(SURFACES) };
     fill(0, 0, W, 160, BLACK);
+    let _ = surf.open(&mut m, 0, 10, 20);
+    let _ = surf.open(&mut m, 2, 50, 50);
+    let _ = surf.open(&mut m, 3, 100, 70);
+    if let Some(px) = surf.pixels_mut(0) {
+        px.fill(GREEN);
+    }
+    if let Some(px) = surf.pixels_mut(2) {
+        px.fill(BLUE);
+    }
+    if let Some(px) = surf.pixels_mut(3) {
+        px.fill(ORANGE);
+    }
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
-    let _ = compositor::compose(
-        fb,
-        &[
-            compositor::Surface { x: 20, y: 30, w: 100, h: 60, pixels: &SURF_A, key: None },
-            compositor::Surface { x: 70, y: 60, w: 100, h: 60, pixels: &SURF_B, key: Some(WHITE) },
-        ],
-    );
+    surf.compose_into(fb);
     while keys() & workspace::KEY_A == 0 {
         sram::vblank();
     }
     while keys() & workspace::KEY_A != 0 {
         sram::vblank();
+    }
+    // Chiusura: ogni programma riottiene la sua quota.
+    for p in [0, 2, 3] {
+        let _ = surf.close(&mut m, p);
     }
 
     // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file.
