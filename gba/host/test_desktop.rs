@@ -10,5 +10,17 @@ mod terminal;
 mod calc;
 #[path = "../src/calc_ui.rs"]
 mod calc_ui;
+#[path = "../src/glyph.rs"]
+mod glyph;
+#[path = "../src/chess.rs"]
+mod chess;
+#[path = "../src/media_ui.rs"]
+mod media_ui;
+#[path = "../src/apps/mod.rs"]
+mod apps;
+#[path = "../src/editor.rs"]
+mod editor;
+#[path = "../src/reminders.rs"]
+mod reminders;
 #[path = "../src/desktop.rs"]
 mod desktop;
