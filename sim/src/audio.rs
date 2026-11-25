@@ -74,3 +74,11 @@ impl Mixer {
         self.underruns
     }
 }
+
+use crate::resource::Microkernel;
+
+impl Microkernel for Mixer {
+    fn manifest(&self) -> crate::resource::Manifest {
+        AUDIO_MANIFEST.clone()
+    }
+}

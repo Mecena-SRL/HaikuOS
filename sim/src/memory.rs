@@ -117,3 +117,11 @@ impl MemoryKernel {
         Ok(())
     }
 }
+
+use crate::resource::Microkernel;
+
+impl Microkernel for MemoryKernel {
+    fn manifest(&self) -> crate::resource::Manifest {
+        MEMORY_MANIFEST.clone()
+    }
+}

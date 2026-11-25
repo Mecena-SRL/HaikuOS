@@ -68,3 +68,11 @@ impl Device {
         self.blocks[idx][at] ^= 0xff;
     }
 }
+
+use crate::resource::Microkernel;
+
+impl Microkernel for Device {
+    fn manifest(&self) -> crate::resource::Manifest {
+        STORAGE_MANIFEST.clone()
+    }
+}

@@ -73,3 +73,11 @@ impl Power {
         Ok(())
     }
 }
+
+use crate::resource::Microkernel;
+
+impl Microkernel for Power {
+    fn manifest(&self) -> crate::resource::Manifest {
+        POWER_MANIFEST.clone()
+    }
+}
