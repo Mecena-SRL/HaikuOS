@@ -30,6 +30,8 @@ cargo build --release
 
 ## Verificato
 
+- Scrivania di prova (`compositor::desktop_sketch`): dopo le superfici, premi A. Sfondo, barra, finestra, icona. Harness: `gcc -O1 -o desktop_check host/desktop_check.c -lmgba && ./desktop_check haiku-gba.gba` (0 pixel diversi, ESITO OK).
+
 - Compila con nightly (`thumbv4t-none-eabi`, `build-std`). Binario ~1,1 KB.
 - Header ROM corretto (branch d'ingresso, titolo, byte fisso 0x96). Entry a 0x08000000.
 - Avvio in mGBA 0.10.2 (software renderer, Xvfb): la schermata si vede come descritta.
