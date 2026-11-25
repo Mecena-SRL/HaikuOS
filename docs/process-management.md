@@ -8,7 +8,7 @@ Stato: proposta di ricerca. Nessun codice per hardware reale. Il prototipo vive 
 - **Scheduling:** priorità fisse, round-robin a parità di priorità, budget di CPU per turno. È il modello più semplice che limita davvero il tempo di ogni programma.
 - **Comunicazione:** solo tramite il monolite, con allowlist e messaggi a dimensione fissa (già in `sim/`).
 - **Ammissione:** un processo nasce solo se il monolite lo registra e gli concede una quota.
-- **Isolamento:** dipende dalla piattaforma. Su GBA non c'è hardware che lo garantisca (vedi sezione 5).
+- **Isolamento:** su GBA è solo logico, perché non c'è hardware che lo garantisca. Sulle altre macchine è completo, con MMU e processi separati (sezione 3.5).
 
 ## 2. Stato dell'arte (fonti)
 
@@ -43,6 +43,19 @@ Nota: le fonti sopra sono state trovate con la ricerca; i dettagli di implementa
 ### 3.4 Ammissione
 - `spawn` del kernel di processi va chiamato solo dopo `register` e la quota del monolite. L'agente propone, il monolite decide.
 
+### 3.5 Isolamento completo (ARM64, x86-64)
+Vale per tutte le macchine tranne il GBA. Non è un'opzione: è obbligatorio.
+- **Spazio di indirizzi per processo:** ogni programma ha tabelle di pagine proprie. Non vede la memoria di nessun altro.
+- **Solo pagine concesse:** il kernel mappa nello spazio del processo solo le pagine della quota approvata dal monolite. Nessuna pagina condivisa senza regola dell'allowlist.
+- **Permessi W^X:** nessuna pagina è scrivibile ed eseguibile insieme.
+- **Cambio di contesto:** cambia lo spazio di indirizzi (ASID su ARM64, CR3 su x86-64).
+- **Fault:** un accesso fuori dalla quota genera un'eccezione. Il processo viene terminato, le sue pagine liberate e lo slot riutilizzabile.
+- **Revoca:** il monolite revoca la quota, il kernel smappa le pagine e le azzera prima di riusarle.
+- **Processi separati:** ogni programma gira nel proprio microkernel (`docs/architecture.md`, sezione 2.5). Il crash di uno non tocca gli altri.
+- **Tick:** timer generico ARM64 (CNTP) o APIC/HPET su x86-64. **Da verificare**.
+- **Parametri:** `MAX_PROCS` e budget più grandi; la logica dello `Scheduler` resta la stessa.
+- **Fuori scope ora:** SMP (obiettivo non realizzato, `docs/architecture.md`, sezione 11).
+
 ## 4. Alternative scartate
 
 - **Scheduling a quanto fisso senza priorità:** semplice, ma un programma lento o bloccato rallenta il sistema. Scartato.
@@ -53,7 +66,8 @@ Nota: le fonti sopra sono state trovate con la ricerca; i dettagli di implementa
 ## 5. Limiti per piattaforma
 
 - **GBA (ARM7TDMI):** nessuna MMU, nessuna MPU. L'isolamento tra programmi è solo logico: il monolite e il linguaggio (Rust) lo fanno rispettare, ma un programma difettoso può scrivere in memoria altrui. **Decisione (Ivan):** su GBA l'isolamento è solo logico, accettato. Il monolite e Rust lo fanno rispettare.
-- **ARM64 e x86-64:** MMU disponibile. Ogni programma ha uno spazio di indirizzi proprio; il modello sopra resta uguale.
+- **ARM64 e x86-64:** MMU obbligatoria, isolamento completo come da sezione 3.5. Il modello di scheduling e di comunicazione è lo stesso.
+- **Regola:** l'isolamento logico vale solo per il GBA. Sulle altre macchine ogni processo ha protezione hardware e spazio separato.
 
 ## 6. Prototipo e test (`sim/`)
 
@@ -68,6 +82,7 @@ Nota: le fonti sopra sono state trovate con la ricerca; i dettagli di implementa
 - Dimensione della tabella processi e dei metadati in IWRAM o EWRAM.
 - Dettagli di QNX e di Tock citati sopra.
 - Collegamento tra `Scheduler` e `Monolith` (oggi sono due moduli separati nel simulatore).
+- Gestione dei fault e delle tabelle di pagine su ARM64 e x86-64: non ancora prototipata, solo progettata.
 
 ## 8. Decisioni per Ivan
 
