@@ -11,6 +11,7 @@ pub mod fat32;
 pub mod fat32_write;
 pub mod exfat;
 pub mod fonts;
+pub mod opentype;
 pub mod gpu;
 pub mod input;
 pub mod ip;
