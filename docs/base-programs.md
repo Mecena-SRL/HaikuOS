@@ -48,7 +48,7 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 
 - **Superficie:** programma 0, 64×48 pixel, posizione (10, 20). Aperta e chiusa dal monolite con quota (`gba/src/surfaces.rs`).
 - **Entrata:** `run_editor(surf, m, testo, salva)` in `gba/src/main.rs`.
-  - `testo`: byte da mostrare, fino a 24 caratteri.
+  - `testo`: byte da mostrare, fino a 128 caratteri.
   - `salva`: callback chiamata da Select con la riga corrente. Ritorna `true` se il salvataggio riesce.
 - **Uscita:** Start. La superficie viene chiusa e la quota torna al monolite.
 
@@ -70,17 +70,17 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 ### Moduli
 
 - `gba/src/glyph.rs`: font 3×5 e disegno di testo (test host).
-- `gba/src/editor.rs`: riga editabile con limite (test host, 6 test con il font).
+- `gba/src/editor.rs`: riga editabile con limite (test host).
 - `gba/src/surfaces.rs`: superfici con quota (test host, 10 test).
 - `gba/src/compositor.rs`: composizione con trasparenza (test host, 6 test).
 
 ### Limiti noti
 
-- 24 caratteri per file: il resto viene tagliato.
-- Nessun a capo, nessuno scorrimento.
+- 128 caratteri per file: il resto viene tagliato.
+- A capo ogni 15 caratteri. Si vedono solo le ultime 6 righe: il cursore è sempre in fondo, non c'è scorrimento.
 - Il salvataggio è verificato solo nella SRAM di libmgba (`gba/host/vram_check.c`, modalità `save`).
 
 ### Da verificare
 
 - Tempi di scrittura della SRAM su hardware reale.
-- Comportamento con file più grandi di 24 caratteri.
+- Modifica nel mezzo del testo: non supportata, si lavora solo in fondo.

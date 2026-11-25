@@ -76,6 +76,32 @@ pub fn draw_text(px: &mut [u16], w: usize, h: usize, x: usize, y: usize, text: &
     }
 }
 
+/// Colonne e righe visibili del testo a capo (area 64x48, origine (2, 2), riga di 6 px).
+pub const COLS: usize = 15;
+pub const ROWS: usize = 6;
+pub const ORIGIN: usize = 2;
+pub const LINE: usize = GH + 1;
+
+/// Disegna `text` a capo ogni `COLS` caratteri, mostrando le ultime `ROWS` righe.
+/// Il carattere in attesa `pending` va in fondo, alla posizione successiva all'ultimo.
+pub fn draw_wrapped(px: &mut [u16], w: usize, h: usize, text: &[u8], pending: u8, text_color: u16, pending_color: u16) {
+    let len = text.len();
+    let total_lines = len / COLS + 1;
+    let start = total_lines.saturating_sub(ROWS);
+    for i in 0..=len {
+        let c = if i < len { text[i] } else { pending };
+        let color = if i < len { text_color } else { pending_color };
+        let line = i / COLS;
+        if line < start {
+            continue;
+        }
+        let row = line - start;
+        let x = ORIGIN + (i % COLS) * ADVANCE;
+        let y = ORIGIN + row * LINE;
+        draw_text(px, w, h, x, y, &[c], color);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,6 +116,21 @@ mod tests {
     fn minuscole_e_sconosciuti() {
         assert_eq!(glyph(b'h'), glyph(b'H'));
         assert_eq!(glyph(b'?'), FONT[0]);
+    }
+
+    #[test]
+    fn a_capo_e_scorrimento() {
+        // 15 caratteri: riga piena. Il cursore (pending) va alla riga successiva, colonna 0.
+        let mut px = std::vec![0u16; 64 * 48];
+        draw_wrapped(&mut px, 64, 48, &[b'I'; 15], b'X', 1, 2);
+        assert_eq!(px[ORIGIN * 64 + ORIGIN], 1);
+        assert_eq!(px[(ORIGIN + LINE) * 64 + ORIGIN], 2);
+        // 120 caratteri: 9 righe con il cursore. Scorrono via le prime 3, restano 6 righe visibili.
+        let mut px = std::vec![0u16; 64 * 48];
+        draw_wrapped(&mut px, 64, 48, &[b'I'; COLS * 8], b'X', 1, 2);
+        assert_eq!(px[(ORIGIN + (ROWS - 1) * LINE) * 64 + ORIGIN], 2); // cursore in fondo
+        let visibili = px.iter().filter(|&&p| p == 1).count();
+        assert_eq!(visibili, 5 * COLS * 9); // 5 righe piene di 'I' (9 pixel per glifo)
     }
 
     #[test]
