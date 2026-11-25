@@ -28,7 +28,7 @@ fn coda_fissa_piena_e_ordinata() {
 #[test]
 fn ogni_modulo_dichiara_il_proprio_manifest() {
     let mems: Vec<Box<dyn Microkernel>> = vec![
-        Box::new(Mixer::new(1).unwrap()),
+        Box::new(Mixer::new(1, 8).unwrap()),
         Box::new(Power::new(50, 5)),
         Box::new(Vault::new([0; 16], 1, 64)),
         Box::new(Swap::new(1, Vault::new([0; 16], 1, 64))),

@@ -3,7 +3,7 @@
 //! Il blocco è a dimensione fissa: i primi 2 byte dicono la lunghezza del dato cifrato.
 
 use crate::crypto::{CryptoError, Vault};
-use crate::resource::{Arch, Kind, Manifest};
+use crate::resource::{Arch, Kind, Manifest, Queue};
 use crate::storage::{Device, StorageError};
 
 pub const SWAP_MANIFEST: Manifest = Manifest {
@@ -30,12 +30,16 @@ pub enum SwapError {
 pub struct Swap {
     dev: Device,
     vault: Vault,
-    free: Vec<usize>,
+    free: Queue<usize>,
 }
 
 impl Swap {
     pub fn new(blocks: usize, vault: Vault) -> Self {
-        Self { dev: Device::new(blocks, BLOCK_BYTES), vault, free: (0..blocks).rev().collect() }
+        let mut free = Queue::new(blocks);
+        for b in (0..blocks).rev() {
+            let _ = free.push(b);
+        }
+        Self { dev: Device::new(blocks, BLOCK_BYTES), vault, free }
     }
 
     /// Scrive una pagina nello swap. Ritorna il blocco usato.
@@ -60,8 +64,9 @@ impl Swap {
         self.vault.open(0, &sealed).map_err(SwapError::Crypto)
     }
 
-    pub fn free_page(&mut self, blk: usize) {
-        self.free.push(blk);
+    /// Libera un blocco. Errore `Full` se è già tutto libero (liberazione doppia).
+    pub fn free_page(&mut self, blk: usize) -> Result<(), SwapError> {
+        self.free.push(blk).map_err(|_| SwapError::NoFreeBlock)
     }
 
     /// Solo per i test: altera un byte del blocco, come un guasto reale.
@@ -70,10 +75,8 @@ impl Swap {
     }
 }
 
-use crate::resource::Microkernel;
-
-impl Microkernel for Swap {
-    fn manifest(&self) -> crate::resource::Manifest {
-        SWAP_MANIFEST.clone()
+impl crate::resource::Microkernel for Swap {
+    fn manifest(&self) -> Manifest {
+        SWAP_MANIFEST
     }
 }

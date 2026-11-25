@@ -13,7 +13,7 @@ use std::collections::HashSet;
 
 #[test]
 fn mix_somma_con_volume() {
-    let mut m = Mixer::new(2).unwrap();
+    let mut m = Mixer::new(2, 64).unwrap();
     m.set_volume(1, 128).unwrap();
     m.push(0, &[100, 100]).unwrap();
     m.push(1, &[100, 100]).unwrap();
@@ -23,7 +23,7 @@ fn mix_somma_con_volume() {
 
 #[test]
 fn mix_satura_invece_di_traboccare() {
-    let mut m = Mixer::new(2).unwrap();
+    let mut m = Mixer::new(2, 64).unwrap();
     m.push(0, &[30000]).unwrap();
     m.push(1, &[30000]).unwrap();
     assert_eq!(m.mix(1), vec![i16::MAX]);
@@ -31,7 +31,7 @@ fn mix_satura_invece_di_traboccare() {
 
 #[test]
 fn canale_vuoto_e_underrun_e_silenzio() {
-    let mut m = Mixer::new(1).unwrap();
+    let mut m = Mixer::new(1, 64).unwrap();
     m.push(0, &[5]).unwrap();
     assert_eq!(m.mix(3), vec![5, 0, 0]);
     assert_eq!(m.underruns(), 1);
@@ -39,9 +39,9 @@ fn canale_vuoto_e_underrun_e_silenzio() {
 
 #[test]
 fn limiti_canali() {
-    assert!(Mixer::new(0).is_err());
-    assert!(Mixer::new(MAX_CHANNELS + 1).is_err());
-    let mut m = Mixer::new(1).unwrap();
+    assert!(Mixer::new(0, 64).is_err());
+    assert!(Mixer::new(MAX_CHANNELS + 1, 64).is_err());
+    let mut m = Mixer::new(1, 64).unwrap();
     assert_eq!(m.push(3, &[1]), Err(AudioError::NoChannel));
 }
 
