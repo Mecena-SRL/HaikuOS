@@ -242,8 +242,11 @@ impl Terminal {
         }
     }
 
-    /// Imposta la cartella corrente (es. quella scelta nel file manager). Pulisce l'output.
+    /// Imposta la cartella corrente (es. quella scelta nel file manager). Se cambia, pulisce l'output.
     pub fn set_cwd(&mut self, path: &[u8]) {
+        if path == self.cwd() {
+            return; // stessa cartella: l'output resta com'è
+        }
         let n = path.len().min(NAME_MAX);
         self.cwd[..n].copy_from_slice(&path[..n]);
         self.cwd_len = n;

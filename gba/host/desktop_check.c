@@ -17,6 +17,7 @@
 #define KEY_LEFT 32
 #define KEY_DOWN 128
 #define KEY_SELECT 4
+#define KEY_B 2
 #define HOLD 4
 #define PERIOD 10
 
@@ -48,6 +49,9 @@ static int keys_at(int f) {
     if (f >= g + 5 * PERIOD && f < g + 5 * PERIOD + HOLD) return KEY_A;
     int h = g + 5 * PERIOD + PERIOD;
     if (f >= h && f < h + HOLD) return KEY_LEFT;
+    /* Start apre il file manager (FILES), B nella radice torna al desktop. */
+    if (f >= 850 && f < 854) return KEY_START;
+    if (f >= 900 && f < 904) return KEY_B;
     return 0;
 }
 
@@ -58,10 +62,20 @@ int main(int argc, char **argv) {
     mCoreInitConfig(c, NULL);
     if (!mCoreLoadFile(c, argv[1])) { puts("load fail"); return 1; }
     c->reset(c);
+    static uint16_t fm[W * H]; /* istantanea del file manager (frame 880) */
     for (int f = 0; f <= 1000; f++) {
         c->setKeys(c, keys_at(f));
         c->runFrame(c);
+        if (f == 880)
+            for (int i = 0; i < W * H; i++) fm[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);
     }
+    int fm_fuori = 0;
+    for (int i = 0; i < W * H; i++) {
+        int ok = 0;
+        for (int k = 0; k < 4; k++) ok |= fm[i] == T[k];
+        fm_fuori += !ok;
+    }
+    printf("pixel fuori tinta nel file manager (frame 880): %d\n", fm_fuori);
     for (int i = 0; i < W * H; i++) vram[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);
 
     int fuori = 0;
@@ -77,6 +91,7 @@ int main(int argc, char **argv) {
         for (int x = 128; x < 224; x++) testo += vram[y * W + x] == T[0];
     printf("pixel di testo nell'output di LS: %d\n", testo);
     fuori += testo == 0;
+    fuori += fm_fuori == 0; /* il file manager deve essere apparso */
 
     /* Punti chiave: barra, orologio, icona 0 (evidenziata), icona 1, titolo, chiudi, corpo, testo, bordo. */
     punto p[] = {
