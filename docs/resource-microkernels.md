@@ -186,7 +186,7 @@ Deviazioni residue:
 
 Totale per connessione sull'host (struttura più buffer RX, senza segmenti in volo): **1112 byte**. Il test `sim/tests/ram_stack.rs` lo fissa sotto 2 KB.
 
-**Stima GBA (ARM7, 32 bit): da verificare.** I puntatori e i `Vec` sono circa la metà. Stima per connessione: struttura circa 60 byte, RX 1024 byte, TX in volo fino a 1024 byte (la finestra del peer). Nel caso peggiore circa 2,1 KB per connessione. Con `RCV_BUF = 256` si scende a circa 600 byte. Il budget del manifest `net-ethernet-generic` è 8 KB: regge una connessione con buffer piccoli, non due con buffer da 1 KB. Decisione da prendere: buffer piccoli sulla GBA, da misurare sull'emulatore.
+**Misura GBA (ARM7, thumbv4t, misurata in sezione 16).** Una connessione con `RCV_BUF = 256` occupa 1592 byte. Il budget del manifest `net-ethernet-generic` è 8 KB: regge quattro connessioni con buffer da 256 byte, non due con buffer da 1 KB. Decisione: buffer piccoli sulla GBA. Resta da verificare sull'emulatore.
 
 ## 14. Congestione, RTO adattivo, SYN ritrasmesso
 
@@ -226,9 +226,13 @@ Lo stack non è nella ROM GBA: `gba/` non include `sim/`, e il codice di `sim/` 
 | `Segment` | 172 |
 | `Packet` (IP) | 32 |
 
-**Correzione alla stima della sezione 13.** La stima di circa 600 byte per connessione valeva per allocazione dinamica. Con slot fissi ogni connessione occupa la sua dimensione massima, anche se inutilizzata: circa 1,6 KB con buffer da 256. Il budget `net-ethernet-generic` (8 KB) regge quindi al massimo quattro connessioni con buffer da 256, non una di più con buffer da 1 KB.
+**Correzione alla stima della sezione 13.** Dato misurato su ARM7 in sezione 16: 1592 byte. La stima di circa 600 byte per connessione valeva per allocazione dinamica. Con slot fissi ogni connessione occupa la sua dimensione massima, anche se inutilizzata: circa 1,6 KB con buffer da 256. Il budget `net-ethernet-generic` (8 KB) regge quindi al massimo quattro connessioni con buffer da 256, non una di più con buffer da 1 KB.
 
-### Non fatto: misura sulla GBA
+### Misura su ARM7 (thumbv4t-none-eabi, nightly, build-std)
 
-- Il target ARM7 (`thumbv4t-none-eabi` / `armv4t-none-eabi`) richiede `nightly` e `rust-src`, non installati nel sandbox. Il `gba/` usa `nightly` con `build-std`.
-- Quindi la misura su ARM7 non è stata fatta. Su ARM7 i campi `usize` sono di 4 byte invece di 8: la struttura dovrebbe scendere di qualche decina di byte. Stima da verificare con `cargo +nightly build --target thumbv4t-none-eabi`.
+- Compilati `ip.rs`, `tcp.rs`, `csum.rs` per `thumbv4t-none-eabi` con `cargo +nightly build --release -Zbuild-std=core,compiler_builtins`. Build riuscita.
+- Dimensioni lette dai simboli della build (`nm -S`):
+  - `ConnN<256>` (profilo GBA): **1592 byte** (0x638).
+  - `Segment`: **172 byte**.
+- Host 64 bit: `ConnN<256>` 1624 byte. Il target ARM7 scende di 32 byte per i `usize` a 4 byte.
+- Il profilo GBA occupa quindi circa 1,6 KB per connessione. Quattro connessioni stanno nel budget da 8 KB del manifest, non di più.
