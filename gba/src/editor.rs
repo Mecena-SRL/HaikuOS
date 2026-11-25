@@ -3,7 +3,7 @@
 
 use crate::glyph::CHARS;
 
-pub const MAX: usize = 24;
+pub const MAX: usize = 128;
 
 pub struct Editor {
     buf: [u8; MAX],
