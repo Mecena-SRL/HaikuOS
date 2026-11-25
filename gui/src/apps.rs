@@ -3,6 +3,11 @@
 use sysapps::{shell, Store};
 
 pub const LINE_H: i32 = 6;
+/// Righe di testo in una finestra alta 80 px (corpo 60 px, passo 6 px).
+pub const TEXT_ROWS: usize = 10;
+/// Temi disponibili (vedi `Shell::next_theme`); i nomi sono per IMPOST.
+pub const THEMES: u8 = 3;
+pub const THEME_NAMES: [&str; 3] = ["BLU", "VERDE", "GRAFITE"];
 /// Byte per riga del terminale e righe di storico.
 pub const TL: usize = 32;
 pub const HN: usize = 8;

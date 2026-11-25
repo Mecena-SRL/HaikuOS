@@ -179,7 +179,38 @@ fn editor_types_and_f5_runs_into_terminal() {
         s.text(*b);
     }
     s.text(0x05); // F5
-    let t = &s.term;
+    let t = &s.eout;
     // Il cursore parte in cima: "echo ok" finisce davanti a "echo ciao", e lo script gira riga per riga.
     assert!((0..t.hn).any(|i| &t.hist[i][..t.hl[i]] == b"okecho ciao"), "uscita dello script nel terminale");
+}
+
+#[test]
+fn theme_cycles_and_wraps() {
+    let mut s = Shell::new(&ICONS, 320, 240);
+    assert_eq!(s.theme, 0);
+    for _ in 0..3 {
+        s.next_theme();
+    }
+    assert_eq!(s.theme, 0);
+}
+
+#[test]
+fn browser_scrolls_to_selected_link() {
+    static LONG: [Icon; 1] = [Icon { label: "WEB", app: 4, title: "BROWSER", w: 120, h: 80 }];
+    let mut s = Shell::new(&LONG, 320, 240);
+    s.key(Key::A);
+    assert_eq!(s.bscroll, 0);
+    assert_eq!(s.link_count(), 2);
+    s.key(Key::Down);
+    assert_eq!(s.bsel, 1);
+}
+
+#[test]
+fn reader_scrolls_file_lines() {
+    static RD: [Icon; 1] = [Icon { label: "READ", app: 8, title: "LETTORE", w: 120, h: 80 }];
+    let mut s = Shell::new(&RD, 320, 240);
+    s.key(Key::A);
+    assert_eq!(s.rscroll, 0);
+    s.key(Key::Down); // una riga sola: non scorre oltre
+    assert_eq!(s.rscroll, 0);
 }

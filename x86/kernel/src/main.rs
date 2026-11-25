@@ -45,7 +45,6 @@ pub extern "C" fn kmain() -> ! {
             let mut acc = (0i32, 0i32);
             let mut draw_now = true;
             let mut clock = (u8::MAX, u8::MAX);
-            let mut theme = 0usize;
             loop {
                 let mut dirty = draw_now;
                 draw_now = false;
@@ -66,7 +65,7 @@ pub extern "C" fn kmain() -> ! {
                         dirty = true;
                     }
                     Some(input::Input::Theme) => {
-                        theme = (theme + 1) % fb::THEMES.len();
+                        shell.next_theme();
                         dirty = true;
                     }
                     Some(input::Input::Super) => {
@@ -92,7 +91,7 @@ pub extern "C" fn kmain() -> ! {
                     None => {}
                 }
                 if dirty {
-                    let mut c = f.canvas(theme);
+                    let mut c = f.canvas(shell.theme as usize);
                     haiku_gui::render::draw(&mut c, &shell);
                     c.fill(haiku_gui::layout::Rect::new(cx, cy, 2, 2), haiku_gui::Tok::T1);
                 }
@@ -105,13 +104,16 @@ pub extern "C" fn kmain() -> ! {
     halt()
 }
 
-// App di sistema (sysapps: browser, editor; shell = terminale). Titoli in maiuscole per il font 3×5.
-static ICONS: [haiku_gui::Icon; 5] = [
+// App di sistema: FILE, terminale, calcolatrice, browser, editor, impostazioni, orologio, lettore. Titoli in maiuscole per il font 3×5.
+static ICONS: [haiku_gui::Icon; 8] = [
     haiku_gui::Icon { label: "FILE", app: 1, title: "FILE", w: 120, h: 80 },
     haiku_gui::Icon { label: "TERM", app: 2, title: "TERMINALE", w: 120, h: 80 },
     haiku_gui::Icon { label: "CALC", app: 3, title: "CALCOLATRICE", w: 80, h: 80 },
     haiku_gui::Icon { label: "WEB", app: 4, title: "BROWSER", w: 120, h: 80 },
     haiku_gui::Icon { label: "EDIT", app: 5, title: "EDITOR", w: 120, h: 80 },
+    haiku_gui::Icon { label: "SET", app: 6, title: "IMPOST", w: 120, h: 80 },
+    haiku_gui::Icon { label: "ORA", app: 7, title: "ORA", w: 80, h: 80 },
+    haiku_gui::Icon { label: "READ", app: 8, title: "LETTORE", w: 120, h: 80 },
 ];
 
 fn halt() -> ! {
