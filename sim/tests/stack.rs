@@ -2,7 +2,7 @@ use haiku_alloc_sim::crypto::{CryptoError, Vault};
 use haiku_alloc_sim::gpu::Gpu;
 use haiku_alloc_sim::ip::{IpError, Packet, PROTO_TCP};
 use haiku_alloc_sim::memory::{MemError, MemoryKernel, Pool};
-use haiku_alloc_sim::net::{Frame, NetLink};
+use haiku_alloc_sim::net::{FrameRef, NetLink, FRAME_MAX};
 use haiku_alloc_sim::resource::{pick_ready, Arch, Driver, Kind, Manifest, Microkernel, Status};
 use haiku_alloc_sim::storage::{Device, StorageError};
 use haiku_alloc_sim::tcp::{Conn, Segment, State, TcpError};
@@ -156,15 +156,18 @@ fn tcp_attraverso_ip_ed_ethernet() {
         let tn = seg.encode(src, dst, &mut tcp).unwrap();
         let mut ipb = [0u8; 512];
         let inn = Packet { src, dst, proto: PROTO_TCP, payload: &tcp[..tn] }.encode_into(&mut ipb).unwrap();
-        from.send(Frame { dst: to_mac, src: [0; 6], ethertype: 0x0800, payload: ipb[..inn].to_vec() }).unwrap();
-        let out = from.next_tx().unwrap();
-        to.receive(&out.encode().unwrap()).unwrap();
+        from.send(&to_mac, &[0; 6], 0x0800, &ipb[..inn]).unwrap();
+        let mut out = [0u8; FRAME_MAX];
+        let n = from.next_tx(&mut out).unwrap();
+        to.receive(&out[..n]).unwrap();
     };
     // estrae i segmenti TCP ricevuti da `to`
     let unwire = |to: &mut NetLink, my_ip: [u8; 4], from_ip: [u8; 4]| -> Vec<Segment> {
         let mut v = vec![];
-        while let Some(f) = to.next_rx() {
-            let ip = Packet::parse(&f.payload).unwrap();
+        let mut buf = [0u8; FRAME_MAX];
+        while let Some(n) = to.next_rx(&mut buf) {
+            let f = FrameRef::parse(&buf[..n]).unwrap();
+            let ip = Packet::parse(f.payload).unwrap();
             assert_eq!(ip.dst, my_ip);
             v.push(Segment::parse(ip.payload, from_ip, my_ip).unwrap());
         }
