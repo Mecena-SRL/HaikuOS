@@ -179,12 +179,16 @@ mod tests {
     /// Schizzo del desktop (docs/desktop-concept.md): sfondo, barra, finestra, icona trasparente.
     #[test]
     fn scena_desktop_di_prova() {
-        const BG: u16 = 2 | (4 << 5) | (10 << 10);
-        const BAR: u16 = 20 | (22 << 5) | (26 << 10);
-        const TITLE: u16 = 4 | (12 << 5) | (28 << 10);
-        const BODY: u16 = 28 | (28 << 5) | (24 << 10);
-        const ICON: u16 = 31 | (20 << 5);
-        const KEY: u16 = 0x7FFF;
+        // Quattro tinte (docs/desktop-concept.md)
+        const BG: u16 = 1 | (2 << 5) | (6 << 10);
+        const WHITE: u16 = 31 | (31 << 5) | (31 << 10);
+        const ORANGE: u16 = 31 | (16 << 5);
+        const CYAN: u16 = 20 << 5 | (31 << 10);
+        const BAR: u16 = CYAN;
+        const TITLE: u16 = ORANGE;
+        const BODY: u16 = WHITE;
+        const ICON: u16 = ORANGE;
+        const KEY: u16 = WHITE;
 
         let bg = std::vec![BG; W * H];
         let bar = std::vec![BAR; W * 12];

@@ -16,7 +16,9 @@ pub enum Action {
     Dir,
     File,
     Create,
-    /// Formattazione dello spazio di sistema (Select+B insieme). Non tocca lo spazio utente.
+    /// Select+B: chiede conferma prima di formattare.
+    FormatAsk,
+    /// Formattazione dello spazio di sistema, confermata con A. Non tocca lo spazio utente.
     FormatSys,
 }
 
@@ -28,11 +30,13 @@ pub struct Workspace {
     prev: u16,
     /// Da ridisegnare.
     pub dirty: bool,
+    /// Schermata di conferma della formattazione aperta.
+    confirm: bool,
 }
 
 impl Workspace {
     pub const fn new() -> Self {
-        Self { cwd: [0; NAME_MAX], cwd_len: 0, sel: 0, open: None, prev: 0, dirty: true }
+        Self { cwd: [0; NAME_MAX], cwd_len: 0, sel: 0, open: None, prev: 0, dirty: true, confirm: false }
     }
 
     pub fn cwd(&self) -> &[u8] {
@@ -47,6 +51,10 @@ impl Workspace {
         self.open
     }
 
+    pub fn confirming(&self) -> bool {
+        self.confirm
+    }
+
     fn set_cwd(&mut self, path: &[u8]) {
         self.cwd[..path.len()].copy_from_slice(path);
         self.cwd_len = path.len();
@@ -59,6 +67,19 @@ impl Workspace {
     pub fn step(&mut self, fs: &Fs, keys: u16) -> Action {
         let pressed = keys & !self.prev;
         self.prev = keys;
+        if self.confirm {
+            // Con la conferma aperta: A formatta, B annulla, il resto è ignorato.
+            if pressed & KEY_A != 0 {
+                self.confirm = false;
+                self.dirty = true;
+                return Action::FormatSys;
+            }
+            if pressed & KEY_B != 0 {
+                self.confirm = false;
+                self.dirty = true;
+            }
+            return Action::None;
+        }
         let mut ids = [0usize; FILES];
         let n = fs.list(self.cwd(), &mut ids);
         if n > 0 && self.sel >= n {
@@ -88,7 +109,9 @@ impl Workspace {
         }
         let combo = KEY_SELECT | KEY_B;
         if keys & combo == combo && pressed & combo != 0 {
-            return Action::FormatSys;
+            self.confirm = true;
+            self.dirty = true;
+            return Action::FormatAsk;
         }
         if pressed & KEY_B != 0 {
             let mut path = [0u8; NAME_MAX];
@@ -170,10 +193,29 @@ mod tests {
         let fs = tree();
         let mut ws = Workspace::new();
         assert_eq!(ws.step(&fs, KEY_SELECT), Action::None);
-        assert_eq!(ws.step(&fs, KEY_SELECT | KEY_B), Action::FormatSys);
+        assert_eq!(ws.step(&fs, KEY_SELECT | KEY_B), Action::FormatAsk);
+        assert!(ws.confirming());
+        // Rilascio, poi B annulla: nessuna formattazione, nessuna risalita.
+        assert_eq!(ws.step(&fs, 0), Action::None);
+        assert_eq!(ws.step(&fs, KEY_B), Action::None);
+        assert!(!ws.confirming());
         // Solo B da solo torna su, come prima.
         assert_eq!(ws.step(&fs, 0), Action::None);
         assert_eq!(ws.step(&fs, KEY_B), Action::Dir);
+    }
+
+    #[test]
+    fn format_needs_confirm_with_a() {
+        let fs = tree();
+        let mut ws = Workspace::new();
+        ws.step(&fs, KEY_SELECT | KEY_B);
+        ws.step(&fs, 0);
+        // Navigazione ignorata durante la conferma.
+        assert_eq!(ws.step(&fs, KEY_DOWN), Action::None);
+        assert_eq!(ws.sel(), 0);
+        ws.step(&fs, 0);
+        assert_eq!(ws.step(&fs, KEY_A), Action::FormatSys);
+        assert!(!ws.confirming());
     }
 
     #[test]

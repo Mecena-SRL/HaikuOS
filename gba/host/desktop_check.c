@@ -1,7 +1,7 @@
 /* Harness headless (libmgba): controlla la scrivania di prova in VRAM (mode 3).
  * Build: gcc -O1 -o desktop_check host/desktop_check.c -lmgba
  * Uso:   ./desktop_check haiku-gba.gba
- * Premi A a frame 300 e 500 (fine misure, fine demo superfici); la scrivania si controlla al frame 650.
+ * Premi A a frame 300 (fine misure), Start a frame 500 (fine editor); la scrivania si controlla al frame 650.
  */
 #include <stdio.h>
 #include <stdint.h>
@@ -12,6 +12,7 @@
 #define W 240
 #define H 160
 #define KEY_A 1
+#define KEY_START 8
 
 static uint16_t vram[W * H];
 static uint16_t expect[W * H];
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
     if (!mCoreLoadFile(c, argv[1])) { puts("load fail"); return 1; }
     c->reset(c);
     for (int f = 0; f <= 650; f++) {
-        c->setKeys(c, (f >= 300 && f < 302) || (f >= 500 && f < 502) ? KEY_A : 0);
+        c->setKeys(c, (f >= 300 && f < 302) ? KEY_A : (f >= 500 && f < 502) ? KEY_START : 0);
         c->runFrame(c);
     }
     for (int i = 0; i < W * H; i++) vram[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);

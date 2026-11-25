@@ -59,10 +59,10 @@ Regola: il compositor non legge la memoria dei programmi. Riceve solo superfici 
 - La ROM usa il modo 3 (`DISPCNT = 0x0403`). Le schermate di boot e misure scrivono direttamente in VRAM.
 - **Compositore** (`gba/src/compositor.rs`): copia superfici rettangolari nel framebuffer, con ritaglio ai bordi, ordine a strati e trasparenza con chiave di colore.
 - **Superfici dei programmi** (`gba/src/surfaces.rs`): ogni programma apre una superficie 64×48 (6 KB) solo con quota concessa dal monolite (`Quota`, implementato da `Monolith`). Un programma scrive solo nel proprio buffer. Alla chiusura la quota torna.
-- **Demo in ROM:** dopo la schermata misure (tasto A), tre programmi (0, 2, 3) disegnano superfici verde, blu e arancio, composte in VRAM. Chiusura alla pressione successiva di A.
+- **Primo programma grafico (visualizzatore di testo con input):** il programma 0 legge `docs/hello` dal file system e lo mostra con un font 3×5 (`gba/src/glyph.rs`). Con il keypad si modifica la riga (`gba/src/editor.rs`): Su/Giù scelgono il carattere in attesa (arancio), A lo aggiunge, B cancella, Start esce. Il testo resta in RAM, non viene salvato. Programmi 2 e 3: superfici piene blu e arancio.
 - **Verifica:**
-  - test host dei moduli: 6 per il compositore, 10 per le superfici (`host/test_surfaces.rs`, quota negata, doppia apertura, ordine);
-  - harness libmgba (`gba/host/vram_check.c`): confronta tutti i 38.400 pixel della VRAM al frame 400 con la composizione attesa. Esito: 0 differenze.
+  - test host: font e editor 6, compositore 6, superfici 10 (`gba/host/`);
+  - harness libmgba (`gba/host/vram_check.c`, con `host/font.h` generato da `glyph.rs`): confronta tutti i 38.400 pixel della VRAM al frame 400 e dopo Su+A al frame 520. Esito: 0 differenze.
 - Non verificato su hardware reale. Lo screenshot di mGBA sotto Xvfb non funziona in questo ambiente.
 
 ## 7. Domande aperte

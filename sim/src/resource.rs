@@ -65,17 +65,63 @@ pub struct Completion {
     pub result: Result<u32, Error>,
 }
 
+/// Coda a dimensione fissa: la parte generica delle richieste asincrone.
+/// Piena → `Error::Full`; nessuna allocazione oltre `depth`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Queue<T> {
+    items: VecDeque<T>,
+    depth: usize,
+}
+
+impl<T> Queue<T> {
+    pub fn new(depth: usize) -> Self {
+        Self { items: VecDeque::with_capacity(depth), depth }
+    }
+
+    pub fn push(&mut self, t: T) -> Result<(), Error> {
+        if self.items.len() >= self.depth {
+            return Err(Error::Full);
+        }
+        self.items.push_back(t);
+        Ok(())
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        self.items.pop_front()
+    }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    /// Svuota la coda restituendo gli elementi in ordine.
+    pub fn drain_all(&mut self) -> Vec<T> {
+        self.items.drain(..).collect()
+    }
+}
+
+/// Contratto comune: ogni microkernel dichiara il proprio manifest.
+/// I moduli con stato proprio lo implementano; il `Driver` generico lo fa per le richieste numeriche.
+pub trait Microkernel {
+    fn manifest(&self) -> Manifest;
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Driver {
     manifest: Manifest,
-    pending: VecDeque<Request>,
+    queue: Queue<Request>,
     done: Vec<Completion>,
     running: bool,
 }
 
 impl Driver {
     pub fn new(manifest: Manifest) -> Self {
-        Self { manifest, pending: VecDeque::new(), done: Vec::new(), running: true }
+        let queue = Queue::new(manifest.queue_depth);
+        Self { manifest, queue, done: Vec::new(), running: true }
     }
 
     pub fn name(&self) -> &'static str {
@@ -87,16 +133,12 @@ impl Driver {
         if !self.running {
             return Err(Error::Stopped);
         }
-        if self.pending.len() >= self.manifest.queue_depth {
-            return Err(Error::Full);
-        }
-        self.pending.push_back(r);
-        Ok(())
+        self.queue.push(r)
     }
 
     /// Esegue una richiesta in coda. Lavoro simulato: `op + 1`. Ritorna true se ne ha eseguita una.
     pub fn step(&mut self) -> bool {
-        match self.pending.pop_front() {
+        match self.queue.pop() {
             Some(r) => {
                 self.done.push(Completion { id: r.id, result: Ok(r.op.wrapping_add(1)) });
                 true
@@ -112,9 +154,15 @@ impl Driver {
     /// Ferma solo questo driver: le richieste in coda falliscono, gli altri non cambiano.
     pub fn stop(&mut self) {
         self.running = false;
-        for r in self.pending.drain(..) {
+        for r in self.queue.drain_all() {
             self.done.push(Completion { id: r.id, result: Err(Error::Stopped) });
         }
+    }
+}
+
+impl Microkernel for Driver {
+    fn manifest(&self) -> Manifest {
+        self.manifest.clone()
     }
 }
 

@@ -69,3 +69,11 @@ impl Swap {
         self.dev.inject_fault(blk, at);
     }
 }
+
+use crate::resource::Microkernel;
+
+impl Microkernel for Swap {
+    fn manifest(&self) -> crate::resource::Manifest {
+        SWAP_MANIFEST.clone()
+    }
+}

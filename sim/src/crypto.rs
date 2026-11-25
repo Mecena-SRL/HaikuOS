@@ -56,3 +56,11 @@ impl Vault {
         slot::open(sealed, &self.key, slot_id, self.slot_bytes).map_err(CryptoError::Slot)
     }
 }
+
+use crate::resource::Microkernel;
+
+impl Microkernel for Vault {
+    fn manifest(&self) -> crate::resource::Manifest {
+        CRYPTO_MANIFEST.clone()
+    }
+}
