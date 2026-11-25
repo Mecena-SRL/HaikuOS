@@ -71,6 +71,8 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
 
 pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
     c.fill(Rect::new(0, 0, s.w, s.h), T0);
+    // Sfondo: marchio "HAIKUOS" in basso a destra, solo T3 (bibbia §3, da verificare).
+    c.text(s.w - 7 * (FONT_W + 1) - 2, s.h - FONT_H - 2, "HAIKUOS", T3);
     let active = s.wm.active();
     let ty = (BAR_H - FONT_H) / 2;
 
