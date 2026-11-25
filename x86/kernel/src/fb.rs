@@ -2,6 +2,8 @@
 //! Il sistema grafico lavora a 320×240 logici: ogni pixel logico diventa 2×2 (bibbia §9).
 use haiku_gui::layout::Rect;
 use haiku_gui::render::Canvas;
+use haiku_gui::icons;
+use haiku_gui::palette::ACCENTS;
 use haiku_gui::Tok;
 
 // Il font 3×5 è quello del GBA (solo maiuscole, puro core).
@@ -76,11 +78,37 @@ pub struct Scaled<'a> {
     pal: &'a [u32; 4],
 }
 
+/// Colore di un token: T0..T3 dal tema, `A(k)` accento fisso a 32 bit.
+fn col(pal: &[u32; 4], t: Tok) -> u32 {
+    match t {
+        Tok::T0 => pal[0],
+        Tok::T1 => pal[1],
+        Tok::T2 => pal[2],
+        Tok::T3 => pal[3],
+        Tok::A(k) => ACCENTS[k as usize % ACCENTS.len()],
+    }
+}
+
+/// Angolo smussato: un pixel del piatto (lato k, raggio r) è dentro se non cade fuori dal cerchio d'angolo.
+fn inside_plate(px: i32, py: i32, k: i32, r: i32) -> bool {
+    let d = |v: i32| if v < r { r - 1 - v } else if v >= k - r { v - (k - r) } else { 0 };
+    let (dx, dy) = (d(px), d(py));
+    dx * dx + dy * dy < r * r
+}
+
 impl<'a> Scaled<'a> {
     fn block(&self, x: i32, y: i32, c: u32) {
         for dy in 0..SCALE {
             for dx in 0..SCALE {
                 self.fb.put(x * SCALE + dx, y * SCALE + dy, c);
+            }
+        }
+    }
+
+    fn rect_px(&self, x0: i32, y0: i32, x1: i32, y1: i32, c: u32) {
+        for y in y0..y1 {
+            for x in x0..x1 {
+                self.fb.put(x, y, c);
             }
         }
     }
@@ -91,8 +119,33 @@ impl<'a> Canvas for Scaled<'a> {
         true
     }
 
+    fn rich(&self) -> bool {
+        true
+    }
+
+    /// Icona vera: piatto colorato con angoli smussati, poi i segni dell'icona (32 px per cella 16 logica).
+    /// Con cella 8×8 (titoli) la scala è 16 px. Coordinate dei segni: griglia 32, scalate su `k`.
+    fn icon(&mut self, cell: Rect, label: &str, app: u8) {
+        let k = cell.w * SCALE;
+        let (ox, oy) = (cell.x * SCALE, cell.y * SCALE);
+        let r = k / 8;
+        let plate = col(self.pal, Tok::A(app));
+        for py in 0..k {
+            for px in 0..k {
+                if inside_plate(px, py, k, r) {
+                    self.fb.put(ox + px, oy + py, plate);
+                }
+            }
+        }
+        for &(x, y, w, h, t) in icons::art(label) {
+            let (x0, x1) = (x * k / 32, ((x + w) * k / 32).max(x * k / 32 + 1));
+            let (y0, y1) = (y * k / 32, ((y + h) * k / 32).max(y * k / 32 + 1));
+            self.rect_px(ox + x0, oy + y0, ox + x1, oy + y1, col(self.pal, t));
+        }
+    }
+
     fn fill(&mut self, r: Rect, t: Tok) {
-        let c = self.pal[t as usize];
+        let c = col(self.pal, t);
         for y in r.y.max(0)..(r.y + r.h).min(self.lh) {
             for x in r.x.max(0)..(r.x + r.w).min(self.lw) {
                 self.block(x, y, c);
@@ -101,7 +154,7 @@ impl<'a> Canvas for Scaled<'a> {
     }
 
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
-        let c = self.pal[t as usize];
+        let c = col(self.pal, t);
         for (i, &ch) in s.as_bytes().iter().enumerate() {
             let g = font::glyph(ch);
             for (row, bits) in g.iter().enumerate() {
