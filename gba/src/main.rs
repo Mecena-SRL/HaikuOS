@@ -17,6 +17,7 @@ mod editor;
 #[allow(dead_code)]
 mod media_ui;
 mod glyph;
+mod fontmgr;
 mod monolith;
 mod persist;
 mod surfaces;
@@ -348,6 +349,12 @@ pub extern "C" fn rust_main() -> ! {
     fill(0, 0, W, 160, BLACK);
     draw_bits(40, sum_alloc / 100, ORANGE); // alloc+free, cicli
     draw_bits(70, sum_sync / 10, GREEN); // sync 100 byte, cicli
+    // Gestore dei font: installa il font di ROM (3×5), lo imposta di sistema e ne mostra l'anteprima.
+    let mut fm = fontmgr::FontMgr::new();
+    let _ = fm.install(b"Sistema 3x5");
+    let _ = fm.set_system(0);
+    let vram = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    fm.preview(vram, W, 160, 12, 136, b"FONT OK", WHITE);
     // Schermata delle misure: resta finché non si preme A.
     while keys() & workspace::KEY_A == 0 {
         sram::vblank();
