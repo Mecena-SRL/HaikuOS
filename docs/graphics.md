@@ -56,14 +56,13 @@ Regola: il compositor non legge la memoria dei programmi. Riceve solo superfici 
 
 ## 6. Stato attuale (da `gba/`, main)
 
-- La ROM attuale (`gba/src/main.rs`) gira in **modo 3** (`DISPCNT = 0x0403`) e scrive direttamente in VRAM con `fill`. Non c'è ancora un compositor né un'interfaccia.
-- Mostra memoria, slot, workspace e misure con il timer (16,78 MHz). Non ci sono superfici né finestre separate.
-- Build verificata: `cargo +nightly build --release` produce lo stesso `haiku-gba.gba` committato.
-- Avvio in mGBA 0.10.2 (`mgba-qt`) sotto Xvfb: il processo parte, ma la finestra non si disegna in modo affidabile per lo screenshot. Quindi l'output visivo **non è verificato** in questa sessione (da verificare).
-
-**Prototipo compositor (`gba/src/compositor.rs`).** Copia superfici rettangolari in un framebuffer 240×160, con ritaglio ai bordi, ordine a strati e trasparenza con chiave di colore (`key`): i pixel uguali alla chiave lasciano vedere lo sfondo. Collegato alla ROM: dopo il tasto A della schermata misure, la demo compone in VRAM una superficie verde piena e una blu a colonne alterne, con colonne trasparenti sopra la verde. Verificato in due modi:
-- 6 test host sui byte del framebuffer, compresa la trasparenza (`cd gba && rustc --edition 2021 --test src/compositor.rs`).
-- Harness libmgba senza schermo (`gba/host/vram_check.c`): al frame 400 la VRAM ha 5250 pixel verdi e 3000 blu, e le colonne trasparenti mostrano il verde sottostante. Verificato.
+- La ROM usa il modo 3 (`DISPCNT = 0x0403`). Le schermate di boot e misure scrivono direttamente in VRAM.
+- **Compositore** (`gba/src/compositor.rs`): copia superfici rettangolari nel framebuffer, con ritaglio ai bordi, ordine a strati e trasparenza con chiave di colore.
+- **Superfici dei programmi** (`gba/src/surfaces.rs`): ogni programma apre una superficie 64×48 (6 KB) solo con quota concessa dal monolite (`Quota`, implementato da `Monolith`). Un programma scrive solo nel proprio buffer. Alla chiusura la quota torna.
+- **Demo in ROM:** dopo la schermata misure (tasto A), tre programmi (0, 2, 3) disegnano superfici verde, blu e arancio, composte in VRAM. Chiusura alla pressione successiva di A.
+- **Verifica:**
+  - test host dei moduli: 6 per il compositore, 10 per le superfici (`host/test_surfaces.rs`, quota negata, doppia apertura, ordine);
+  - harness libmgba (`gba/host/vram_check.c`): confronta tutti i 38.400 pixel della VRAM al frame 400 con la composizione attesa. Esito: 0 differenze.
 - Non verificato su hardware reale. Lo screenshot di mGBA sotto Xvfb non funziona in questo ambiente.
 
 ## 7. Domande aperte
