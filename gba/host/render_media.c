@@ -20,17 +20,17 @@ enum { A = 1, B = 2, SEL = 4, START = 8, RT = 0x10, LF = 0x20, UP = 0x40, DN = 0
 /* Sequenza: a ogni frame `f` il tasto premuto è quello con f in [from, from+2). */
 struct press { int from; int keys; };
 static const struct press PRESS[] = {
-    {300, A},                                   /* salta la schermata delle misure */
-    {540, START},                               /* esce dall'editor demo: desktop */
-    {580, RT}, {600, RT}, {620, RT}, {640, RT}, {660, RT}, {680, RT}, /* icona 6: CHESS */
-    {700, A},                                   /* apre gli scacchi */
-    {740, A},                                   /* seleziona e2 */
-    {760, UP}, {780, UP},                       /* cursore su e4 */
-    {800, A},                                   /* 1. e4 */
-    {860, SEL},                                 /* chiude la finestra (Select) */
-    {880, RT},                                  /* icona 7: READ */
-    {900, A},                                   /* apre il lettore */
-    {960, RT},                                  /* pagina successiva */
+    {300, A},
+    {540, START},
+    {580, RT}, {600, RT}, {620, RT}, {640, RT}, {660, RT}, {680, RT},
+    {700, A},
+    {780, A},
+    {860, UP}, {900, UP},
+    {940, A},
+    {1020, SEL},
+    {1060, RT},
+    {1100, A},
+    {1180, RT},
 };
 static const int NPRESS = sizeof(PRESS) / sizeof(PRESS[0]);
 
@@ -38,9 +38,9 @@ static const int NPRESS = sizeof(PRESS) / sizeof(PRESS[0]);
 struct shot { int frame; const char *name; };
 static const struct shot SHOTS[] = {
     {560, "06_desktop_otto_icone"},
-    {840, "07_scacchi_1e4"},
-    {930, "08_lettore_pagina_1"},
-    {990, "09_lettore_pagina_2"},
+    {1000, "07_scacchi_1e4"},
+    {1140, "08_lettore_pagina_1"},
+    {1200, "09_lettore_pagina_2"},
 };
 static const int NSHOTS = sizeof(SHOTS) / sizeof(SHOTS[0]);
 

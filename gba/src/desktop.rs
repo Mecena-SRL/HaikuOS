@@ -162,6 +162,8 @@ impl Desktop {
     pub fn step(&mut self, keys: u16, fs: &Fs) -> bool {
         let pressed = keys & !self.prev;
         self.prev = keys;
+        // Scacchi e lettore: il cambio di stato va segnalato, altrimenti la finestra non si ridisegna.
+        let mut media_changed = false;
         let before = (
             self.sel,
             self.win,
@@ -178,6 +180,9 @@ impl Desktop {
         );
         match self.win {
             Some(App::Chess) | Some(App::Reader) => {
+                if pressed != 0 {
+                    media_changed = true;
+                }
                 if pressed & KEY_SELECT != 0 {
                     self.win = None;
                 }
@@ -297,7 +302,8 @@ impl Desktop {
                 }
             }
         }
-        before
+        media_changed
+            || before
             != (
                 self.sel,
                 self.win,

@@ -22,9 +22,10 @@ python3 host/render_shots.py /tmp/raw ../docs/screenshots
 - `05_editor.png`: editor sullo stesso file, con caratteri in corso di inserimento (arancio) e testo salvato (verde).
 
 - `06_desktop_otto_icone.png`: desktop con otto icone su due righe. In seconda riga ci sono CLOCK, SETTINGS, CHESS e READ.
-- `07_scacchi_posizione_iniziale.png`: scacchi in finestra, posizione iniziale. Cursore su e2, Bianco al tratto (W).
+- `07_scacchi_1e4.png`: scacchi in finestra dopo 1. e4. Tocca a Nero (B).
 - `08_lettore_pagina_1.png`: lettore di testo, pagina 1 di 2.
+- `09_lettore_pagina_2.png`: lettore di testo, pagina 2 di 2.
 
-Per 06-08 usare `gba/host/render_media.c` (stessa procedura, sequenza di tasti diversa). Nota: in questa cattura i tasti non arrivano alle finestre di scacchi e lettore (vedi PR), quindi non c'è una pagina 2 né una mossa.
+Per 06-09 usare `gba/host/render_media.c` (stessa procedura, sequenza di tasti diversa).
 
 Non ancora presenti nel codice: browser, mail, mappe, musica, foto, compressione e gli altri programmi della lista.
