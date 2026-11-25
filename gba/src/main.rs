@@ -5,6 +5,8 @@
 
 mod fs;
 mod monolith;
+mod persist;
+mod sram;
 
 use core::arch::global_asm;
 use core::panic::PanicInfo;
@@ -13,6 +15,10 @@ use monolith::{Monolith, MONOLITH_BYTES, AGENT_BYTES, POOL_BYTES, SLOT_BYTES, RA
 
 // Header ROM (0x00-0xBF) e avvio in ARM. Logo Nintendo e checksum NON inclusi:
 // gli emulatori li ignorano, l'hardware reale no. Da verificare.
+/// Tag letto da mGBA: indica una SRAM da 32 KB per il salvataggio.
+#[used]
+static SAVE_TAG: [u8; 12] = *b"SRAM_V113\0\0\0";
+
 global_asm!(
     ".section .text.start,\"ax\",%progbits",
     ".code 32",
@@ -123,21 +129,24 @@ pub extern "C" fn rust_main() -> ! {
     draw_slots(&granted);
     fill(12, 130, 16, 16, GREEN); // monolite: vivo
     fill(36, 130, 16, 16, BLUE); // agente: pronto
-    // Self-test del file system: crea, scrive, rilegge. Verde = ok.
-    let mut store = fs::Fs::new();
-    let msg = b"HaikuOS";
-    let ok = match store.create(b"boot", 0) {
-        Ok(id) => {
-            store.write(id, 0, SLOT_BYTES, msg).is_ok() && {
-                let mut buf = [0u8; 7];
-                store.read(id, 0, &mut buf) == Ok(7) && &buf == msg
-            }
-        }
-        Err(_) => false,
-    };
-    fill(60, 130, 16, 16, if ok { GREEN } else { ORANGE }); // file system: ok
+    // Persistenza in SRAM: contatore di avvii. Ogni avvio lo incrementa e lo salva.
+    let mut p = persist::Persist::open(sram::Sram, (sram::SIZE - 32) / 2);
+    let mut b = [0u8; 1];
+    let found = p.read(b"boots", 0, &mut b) == Ok(1);
+    if !found {
+        let _ = p.create(b"boots", 0);
+    }
+    let boots = if found { b[0].wrapping_add(1) } else { 1 };
+    let ok = p.write(b"boots", 0, 1, &[boots]).is_ok() && p.sync().is_ok();
+    fill(60, 130, 16, 16, if ok { GREEN } else { ORANGE }); // persistenza: ok
+    for i in 0..(boots as usize).min(8) {
+        fill(12 + i * 20, 146, 12, 10, BLUE); // avvii salvati
+    }
+    loop {
+        sram::vblank();
+        let _ = p.frame();
+    }
 
-    loop {}
 }
 
 #[panic_handler]
