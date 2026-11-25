@@ -72,5 +72,5 @@ Ordine di sicurezza: il font di sistema è sempre attivo, quindi l'interfaccia n
 
 - `gba/src/fontmgr.rs`: registro fisso (4 font, 12 byte di nome, 4 attivi), nessuna allocazione. Test host in `gba/host/test_fontmgr.rs` (9 test con i moduli `glyph`).
 - Boot: installa "Sistema 3x5", lo imposta di sistema e disegna "FONT OK" con il font 3×5 di `glyph.rs` (y=136, sotto gli slot).
-- Misure (build release, nightly): ROM 22008 → 22416 B (+408 B). RAM del registro: non superiore a 128 B (asserito nel test host).
+- Misure (build release, nightly, su main attuale): ROM 25176 → 25816 B (+640 B). RAM del registro: non superiore a 128 B (asserito nel test host).
 - **Da verificare**: l'anteprima non è stata vista in mGBA (libmgba non installata qui). Il font 8×8 bitmap di archivio non esiste ancora: l'unico font in ROM è il 3×5.
