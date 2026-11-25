@@ -50,8 +50,8 @@ static int keys_at(int f) {
     int h = g + 5 * PERIOD + PERIOD;
     if (f >= h && f < h + HOLD) return KEY_LEFT;
     /* Start apre il file manager (FILES), B nella radice torna al desktop. */
-    if (f >= 850 && f < 854) return KEY_START;
-    if (f >= 900 && f < 904) return KEY_B;
+    if (f >= 850 && f < 865) return KEY_START;
+    if (f >= 900 && f < 915) return KEY_B;
     return 0;
 }
 

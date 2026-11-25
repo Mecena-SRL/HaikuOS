@@ -10,6 +10,7 @@ mod calc_ui;
 mod compositor;
 mod desktop;
 mod terminal;
+mod reminders;
 mod font;
 mod fs;
 mod chess;
@@ -17,6 +18,7 @@ mod editor;
 #[allow(dead_code)]
 mod media_ui;
 mod glyph;
+mod fontmgr;
 mod monolith;
 mod persist;
 mod surfaces;
@@ -348,6 +350,12 @@ pub extern "C" fn rust_main() -> ! {
     fill(0, 0, W, 160, BLACK);
     draw_bits(40, sum_alloc / 100, ORANGE); // alloc+free, cicli
     draw_bits(70, sum_sync / 10, GREEN); // sync 100 byte, cicli
+    // Gestore dei font: installa il font di ROM (3×5), lo imposta di sistema e ne mostra l'anteprima.
+    let mut fm = fontmgr::FontMgr::new();
+    let _ = fm.install(b"Sistema 3x5");
+    let _ = fm.set_system(0);
+    let vram = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    fm.preview(vram, W, 160, 12, 136, b"FONT OK", WHITE);
     // Schermata delle misure: resta finché non si preme A.
     while keys() & workspace::KEY_A == 0 {
         sram::vblank();
@@ -382,6 +390,7 @@ pub extern "C" fn rust_main() -> ! {
     // Desktop del concept: croce per scegliere un'icona, A apre, B chiude la finestra.
     // Il lanciatore avvia a schermo intero FILES (spazio di lavoro) e NOTES (editor). Start = FILES.
     let mut dk = desktop::Desktop::new();
+    dk.demo_reminders();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
     let media = unsafe { &mut *core::ptr::addr_of_mut!(MEDIA_SURF) };

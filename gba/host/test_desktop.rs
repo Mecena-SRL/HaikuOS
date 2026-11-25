@@ -20,5 +20,7 @@ mod media_ui;
 mod apps;
 #[path = "../src/editor.rs"]
 mod editor;
+#[path = "../src/reminders.rs"]
+mod reminders;
 #[path = "../src/desktop.rs"]
 mod desktop;

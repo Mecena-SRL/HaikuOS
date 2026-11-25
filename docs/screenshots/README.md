@@ -21,7 +21,7 @@ python3 host/render_shots.py /tmp/raw ../docs/screenshots
 - `04_visualizzatore_testo.png`: visualizzatore di testo con il file `docs/hello`.
 - `05_editor.png`: editor sullo stesso file, con caratteri in corso di inserimento (arancio) e testo salvato (verde).
 
-- `06_desktop_otto_icone.png`: desktop con otto icone su due righe. In seconda riga ci sono CLOCK, SETTINGS, CHESS e READ.
+- `06_desktop_nove_icone.png`: desktop con nove icone su tre righe. Seconda riga: CLOCK, SETTINGS, CHESS, READ. Terza riga: REMIND.
 - `07_scacchi_1e4.png`: scacchi in finestra dopo 1. e4. Tocca a Nero (B).
 - `08_lettore_pagina_1.png`: lettore di testo, pagina 1 di 2.
 - `09_lettore_pagina_2.png`: lettore di testo, pagina 2 di 2.
