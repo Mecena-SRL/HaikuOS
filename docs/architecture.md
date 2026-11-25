@@ -76,17 +76,19 @@ Un programma che si comporta come un unikernel: contiene solo ciò che gli serve
 
 ## 6. Limiti di partenza (bozza)
 
-Su Game Boy Advance, con circa 288 KB di RAM (da verificare: la quantità esatta disponibile dopo il sistema):
+Su Game Boy Advance, con 288 KB di RAM utili (EWRAM 256 KB + IWRAM 32 KB, vedi `docs/feasibility-gba.md`):
 
 | Voce | Valore di partenza |
 |---|---|
-| Monolite | 64 KB |
+| Monolite | 64 KB, in EWRAM (IWRAM è 32 KB, troppo piccola) |
 | Agente di allocazione | 16 KB |
 | Slot per programma | 32 KB ciascuno |
-| Programmi contemporanei | massimo 4 |
-| Slot libero | sempre uno disponibile |
+| Programmi registrati | massimo 4 |
+| Quote concedibili | massimo 3: uno slot è sempre libero |
 
-Somma indicativa: 64 + 16 + 4 × 32 = 208 KB, quindi resta circa 80 KB per il resto. **Da verificare** se tutto questo entra davvero, e quanta memoria serve al microkernel hardware.
+Somma indicativa: 64 + 16 + 3 × 32 = 176 KB, quindi restano circa 112 KB per il resto. Il valore 208 KB (4 slot pieni) non è ammesso dalla regola dello slot libero.
+
+**Da verificare** quanta memoria serve davvero al microkernel hardware e al sistema, dopo i 176 KB.
 
 ## 7. Obiettivi tecnici
 
