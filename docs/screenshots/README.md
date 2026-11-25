@@ -29,3 +29,7 @@ python3 host/render_shots.py /tmp/raw ../docs/screenshots
 Per 06-09 usare `gba/host/render_media.c` (stessa procedura, sequenza di tasti diversa).
 
 Non ancora presenti nel codice: browser, mail, mappe, musica, foto, compressione e gli altri programmi della lista.
+
+## Interfaccia (ui-*.png)
+
+`ui-00_home` … `ui-10_util`: desktop e una finestra per ogni icona (File, Term, Calc, Note, Orologio, Impostazioni, Scacchi, Lettore, Promemoria, Utility), ingranditi 3x. Render dal framebuffer del desktop (test host `paint`), non da libmgba: libmgba non è disponibile nel container. File e Note si aprono a tutto schermo, quindi mostrano il desktop. **Da verificare** con il render libmgba.
