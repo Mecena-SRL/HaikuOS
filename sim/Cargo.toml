@@ -6,3 +6,7 @@ publish = false
 
 [dependencies]
 ascon-aead = "0.6"
+
+[features]
+# Scrittura FAT32 (solo simulatore). Spenta di default: `cargo test --features fat32-write`.
+fat32-write = []

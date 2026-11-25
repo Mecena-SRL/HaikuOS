@@ -22,6 +22,12 @@ pub enum FatError {
     Loop,
     OutOfRange,
     IsDir,
+    /// Scrittura: spazio libero insufficiente.
+    NoSpace,
+    /// Scrittura: nome 8.3 già presente nella radice.
+    Exists,
+    /// Scrittura: la radice (un cluster) non ha voci libere.
+    DirFull,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -112,6 +118,10 @@ impl<'a> Fat32<'a> {
             return Err(FatError::OutOfRange);
         }
         Ok(Fat32 { vol, bps, spc, fat_start, data_start, cluster_count })
+    }
+
+    pub(crate) fn geometry(&self) -> (usize, usize, usize, u32) {
+        (self.bps, self.spc, self.fat_start, self.cluster_count)
     }
 
     fn cluster_off(&self, c: u32) -> Result<usize, FatError> {
