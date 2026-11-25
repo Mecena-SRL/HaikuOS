@@ -102,3 +102,13 @@ fn limits_are_enforced() {
     assert_eq!(s.rollback("nessuno"), Err(SnapError::NoSuchSnapshot));
     assert_eq!(s.drop_snapshot("nessuno"), Err(SnapError::NoSuchSnapshot));
 }
+
+#[test]
+fn tampered_metadata_is_detected() {
+    let mut s = Store::new();
+    s.write("a", b"dati").unwrap();
+    assert_eq!(s.read_checked("a").unwrap().unwrap(), b"dati");
+    s.tamper_meta("a", 5);
+    assert_eq!(s.read_checked("a"), Err(SnapError::Corrupt));
+    assert!(s.read_checked("nessuno").unwrap().is_none());
+}
