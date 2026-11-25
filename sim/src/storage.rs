@@ -2,7 +2,7 @@
 //! Un blocco alterato si rileva alla lettura. Nessun hardware reale.
 //! Regole: docs/resource-microkernels.md; metadati: docs/filesystem-roadmap.md.
 
-use crate::resource::{Arch, Kind, Manifest};
+use crate::resource::{Arch, Kind, Manifest, Microkernel, Status};
 
 /// Manifest del driver storage generico: funziona su tutte le architetture con blocchi.
 pub const STORAGE_MANIFEST: Manifest = Manifest {
@@ -20,6 +20,8 @@ pub enum StorageError {
     BadSize,
     /// Checksum non corrispondente: il blocco è alterato.
     Corrupt,
+    /// Microkernel fermo: niente scritture. Le letture restano.
+    Halted,
 }
 
 /// FNV-1a a 32 bit. Solo per rilevare alterazioni accidentali, non come firma.
@@ -28,6 +30,7 @@ pub fn checksum(data: &[u8]) -> u32 {
 }
 
 pub struct Device {
+    running: bool,
     block_bytes: usize,
     blocks: Vec<Vec<u8>>,
     sums: Vec<u32>,
@@ -37,13 +40,22 @@ impl Device {
     pub fn new(block_count: usize, block_bytes: usize) -> Self {
         let zero = vec![0u8; block_bytes];
         Self {
+            running: true,
             block_bytes,
             blocks: vec![zero.clone(); block_count],
             sums: vec![checksum(&zero); block_count],
         }
     }
 
+    /// Ferma le scritture. Le letture restano per svuotare il disco.
+    pub fn halt(&mut self) {
+        self.running = false;
+    }
+
     pub fn write(&mut self, idx: usize, data: &[u8]) -> Result<(), StorageError> {
+        if !self.running {
+            return Err(StorageError::Halted);
+        }
         if idx >= self.blocks.len() {
             return Err(StorageError::OutOfRange);
         }
@@ -69,10 +81,11 @@ impl Device {
     }
 }
 
-use crate::resource::Microkernel;
-
 impl Microkernel for Device {
-    fn manifest(&self) -> crate::resource::Manifest {
-        STORAGE_MANIFEST.clone()
+    fn manifest(&self) -> Manifest {
+        STORAGE_MANIFEST
+    }
+    fn status(&self) -> Status {
+        if self.running { Status::Ready } else { Status::Stopped }
     }
 }
