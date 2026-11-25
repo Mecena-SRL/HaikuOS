@@ -107,7 +107,7 @@ Note sulle misure:
 ## Da fare sul GBA
 
 - Verificare su hardware reale SRAM, tempi di scrittura e stack.
-- Formattazione del sistema: non collegata a un tasto né a un comando nel workspace.
+- Formattazione del sistema: collegata al workspace con Select+B (`Spaces::format_system`, solo con `SYS_CAP`). Da fare: un'interfaccia di conferma.
 - Profilo macchina potente: valori da verificare.
 
 ## Sync a blocchi (ultima misura)
