@@ -44,7 +44,7 @@ pub const TERM_ICON: usize = 1;
 /// Icona che apre la calcolatrice.
 pub const CALC_ICON: usize = 2;
 
-use crate::calc::{self, Calc};
+use crate::calc_ui::{self, CalcUi};
 
 pub const KEY_A: u16 = 1 << 0;
 pub const KEY_B: u16 = 1 << 1;
@@ -58,12 +58,12 @@ pub struct Desktop {
     sel: usize,
     win: Option<usize>,
     prev: u16,
-    calc: Calc,
+    calc: CalcUi,
 }
 
 impl Desktop {
     pub const fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: Calc::new() }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new() }
     }
 
     pub fn sel(&self) -> usize {
@@ -74,7 +74,7 @@ impl Desktop {
         self.win.is_some()
     }
 
-    pub fn calc(&self) -> &Calc {
+    pub fn calc(&self) -> &CalcUi {
         &self.calc
     }
 
@@ -88,7 +88,7 @@ impl Desktop {
     pub fn step(&mut self, keys: u16) -> bool {
         let pressed = keys & !self.prev;
         self.prev = keys;
-        let before = (self.sel, self.win, self.calc.cursor(), self.calc.value(), self.calc.is_err());
+        let before = (self.sel, self.win, self.calc.cursor(), self.calc.calc().shown(), self.calc.calc().err.is_some());
         if self.win == Some(CALC_ICON) {
             self.calc.step(keys);
             if pressed & KEY_B != 0 {
@@ -108,7 +108,7 @@ impl Desktop {
                 self.win = None;
             }
         }
-        before != (self.sel, self.win, self.calc.cursor(), self.calc.value(), self.calc.is_err())
+        before != (self.sel, self.win, self.calc.cursor(), self.calc.calc().shown(), self.calc.calc().err.is_some())
     }
 }
 
@@ -165,12 +165,12 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16]) {
     if app == CALC_ICON {
         crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"CALC", TEXT);
         // Superficie propria della calcolatrice, copiata nel corpo della finestra.
-        for y in 0..calc::SH {
-            for x in 0..calc::SW {
+        for y in 0..calc_ui::SH {
+            for x in 0..calc_ui::SW {
                 let px = bx + x;
                 let py = by + y;
                 if px < W && py < H {
-                    fb[py * W + px] = surf[y * calc::SW + x];
+                    fb[py * W + px] = surf[y * calc_ui::SW + x];
                 }
             }
         }
@@ -187,7 +187,7 @@ mod tests {
     use super::*;
 
     fn screen(d: &Desktop) -> [u16; W * H] {
-        let mut surf = [0u16; calc::SW * calc::SH];
+        let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
         d.draw_calc(&mut surf);
         let mut fb = [0u16; W * H];
         paint(&mut fb, d, &surf);
@@ -237,7 +237,7 @@ mod tests {
         d.step(0);
         // Croce e A vanno alla calcolatrice: A preme il tasto 7 (cursore in 0).
         assert!(d.step(KEY_A));
-        assert_eq!(d.calc().value(), 7);
+        assert_eq!(d.calc().calc().shown(), 700);
         assert_eq!(d.sel(), CALC_ICON); // la selezione delle icone non si muove
         d.step(0);
         assert!(d.step(KEY_RIGHT));
@@ -283,12 +283,12 @@ mod tests {
         d.step(KEY_RIGHT);
         d.step(0);
         d.step(KEY_A);
-        let mut surf = [0u16; calc::SW * calc::SH];
+        let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
         d.draw_calc(&mut surf);
         let fb = screen(&d);
         assert_eq!(fb[(WIN_Y + TITLE_H + 1) * W + WIN_X + 1], surf[0]);
-        assert!(WIN_X + 1 + calc::SW <= WIN_X + WIN_W);
-        assert!(WIN_Y + TITLE_H + 1 + calc::SH <= WIN_Y + WIN_H);
+        assert!(WIN_X + 1 + calc_ui::SW <= WIN_X + WIN_W);
+        assert!(WIN_Y + TITLE_H + 1 + calc_ui::SH <= WIN_Y + WIN_H);
     }
 
     #[test]

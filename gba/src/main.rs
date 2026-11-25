@@ -5,6 +5,7 @@
 
 mod alloc;
 mod calc;
+mod calc_ui;
 mod compositor;
 mod desktop;
 mod font;
@@ -250,7 +251,7 @@ fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save
 
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
 /// Superficie propria della calcolatrice (in EWRAM, non nello stack).
-static mut CALC_SURF: [u16; calc::SW * calc::SH] = [0; calc::SW * calc::SH];
+static mut CALC_SURF: [u16; calc_ui::SW * calc_ui::SH] = [0; calc_ui::SW * calc_ui::SH];
 
 impl surfaces::Quota for Monolith {
     fn take(&mut self, p: usize, bytes: usize) -> Option<usize> {

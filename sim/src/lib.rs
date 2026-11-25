@@ -5,6 +5,7 @@
 pub mod agent;
 pub mod audio;
 pub mod fat32;
+pub mod exfat;
 pub mod gpu;
 pub mod input;
 pub mod ip;

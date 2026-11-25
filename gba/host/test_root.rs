@@ -18,3 +18,5 @@ mod desktop;
 mod font;
 #[path = "../src/calc.rs"]
 mod calc;
+#[path = "../src/calc_ui.rs"]
+mod calc_ui;

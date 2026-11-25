@@ -307,7 +307,8 @@ fn diff_of_identical_states_is_empty() {
     let mut a = Store::new(KEY);
     a.write("a", b"x").unwrap();
     a.snapshot("s1").unwrap();
-    assert_eq!(a.diff(Some("s1"), "s1").unwrap(), haiku_alloc_sim::snapshot::Diff::default());
+    let d = a.diff(Some("s1"), "s1").unwrap();
+    assert!(d.put.is_empty() && d.del.is_empty());
 }
 
 #[test]
@@ -321,4 +322,15 @@ fn transit_is_encrypted_and_tampering_is_refused() {
     let mut b = Store::new(KEY);
     assert_eq!(b.apply(&d), Err(SnapError::Corrupt));
     assert!(b.read("a").is_none());
+}
+
+#[test]
+fn wrong_state_root_is_refused_after_apply() {
+    let mut a = Store::new(KEY);
+    a.write("a", b"x").unwrap();
+    a.snapshot("s1").unwrap();
+    let mut d = a.diff(None, "s1").unwrap();
+    d.root ^= 1;
+    let mut b = Store::new(KEY);
+    assert_eq!(b.apply(&d), Err(SnapError::Corrupt));
 }
