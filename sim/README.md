@@ -30,4 +30,4 @@ cargo test
 
 - Lettura di "massimo 4 programmi" e "uno slot sempre libero": qui 4 slot, 3 concedibili.
 - Dimensione massima messaggio (64 byte).
-- Memoria totale: 288 KB, con pool di 208 KB per gli slot.
+- Memoria totale: 288 KB, con 176 KB concedibili (monolite 64 + agente 16 + 3 slot da 32).
