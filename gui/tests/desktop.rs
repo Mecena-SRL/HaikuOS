@@ -214,3 +214,15 @@ fn reader_scrolls_file_lines() {
     s.key(Key::Down); // una riga sola: non scorre oltre
     assert_eq!(s.rscroll, 0);
 }
+
+#[test]
+fn reader_chooses_file_with_left_right() {
+    static RD: [Icon; 1] = [Icon { label: "READ", app: 8, title: "LETTORE", w: 120, h: 80 }];
+    let mut s = Shell::new(&RD, 320, 240);
+    s.key(Key::A);
+    s.key(Key::Right);
+    assert_eq!(s.files.sel, 1);
+    s.key(Key::Left);
+    s.key(Key::Left);
+    assert_eq!(s.files.sel, 0);
+}
