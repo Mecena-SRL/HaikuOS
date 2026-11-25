@@ -15,3 +15,4 @@ pub mod music;
 pub mod passwords;
 pub mod photo_view;
 pub mod photos;
+pub mod ui;

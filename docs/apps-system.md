@@ -55,6 +55,25 @@ Fuori da questo documento (altre categorie): browser, telefono, scacchi, player,
 - Screenshot: test ignorato `screenshot_app_di_sistema` (`OUT=cartella /tmp/gba_t screenshot_app_di_sistema --ignored`), stessa `paint` della ROM, senza emulatore.
 - Archiviatore: solo il contenitore (`apps/archive.rs`, 2 test). Compressione e cifratura da fare.
 
+### App collegate (lanciatore e terminale)
+
+Il lanciatore ha 19 icone su una pagina (5 colonne, 4 righe). Il terminale apre ogni app digitandone il nome (SELECT, lettere, sinistra). Stato e tasti in `apps/ui.rs`, disegno in `apps/view.rs`.
+
+| App | Icona (indice) | Comando | Schermata e tasti | Da verificare su GBA |
+|---|---|---|---|---|
+| Gestore password | PASSWORDS (9) | PASSWORDS | Una voce alla volta, su/giù, A mostra il segreto (dato di prova) | Lettura dal campo cifrato: da fare |
+| Dizionario | DICTIONARY (10) | DICTIONARY | Parola e definizione a capo, su/giù | Dizionario completo: da verificare |
+| Calendario | CALENDAR (11) | CALENDAR | Griglia del mese, sinistra/destra cambia mese, un evento di prova | Fuso orario (UTC): da decidere |
+| Messaggi | MESSAGES (12) | MESSAGES | **DA VERIFICARE** (solo hardware) | Collegamento seriale: da verificare |
+| Foto | PHOTOS (13) | PHOTOS | Elenco a pagine, su/giù, sinistra/destra cambia pagina | Miniature: da fare |
+| Visualizzatore foto | VIEWER (14) | VIEWER | Riquadro della foto a zoom, croce sposta, A zoom avanti, Select indietro | Immagine reale: da fare |
+| Fotocamera | CAMERA (15) | CAMERA | **DA VERIFICARE** (solo hardware) | Il GBA non ha fotocamera: da verificare |
+| Musica | MUSIC (16) | MUSIC | **DA VERIFICARE** (solo hardware) | Audio: da verificare |
+| Mappe | MAPS (17) | MAPS | Griglia 32×32 con cursore, croce muove (percorso BFS non disegnato: stack da misurare) | Stack del BFS: da verificare |
+| Memo | MEMO (18) | MEMO | **DA VERIFICARE** (solo hardware) | Microfono: da verificare |
+
+Dati di prova: una password, un evento, tre foto e una mappa di seme 7. Niente salvataggio su SRAM.
+
 ### Misura Ascon (host x86, `sim/tests/ascon_misura.rs`)
 
 Dati ripetitivi (LZSS li comprime bene): i tempi sono ottimistici.

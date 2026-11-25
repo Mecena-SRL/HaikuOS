@@ -11,7 +11,7 @@ pub const LINE_MAX: usize = 14;
 pub const LABEL_MAX: usize = 24;
 pub const INPUT_MAX: usize = 16;
 /// Caratteri scelti in digitazione: solo quelli che il font disegna (vedi font.rs).
-pub const ALPHA: &[u8] = b" ABCDEFGHIKLMNORSTUW012";
+pub const ALPHA: &[u8] = b" ABCDEFGHIKLMNORSTUW012PVY";
 const DIRS: usize = 6;
 
 /// Finestra richiesta dal terminale: il desktop la apre dopo il comando.
@@ -47,13 +47,24 @@ pub struct Terminal {
 }
 
 /// App di sistema lanciabili digitando il nome: (nome, indice icona). Vedi desktop::ICON_LABELS.
-const APP_CMDS: [(&[u8], usize); 6] = [
+/// Le ultime dieci sono le app di apps/ui.rs (stesso nome dell'etichetta sull'icona).
+const APP_CMDS: [(&[u8], usize); 16] = [
     (b"FILES", 0),
     (b"CALC", 2),
     (b"NOTES", 3),
     (b"CLOCK", 4),
     (b"SETTINGS", 5),
     (b"REMIND", 8),
+    (b"PASSWORDS", 9),
+    (b"DICTIONARY", 10),
+    (b"CALENDAR", 11),
+    (b"MESSAGES", 12),
+    (b"PHOTOS", 13),
+    (b"VIEWER", 14),
+    (b"CAMERA", 15),
+    (b"MUSIC", 16),
+    (b"MAPS", 17),
+    (b"MEMO", 18),
 ];
 
 fn push(buf: &mut [u8], n: &mut usize, s: &[u8]) {
