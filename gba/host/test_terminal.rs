@@ -186,3 +186,15 @@ fn unknown_cd_target_is_not_an_app() {
     assert_eq!(t.take_launch(), None);
     assert_eq!(text(&t, 0), b"NON TROVATO" as &[u8]);
 }
+
+#[test]
+fn typed_add_takes_the_reminder_text() {
+    let f = sample();
+    let mut t = Terminal::new();
+    type_str(&mut t, b"ADD DAD");
+    t.run_input(&f);
+    assert_eq!(t.line(0), b"PROMEMORIA OK");
+    let (buf, n) = t.take_add().unwrap();
+    assert_eq!(&buf[..n], b"DAD");
+    assert_eq!(t.take_add(), None);
+}
