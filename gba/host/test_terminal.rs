@@ -18,6 +18,18 @@ mod editor;
 mod font;
 #[path = "../src/apps/mod.rs"]
 mod apps;
+#[path = "../src/calc.rs"]
+mod calc;
+#[path = "../src/calc_ui.rs"]
+mod calc_ui;
+#[path = "../src/chess.rs"]
+mod chess;
+#[path = "../src/media_ui.rs"]
+mod media_ui;
+#[path = "../src/reminders.rs"]
+mod reminders;
+#[path = "../src/desktop.rs"]
+mod desktop;
 
 use fs::Fs;
 use terminal::Terminal;

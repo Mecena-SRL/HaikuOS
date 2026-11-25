@@ -25,20 +25,24 @@ pub const TEXT: u16 = T0;
 
 /// Barra superiore, in unità GBA (1 unità = 1 px).
 pub const BAR_H: usize = 12;
-/// Icone 16x16, griglia con passo 48 px (dal concept).
+/// Icone 16x16. Griglia di 5 colonne e 4 righe (passo 46x36): 19 icone su una sola pagina.
+/// Il concept (passo 48x40, 4 colonne) non entrava con 19 icone: 3 righe, 12 icone.
 pub const ICON_SIZE: usize = 16;
-pub const ICON_STEP_X: usize = 48;
-pub const ICON_STEP_Y: usize = 40;
+pub const ICON_COLS: usize = 5;
+pub const ICON_STEP_X: usize = 46;
+pub const ICON_STEP_Y: usize = 36;
 /// Finestra del terminale: posizione e misure.
 pub const WIN_X: usize = 124;
 pub const WIN_Y: usize = 30;
 pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
-/// Numero di icone sulla riga (4 colonne, una sola riga nel primo schizzo).
-pub const ICONS: usize = 10;
-/// Etichette sotto le icone (files, term, giochi, notes).
-pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ", b"REMIND", b"UTIL"];
+/// Numero di icone del lanciatore (una pagina: 5 colonne x 4 righe).
+pub const ICONS: usize = 20;
+/// Etichette sotto le icone. Il terminale digita questi nomi (vedi terminal::APP_CMDS).
+pub const ICON_LABELS: [&[u8]; ICONS] = [
+    b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ", b"REMIND", b"PASSWORDS", b"DICTIONARY", b"CALENDAR", b"MESSAGES", b"PHOTOS", b"VIEWER", b"CAMERA", b"MUSIC", b"MAPS", b"MEMO", b"UTIL",
+];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
 /// Icona che apre la calcolatrice.
@@ -69,12 +73,27 @@ pub enum App {
     Reader,
     /// Promemoria: lista a 4 voci.
     Reminders,
+    /// Dieci app di sistema (logica in apps/*.rs, stato in apps/ui.rs). Tasti in `AppsUi::key`.
+    Passwords,
+    Dictionary,
+    Calendar,
+    Messages,
+    Photos,
+    PhotoView,
+    Camera,
+    Music,
+    Maps,
+    Memo,
     /// Utility di sistema: disco, memoria, stampante, nota, colore (sola lettura, A aggiunge un lavoro).
     Utility,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
-pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader, App::Reminders, App::Utility];
+pub const APPS: [App; ICONS] = [
+    App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader, App::Reminders,
+    App::Passwords, App::Dictionary, App::Calendar, App::Messages, App::Photos, App::PhotoView, App::Camera, App::Music, App::Maps, App::Memo,
+    App::Utility,
+];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
 pub fn launchable(i: usize) -> Option<App> {
@@ -84,7 +103,7 @@ pub fn launchable(i: usize) -> Option<App> {
     }
 }
 
-use crate::apps::{clock::Clock, settings::Settings, sysutil, view};
+use crate::apps::{clock::Clock, settings::Settings, sysutil, ui::AppsUi, view};
 use crate::media_ui::{self, ChessView, Key, Reader};
 use crate::calc_ui::{self, CalcUi};
 use crate::reminders::Reminders;
@@ -113,11 +132,12 @@ pub struct Desktop {
     chess: ChessView,
     reader: Reader,
     pub rem: Reminders,
+    pub apps: AppsUi,
 }
 
 impl Desktop {
     pub fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new(), chess: ChessView::new(), reader: Reader::new(READER_TEXT), rem: Reminders::new() }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new(), chess: ChessView::new(), reader: Reader::new(READER_TEXT), rem: Reminders::new(), apps: AppsUi::new() }
     }
 
     /// Vero se c'è un programma a schermo intero da avviare.
@@ -201,6 +221,7 @@ impl Desktop {
         self.prev = keys;
         // Scacchi e lettore: il cambio di stato va segnalato, altrimenti la finestra non si ridisegna.
         let mut media_changed = false;
+        let mut app_changed = false;
         let rb = self.rem_digest();
         let before = (
             self.sel,
@@ -258,6 +279,18 @@ impl Desktop {
                 }
             }
             Some(App::Reminders) => self.rem_keys(pressed),
+            Some(a @ (App::Passwords | App::Dictionary | App::Calendar | App::Photos | App::PhotoView | App::Maps)) => {
+                app_changed = self.apps.key(a, pressed);
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            // Solo hardware: nessun tasto oltre a B, che chiude.
+            Some(App::Camera | App::Music | App::Messages | App::Memo) => {
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
             Some(App::Utility) => {
                 if pressed & KEY_A != 0 {
                     self.term.spool.submit();
@@ -363,6 +396,7 @@ impl Desktop {
             }
         }
         media_changed
+            || app_changed
             || before
             != (
                 self.sel,
@@ -391,9 +425,27 @@ fn upper_into(dst: &mut [u8], src: &[u8]) -> usize {
     n
 }
 
-/// Posizione (x, y) dell'icona `i` nella griglia: 4 colonne.
+/// Posizione (x, y) dell'icona `i` nella griglia: 5 colonne.
 pub fn icon_pos(i: usize) -> (usize, usize) {
-    (8 + (i % 4) * ICON_STEP_X, BAR_H + 12 + (i / 4) * ICON_STEP_Y)
+    (8 + (i % ICON_COLS) * ICON_STEP_X, BAR_H + 12 + (i / ICON_COLS) * ICON_STEP_Y)
+}
+
+/// Titolo della finestra delle dieci app di sistema (None per le altre).
+fn titolo_app(app: App) -> Option<&'static [u8]> {
+    let t: &'static [u8] = match app {
+        App::Passwords => b"PASSWORDS",
+        App::Dictionary => b"DICTIONARY",
+        App::Calendar => b"CALENDAR",
+        App::Messages => b"MESSAGES",
+        App::Photos => b"PHOTOS",
+        App::PhotoView => b"VIEWER",
+        App::Camera => b"CAMERA",
+        App::Music => b"MUSIC",
+        App::Maps => b"MAPS",
+        App::Memo => b"MEMO",
+        _ => return None,
+    };
+    Some(t)
 }
 
 fn put(fb: &mut [u16], x: usize, y: usize, c: u16) {
@@ -491,6 +543,25 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
                 crate::font::draw(fb, W, H, WIN_X + 4, y, b.as_bytes(), TEXT);
                 y += 10;
             }
+        }
+        return;
+    }
+    // Dieci app di sistema: titolo, poi il corpo della loro schermata.
+    if let Some(titolo) = titolo_app(app) {
+        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, titolo, t0);
+        let pal = d.settings.palette();
+        let a = &d.apps;
+        match app {
+            App::Passwords => view::passwords(fb, W, H, bx, by, a, pal),
+            App::Dictionary => view::dizionario(fb, W, H, bx, by, a, pal),
+            App::Calendar => view::calendario(fb, W, H, bx, by, a, pal),
+            App::Photos => view::foto(fb, W, H, bx, by, a, pal),
+            App::PhotoView => view::visualizzatore(fb, W, H, bx, by, a, pal),
+            App::Maps => view::mappa(fb, W, H, bx, by, a, pal),
+            App::Camera => view::da_verificare(fb, W, H, bx, by, b"SENSORE FOTO", pal),
+            App::Music => view::da_verificare(fb, W, H, bx, by, b"AUDIO", pal),
+            App::Messages => view::da_verificare(fb, W, H, bx, by, b"LINK", pal),
+            _ => view::da_verificare(fb, W, H, bx, by, b"MICROFONO", pal),
         }
         return;
     }
@@ -650,7 +721,18 @@ mod tests {
         assert_eq!(fb[(y + 1) * W + x + 1], ICON_HI);
         let (x, y) = icon_pos(1);
         assert_eq!(fb[(y + 1) * W + x + 1], ICON);
-        assert_eq!(icon_pos(4).0, icon_pos(0).0); // quinta icona torna a colonna 0
+        assert_eq!(icon_pos(ICON_COLS).0, icon_pos(0).0); // prima icona della riga dopo torna a colonna 0
+    }
+
+    #[test]
+    fn diciannove_icone_entrano_nello_schermo_senza_sovrapporsi() {
+        for i in 0..ICONS {
+            let (x, y) = icon_pos(i);
+            assert!(x + ICON_SIZE <= W, "icona {i} fuori a destra");
+            // Etichetta sotto l'icona: 2 px di spazio e 5 di altezza del font.
+            assert!(y + ICON_SIZE + 2 + 5 <= H, "icona {i} fuori in basso");
+            assert!(crate::font::text_width(ICON_LABELS[i]) < ICON_STEP_X, "etichetta {i} tocca la colonna dopo");
+        }
     }
 
     #[test]
@@ -781,5 +863,77 @@ mod tests_apps {
         d.step(KEY_RIGHT, &Fs::new());
         d.step(0, &Fs::new());
         salva("3_impostazioni", &d);
+    }
+
+    /// Le dieci app nuove, nell'ordine delle icone 9..19.
+    const NUOVE: [App; 10] = [App::Passwords, App::Dictionary, App::Calendar, App::Messages, App::Photos, App::PhotoView, App::Camera, App::Music, App::Maps, App::Memo];
+
+    /// Digita `parola` nel terminale aperto: SELECT, poi A per lettera, sinistra per eseguire.
+    fn digita(d: &mut Desktop, parola: &[u8]) {
+        d.step(KEY_SELECT, &Fs::new());
+        d.step(0, &Fs::new());
+        for &c in parola {
+            d.term.pick = terminal::ALPHA.iter().position(|&a| a == c).unwrap();
+            d.step(KEY_A, &Fs::new());
+            d.step(0, &Fs::new());
+        }
+        d.step(KEY_LEFT, &Fs::new());
+        d.step(0, &Fs::new());
+    }
+
+    #[test]
+    fn icona_di_ogni_app_nuova_apre_la_finestra_e_b_chiude() {
+        for (k, app) in NUOVE.into_iter().enumerate() {
+            assert_eq!(launchable(9 + k), Some(app));
+            let mut d = Desktop::new();
+            open(&mut d, 9 + k, app);
+            assert!(d.step(KEY_B, &Fs::new()));
+            assert!(!d.win_open());
+        }
+    }
+
+    #[test]
+    fn terminale_apre_ogni_app_nuova_per_nome() {
+        for (k, app) in NUOVE.into_iter().enumerate() {
+            let mut d = Desktop::new();
+            open(&mut d, TERM_ICON, App::Term);
+            digita(&mut d, ICON_LABELS[9 + k]); // nome = etichetta dell'icona
+            assert_eq!(d.win, Some(app));
+        }
+    }
+
+    #[test]
+    fn ogni_app_nuova_disegna_nel_corpo() {
+        for (k, app) in NUOVE.into_iter().enumerate() {
+            let mut d = Desktop::new();
+            open(&mut d, 9 + k, app);
+            let fb = screen(&d);
+            let p = d.settings.palette();
+            let testo = (WIN_Y + TITLE_H + 2..WIN_Y + WIN_H - 1).any(|y| (WIN_X + 1..WIN_X + WIN_W - 1).any(|x| fb[y * W + x] == p[0]));
+            assert!(testo, "corpo vuoto per {:?}", app);
+        }
+    }
+
+    #[test]
+    fn password_mostra_il_segreto_con_a() {
+        let mut d = Desktop::new();
+        open(&mut d, 9, App::Passwords);
+        assert!(!d.apps.mostra);
+        assert!(d.step(KEY_A, &Fs::new()));
+        assert!(d.apps.mostra);
+        assert_eq!(d.sel(), 9); // le croci non spostano l'icona mentre la finestra è aperta
+    }
+
+    #[test]
+    fn calendario_cambia_mese_con_sinistra_e_destra() {
+        let mut d = Desktop::new();
+        open(&mut d, 11, App::Calendar);
+        assert!(d.step(KEY_RIGHT, &Fs::new()));
+        assert_eq!(d.apps.mese.mese, 12);
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_LEFT, &Fs::new()));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_LEFT, &Fs::new()));
+        assert_eq!(d.apps.mese.mese, 10);
     }
 }
