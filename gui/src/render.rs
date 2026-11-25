@@ -1,7 +1,7 @@
 //! Disegno della scrivania sopra un `Canvas`. Il canvas ritaglia da solo.
 use crate::layout::*;
 use crate::palette::Tok::{self, T0, T1, T2, T3};
-use crate::apps::{num_str, FILES, LINE_H, TL};
+use crate::apps::{num_str, FILES, LINE_H, TEXT_ROWS, THEME_NAMES, TL};
 use sysapps::browser::{parse_line, Line};
 use crate::shell::{Shell, MENU_MAX};
 
@@ -65,11 +65,20 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             c.text(cc.x, row_y(2), clip("0-9 + - * / = C", cols), T0);
         }
         4 => {
-            // Pagina: titoli e testo; i collegamenti con la selezione in T2.
+            // Pagina dalla riga di scorrimento; i collegamenti con la selezione in T2.
             if let Some(body) = s.browser.current() {
-                let mut link = 0usize;
-                for (k, line) in body.lines().take(rows).enumerate() {
-                    let y = row_y(k);
+                let (mut link, mut row) = (0usize, 0usize);
+                for (i, line) in body.lines().enumerate() {
+                    let is_link = matches!(parse_line(line), Line::Link { .. });
+                    if i < s.bscroll {
+                        link += is_link as usize;
+                        continue;
+                    }
+                    if row >= TEXT_ROWS.min(rows) {
+                        break;
+                    }
+                    let y = row_y(row);
+                    row += 1;
                     match parse_line(line) {
                         Line::Heading(t) | Line::Text(t) => c.text(cc.x, y, clip(t, cols), T0),
                         Line::Link { label, .. } => {
@@ -84,15 +93,41 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             }
         }
         5 => {
-            // Buffer dell'editor e cursore come blocco T2.
+            // Buffer dell'editor, cursore T2, e in fondo il pannello dell'uscita di F5.
             let ed = &s.editor;
-            for i in 0..ed.lines().min(rows) {
+            let code = ed.lines().min(7);
+            for i in 0..code {
                 c.text(cc.x, row_y(i), clip(ed.line(i), cols), T0);
             }
             let (r, col) = ed.cursor();
             let cx = cc.x + col as i32 * (FONT_W + 1);
-            if r < rows && cx + FONT_W <= cc.x + cc.w {
+            if r < code && cx + FONT_W <= cc.x + cc.w {
                 c.fill(Rect::new(cx, row_y(r), FONT_W, FONT_H), T2);
+            }
+            if rows >= TEXT_ROWS {
+                c.fill(Rect::new(cc.x, row_y(7), cc.w, 1), T3);
+                let o = &s.eout;
+                for k in 0..o.hn.min(2) {
+                    let idx = o.hn - o.hn.min(2) + k;
+                    let line = core::str::from_utf8(&o.hist[idx][..o.hl[idx]]).unwrap_or("");
+                    c.text(cc.x, row_y(8 + k), clip(line, cols), T0);
+                }
+            }
+        }
+        6 => {
+            c.text(cc.x, row_y(0), "TEMA", T0);
+            c.text(cc.x, row_y(1), clip(THEME_NAMES[s.theme as usize % 3], cols), T0);
+            c.text(cc.x, row_y(3), clip("INVIO CAMBIA", cols), T0);
+        }
+        7 => {
+            c.text(cc.x, row_y(0), core::str::from_utf8(&s.clock).unwrap_or(""), T0);
+            c.text(cc.x, row_y(2), clip("EUROPA ROMA", cols), T0);
+        }
+        8 => {
+            // Lettore: il file scelto in FILE, con scorrimento.
+            let (_, body) = FILES[s.files.sel];
+            for (k, line) in body.lines().skip(s.rscroll).take(rows.min(TEXT_ROWS)).enumerate() {
+                c.text(cc.x, row_y(k), clip(line, cols), T0);
             }
         }
         _ => {}

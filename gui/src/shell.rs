@@ -1,5 +1,5 @@
 //! Scrivania: icone, finestre, menu, pannello, regole di input. Nessun disegno qui.
-use crate::apps::{Calc, Disk, FileView, Term, FILES, HOME, SCRIPT};
+use crate::apps::{Calc, Disk, FileView, Term, FILES, HOME, SCRIPT, TEXT_ROWS, THEMES};
 use sysapps::browser::{parse_line, Browser, Line};
 use sysapps::editor::Editor;
 use sysapps::Store;
@@ -60,7 +60,13 @@ pub struct Shell {
     pub browser: Browser<8>,
     /// Collegamento selezionato nella pagina.
     pub bsel: usize,
-    pub editor: Editor<8, 27>,
+    pub editor: Editor<7, 27>,
+    /// Prima riga visibile del browser, del lettore e uscita dell'ultimo script.
+    pub bscroll: usize,
+    pub rscroll: usize,
+    pub eout: Term,
+    /// Tema di colore (0..THEMES): usato dal disegno x86 e scelto da IMPOST o F2.
+    pub theme: u8,
 }
 
 impl Shell {
@@ -84,7 +90,15 @@ impl Shell {
             browser: Browser::new(),
             bsel: 0,
             editor: Editor::new(),
+            bscroll: 0,
+            rscroll: 0,
+            eout: Term::new(),
+            theme: 0,
         }
+    }
+
+    pub fn next_theme(&mut self) {
+        self.theme = (self.theme + 1) % THEMES;
     }
 
     pub fn set_clock(&mut self, h: u8, m: u8) {
@@ -173,7 +187,9 @@ impl Shell {
             4 => {
                 let _ = self.browser.open(&Disk, HOME);
                 self.bsel = 0;
+                self.bscroll = 0;
             }
+            8 => self.rscroll = 0,
             5 => {
                 if let Some(text) = Disk.file(SCRIPT) {
                     let _ = self.editor.load(text);
@@ -189,15 +205,18 @@ impl Shell {
             2 if c == 0x0D => self.term.enter(),
             2 => self.term.type_char(c),
             3 => self.calc.key(c),
+            6 if c == 0x0D => self.next_theme(),
             4 => match c {
                 0x0D => {
                     if self.browser.follow(&Disk, self.bsel).is_ok() {
                         self.bsel = 0;
+                        self.bscroll = 0;
                     }
                 }
                 0x08 => {
                     if self.browser.back().is_some() {
                         self.bsel = 0;
+                        self.bscroll = 0;
                     }
                 }
                 _ => {}
@@ -210,11 +229,12 @@ impl Shell {
                     let _ = self.editor.backspace();
                 }
                 0x05 => {
-                    // F5: esegue il buffer; l'uscita va nella cronologia del terminale.
-                    let term = &mut self.term;
-                    let mut out = |s: &str| term.add(s.as_bytes());
+                    // F5: esegue il buffer; l'uscita va nel pannello sotto il testo.
+                    self.eout = Term::new();
+                    let eout = &mut self.eout;
+                    let mut out = |s: &str| eout.add(s.as_bytes());
                     if self.editor.run(&Disk, &mut out).is_err() {
-                        self.term.add(b"ERRORE SCRIPT");
+                        self.eout.add(b"ERRORE SCRIPT");
                     }
                 }
                 b' '..=b'~' => {
@@ -232,14 +252,40 @@ impl Shell {
             (1, _) if self.files.open => {}
             (1, Key::Up) if self.files.sel > 0 => self.files.sel -= 1,
             (1, Key::Down) if self.files.sel + 1 < FILES.len() => self.files.sel += 1,
-            (4, Key::Up) if self.bsel > 0 => self.bsel -= 1,
-            (4, Key::Down) if self.bsel + 1 < self.link_count() => self.bsel += 1,
+            (4, Key::Up) if self.bsel > 0 => {
+                self.bsel -= 1;
+                self.follow_sel();
+            }
+            (4, Key::Down) if self.bsel + 1 < self.link_count() => {
+                self.bsel += 1;
+                self.follow_sel();
+            }
+            (8, Key::Up) if self.rscroll > 0 => self.rscroll -= 1,
+            (8, Key::Down) if self.rscroll + 1 < self.file_lines() => self.rscroll += 1,
             (5, Key::Up) => self.editor.up(),
             (5, Key::Down) => self.editor.down(),
             (5, Key::Left) => self.editor.left(),
             (5, Key::Right) => self.editor.right(),
             _ => {}
         }
+    }
+
+    /// Riporta in vista il collegamento selezionato.
+    fn follow_sel(&mut self) {
+        let Some(body) = self.browser.current() else { return };
+        let line = body.lines().enumerate().filter(|(_, l)| matches!(parse_line(l), Line::Link { .. })).nth(self.bsel).map(|(i, _)| i);
+        if let Some(li) = line {
+            if li < self.bscroll {
+                self.bscroll = li;
+            } else if li >= self.bscroll + TEXT_ROWS {
+                self.bscroll = li + 1 - TEXT_ROWS;
+            }
+        }
+    }
+
+    /// Righe del file scelto in FILE (per il lettore).
+    pub fn file_lines(&self) -> usize {
+        FILES[self.files.sel].1.lines().count()
     }
 
     /// Collegamenti della pagina corrente del browser.
