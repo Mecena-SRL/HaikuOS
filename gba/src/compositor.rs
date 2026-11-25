@@ -51,6 +51,39 @@ pub fn compose(fb: &mut [u16], surfaces: &[Surface]) -> usize {
     written
 }
 
+/// Riempie un rettangolo con un colore solido, tagliato ai bordi. Ritorna i pixel scritti.
+pub fn fill_rect(fb: &mut [u16], x: i32, y: i32, w: usize, h: usize, c: u16) -> usize {
+    assert!(fb.len() >= W * H);
+    let x0 = x.max(0) as usize;
+    let y0 = y.max(0) as usize;
+    let x1 = (x + w as i32).clamp(0, W as i32) as usize;
+    let y1 = (y + h as i32).clamp(0, H as i32) as usize;
+    if x0 >= x1 || y0 >= y1 {
+        return 0;
+    }
+    for row in fb[y0 * W..y1 * W].chunks_mut(W) {
+        row[x0..x1].fill(c);
+    }
+    (x1 - x0) * (y1 - y0)
+}
+
+// Colori di prova (BGR555 del GBA). Da verificare sullo schermo reale.
+pub const C_FONDO: u16 = 0x2D6B;
+pub const C_BARRA: u16 = 0x0C63;
+pub const C_TITOLO: u16 = 0x3A10;
+pub const C_CORPO: u16 = 0x7FFF;
+pub const C_ICONA: u16 = 0x03E0;
+
+/// Schermata di prova del desktop: sfondo, barra in alto, una finestra, un'icona.
+/// Misure (da verificare su GBA): barra 240x12, finestra 120x80 in (40,30), icona 16x16 in (8,20).
+pub fn desktop_sketch(fb: &mut [u16]) {
+    fill_rect(fb, 0, 0, W, H, C_FONDO);
+    fill_rect(fb, 0, 0, W, 12, C_BARRA);
+    fill_rect(fb, 40, 30, 120, 80, C_CORPO);
+    fill_rect(fb, 40, 30, 120, 12, C_TITOLO);
+    fill_rect(fb, 8, 20, 16, 16, C_ICONA);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,5 +174,26 @@ mod tests {
         let px = [5u16; 2];
         let mut f = fb();
         assert_eq!(compose(&mut f, &[Surface { x: 0, y: 0, w: 2, h: 2, pixels: &px, key: None }]), 0);
+    }
+    #[test]
+    fn schermata_desktop_ha_barra_finestra_icona() {
+        let mut f = fb();
+        desktop_sketch(&mut f);
+        assert_eq!(f[0], C_BARRA);
+        assert_eq!(f[11 * W + 239], C_BARRA);
+        assert_eq!(f[12 * W], C_FONDO);
+        assert_eq!(f[30 * W + 40], C_TITOLO);
+        assert_eq!(f[50 * W + 50], C_CORPO);
+        assert_eq!(f[20 * W + 8], C_ICONA);
+        assert_eq!(f[150 * W + 200], C_FONDO);
+    }
+
+    #[test]
+    fn riempimento_tagliato_ai_bordi() {
+        let mut f = fb();
+        assert_eq!(fill_rect(&mut f, -1, 158, 3, 4, 7), 2 * 2);
+        assert_eq!(f[159 * W], 7);
+        assert_eq!(f[159 * W + 2], 0);
+        assert_eq!(fill_rect(&mut f, 240, 0, 2, 2, 7), 0);
     }
 }
