@@ -8,6 +8,8 @@
 #include <mgba/core/core.h>
 #include <mgba/core/interface.h>
 #include <mgba/core/log.h>
+#include <string.h>
+#include "font.h"
 
 #define W 240
 #define H 160
@@ -18,12 +20,28 @@ static uint16_t vram[W * H], expect[W * H];
 
 static uint16_t rgb(int r, int g, int b) { return r | (g << 5) | (b << 10); }
 
-/* Composizione attesa: sfondo nero, superfici 0, 2, 3 in ordine (3 sopra). */
+/* Glifo 3x5: righe da 3 bit, bit alto = colonna sinistra. Minuscole come maiuscole. */
+static const uint8_t *glyph(char ch) {
+    if (ch >= 'a' && ch <= 'z') ch -= 32;
+    const char *p = strchr(FONT_CHARS, ch);
+    return FONT[p ? (int)(p - FONT_CHARS) : 0];
+}
+
+/* Composizione attesa: sfondo nero; superficie 0 = testo "hello haikuos" in verde; 2 blu; 3 arancio (3 sopra). */
 static void compose_expected(void) {
     struct { int x, y; uint16_t c; } s[3] = {
         {10, 20, rgb(4, 24, 6)}, {50, 50, rgb(6, 14, 28)}, {100, 70, rgb(30, 16, 2)}};
     for (int i = 0; i < W * H; i++) expect[i] = 0;
-    for (int k = 0; k < 3; k++)
+    /* Superficie 0: testo a (2,2) della superficie, avanzamento 4 px, ritaglio a 64x48. */
+    const char *txt = "hello haikuos";
+    for (size_t i = 0; i < strlen(txt); i++)
+        for (int ry = 0; ry < 5; ry++)
+            for (int col = 0; col < 3; col++) {
+                if (!(glyph(txt[i])[ry] & (0x4 >> col))) continue;
+                int gx = 2 + (int)i * 4 + col, gy = 2 + ry;
+                if (gx < SW && gy < SH) expect[(s[0].y + gy) * W + s[0].x + gx] = s[0].c;
+            }
+    for (int k = 1; k < 3; k++)
         for (int y = 0; y < SH; y++)
             for (int x = 0; x < SW; x++) expect[(s[k].y + y) * W + s[k].x + x] = s[k].c;
 }
