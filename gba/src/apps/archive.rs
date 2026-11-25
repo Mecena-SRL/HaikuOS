@@ -1,9 +1,27 @@
 //! Archiviatore: contenitore senza compressione. Formato:
 //! `"HAR1"`, poi per ogni file: nome (1 byte di lunghezza + nome), dati (2 byte LE + dati).
-//! La cifratura (Ascon) non è ancora qui: va sopra al contenitore, misurata nel simulatore.
+//! Cifratura: `seal`/`open` sopra al contenitore, con Ascon-AEAD128 (`crate::ascon`).
+//! Il nonce non deve mai ripetersi con la stessa chiave: il chiamante usa un contatore.
+
+use crate::ascon;
 
 pub const MAGIC: &[u8; 4] = b"HAR1";
 pub const NAME_MAX: usize = 24;
+/// Byte aggiunti dalla cifratura (tag di autenticazione).
+pub const TAG: usize = 16;
+
+/// Cifra un contenitore in `out` (`testo || tag`). `None` se `out` è troppo corto.
+pub fn seal(key: &[u8; 16], nonce: &[u8; 16], arc: &[u8], out: &mut [u8]) -> Option<usize> {
+    match ascon::seal(key, nonce, MAGIC, arc, out) {
+        0 => None,
+        n => Some(n),
+    }
+}
+
+/// Verifica e decifra `sealed` in `out`. `None` se il tag non torna (chiave o dati sbagliati).
+pub fn open(key: &[u8; 16], nonce: &[u8; 16], sealed: &[u8], out: &mut [u8]) -> Option<usize> {
+    ascon::open(key, nonce, MAGIC, sealed, out)
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Err {

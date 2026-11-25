@@ -4,6 +4,20 @@
 mod fs;
 #[path = "../src/terminal.rs"]
 mod terminal;
+#[path = "../src/ascon.rs"]
+mod ascon;
+#[path = "../src/alloc.rs"]
+mod alloc;
+#[path = "../src/monolith.rs"]
+mod monolith;
+#[path = "../src/glyph.rs"]
+mod glyph;
+#[path = "../src/editor.rs"]
+mod editor;
+#[path = "../src/font.rs"]
+mod font;
+#[path = "../src/apps/mod.rs"]
+mod apps;
 
 use fs::Fs;
 use terminal::Terminal;

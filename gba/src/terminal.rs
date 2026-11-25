@@ -4,7 +4,9 @@
 //! Comandi digitati: LS, UP (= cd ..), CD nome, CHESS, READ. Il font ha solo alcune lettere: vedi ALPHA.
 //! CHESS e READ non aprono nulla da soli: lasciano una richiesta che il desktop legge con `take_open`.
 
-use crate::fs::{parent_of, Fs, FILES, NAME_MAX};
+use crate::apps::sysutil::{self, Spool};
+use crate::fs::{parent_of, Fs, BLOCK, BLOCKS, FILES, NAME_MAX};
+use crate::monolith::{POOL_BYTES, RAM_BYTES};
 
 pub const LINES: usize = 4;
 pub const LINE_MAX: usize = 14;
@@ -44,16 +46,19 @@ pub struct Terminal {
     launch: Option<usize>,
     /// Testo di un promemoria da aggiungere (ADD), da prendere dal desktop.
     add: Option<([u8; INPUT_MAX], usize)>,
+    /// Coda della stampante (comandi STAMPA). Pubblica: la finestra UTIL la legge.
+    pub spool: Spool,
 }
 
 /// App di sistema lanciabili digitando il nome: (nome, indice icona). Vedi desktop::ICON_LABELS.
-const APP_CMDS: [(&[u8], usize); 6] = [
+const APP_CMDS: [(&[u8], usize); 7] = [
     (b"FILES", 0),
     (b"CALC", 2),
     (b"NOTES", 3),
     (b"CLOCK", 4),
     (b"SETTINGS", 5),
     (b"REMIND", 8),
+    (b"UTIL", 9),
 ];
 
 fn push(buf: &mut [u8], n: &mut usize, s: &[u8]) {
@@ -89,6 +94,7 @@ impl Terminal {
             open: None,
             launch: None,
             add: None,
+            spool: Spool::new(),
         }
     }
 
@@ -221,6 +227,12 @@ impl Terminal {
             self.add = Some((buf, text.len()));
             self.out_n = 0;
             self.set_line(b"PROMEMORIA OK");
+        } else if let Some((a, b)) = sysutil::command(line, &self.env(fs), &mut self.spool) {
+            self.out_n = 0;
+            self.set_line(a.as_bytes());
+            if !b.is_empty() {
+                self.set_line(b.as_bytes());
+            }
         } else if line.len() > 3 && line[..3].eq_ignore_ascii_case(b"CD ") {
             match self.find_child(fs, trim(&line[3..])) {
                 Some(id) => self.run_cmd(fs, Cmd::Cd(id)),
@@ -233,6 +245,11 @@ impl Terminal {
             self.out_n = 0;
             self.set_line(b"ERRORE");
         }
+    }
+
+    /// Dati di sistema per le utility: disco (file system) e memoria (monolite).
+    pub fn env(&self, fs: &Fs) -> sysutil::Env {
+        sysutil::Env { free_blocks: fs.free_blocks(), total_blocks: BLOCKS, block: BLOCK, ram: RAM_BYTES, pool: POOL_BYTES }
     }
 
     /// Sottodirectory di cwd con questo nome (ultimo componente, senza distinguere maiuscole).
