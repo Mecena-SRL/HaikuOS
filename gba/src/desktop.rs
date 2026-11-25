@@ -36,9 +36,9 @@ pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
 /// Numero di icone sulla riga (4 colonne, una sola riga nel primo schizzo).
-pub const ICONS: usize = 4;
+pub const ICONS: usize = 6;
 /// Etichette sotto le icone (files, term, giochi, notes).
-pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"CALC", b"NOTES"];
+pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS"];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
 /// Icona che apre la calcolatrice.
@@ -54,10 +54,14 @@ pub enum App {
     Notes,
     Term,
     Calc,
+    /// Orologio: finestra con ora e regolazione.
+    Clock,
+    /// Impostazioni: tema e nome del sistema.
+    Settings,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
-pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes];
+pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
 pub fn launchable(i: usize) -> Option<App> {
@@ -67,6 +71,7 @@ pub fn launchable(i: usize) -> Option<App> {
     }
 }
 
+use crate::apps::{clock::Clock, settings::Settings, view};
 use crate::calc_ui::{self, CalcUi};
 use crate::fs::Fs;
 use crate::terminal::{self, Terminal};
@@ -88,11 +93,13 @@ pub struct Desktop {
     run: Option<App>,
     prev: u16,
     calc: CalcUi,
+    clock: Clock,
+    settings: Settings,
 }
 
 impl Desktop {
     pub const fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new() }
     }
 
     /// Vero se c'è un programma a schermo intero da avviare.
@@ -124,6 +131,13 @@ impl Desktop {
 
     /// Un passo di input. Con la calcolatrice in finestra, la croce e A vanno a lei; B chiude la finestra.
     /// Ritorna true se il desktop va ridisegnato.
+    /// Avanza di un frame l'orologio. Ritorna true se il testo dell'ora è cambiato.
+    pub fn tick(&mut self) -> bool {
+        let prima = self.clock.testo();
+        self.clock.tick(1);
+        prima != self.clock.testo()
+    }
+
     pub fn step(&mut self, keys: u16, fs: &Fs) -> bool {
         let pressed = keys & !self.prev;
         self.prev = keys;
@@ -138,6 +152,8 @@ impl Desktop {
             self.term.typing,
             self.term.pick,
             self.term.input().len(),
+            self.clock.hms(),
+            self.settings.theme(),
         );
         match self.win {
             Some(App::Calc) => {
@@ -182,6 +198,34 @@ impl Desktop {
                     }
                 }
             }
+            Some(App::Clock) => {
+                if pressed & KEY_UP != 0 {
+                    self.clock.adjust(1);
+                }
+                if pressed & KEY_DOWN != 0 {
+                    self.clock.adjust(-1);
+                }
+                if pressed & KEY_RIGHT != 0 {
+                    self.clock.adjust(60);
+                }
+                if pressed & KEY_LEFT != 0 {
+                    self.clock.adjust(-60);
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            Some(App::Settings) => {
+                if pressed & KEY_RIGHT != 0 {
+                    self.settings.next_theme();
+                }
+                if pressed & KEY_LEFT != 0 {
+                    self.settings.prev_theme();
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
             _ => {
                 if pressed & (KEY_RIGHT | KEY_DOWN) != 0 {
                     self.sel = (self.sel + 1) % ICONS;
@@ -213,6 +257,8 @@ impl Desktop {
                 self.term.typing,
                 self.term.pick,
                 self.term.input().len(),
+                self.clock.hms(),
+                self.settings.theme(),
             )
     }
 }
@@ -248,19 +294,20 @@ fn rect(fb: &mut [u16], x: usize, y: usize, w: usize, h: usize, c: u16) {
 /// Disegna il desktop completo in `fb` (W * H pixel). `surf` è la superficie della calcolatrice.
 pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
     assert!(fb.len() >= W * H);
-    rect(fb, 0, 0, W, H, BG);
+    let [t0, t1, t2, t3] = d.settings.palette();
+    rect(fb, 0, 0, W, H, t0);
 
     // Barra: nome a sinistra, due slot programma al centro, orologio a destra.
-    rect(fb, 0, 0, W, BAR_H, BAR);
-    crate::font::draw(fb, W, H, 4, 3, b"HAIKUOS", TEXT);
-    crate::font::draw(fb, W, H, 92, 3, b"TERM", TEXT);
-    crate::font::draw(fb, W, H, 120, 3, b"FILES", TEXT);
-    rect(fb, W - 30, 3, 26, 6, CLOCK); // orologio (da verificare: serve il timer)
+    rect(fb, 0, 0, W, BAR_H, t3);
+    crate::font::draw(fb, W, H, 4, 3, b"HAIKUOS", t0);
+    crate::font::draw(fb, W, H, 92, 3, b"TERM", t0);
+    crate::font::draw(fb, W, H, 120, 3, b"FILES", t0);
+    crate::font::draw(fb, W, H, W - 30, 3, &d.clock.testo(), t1);
 
     // Icone con etichetta. Riquadro chiaro = icona selezionata.
     for i in 0..ICONS {
         let (x, y) = icon_pos(i);
-        let c = if i == d.sel() { ICON_HI } else { ICON };
+        let c = if i == d.sel() { t1 } else { t2 };
         rect(fb, x, y, ICON_SIZE, ICON_SIZE, c);
         crate::font::draw(fb, W, H, x, y + ICON_SIZE + 2, ICON_LABELS[i], T1);
     }
@@ -270,14 +317,23 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
     };
 
     // Finestra: titolo, corpo con bordo di 1 px, pulsante chiudi 8x8.
-    rect(fb, WIN_X, WIN_Y, WIN_W, WIN_H, WIN_BORDER);
-    rect(fb, WIN_X + 1, WIN_Y + 1, WIN_W - 2, TITLE_H, WIN_TITLE);
-    rect(fb, WIN_X + WIN_W - 9, WIN_Y + 1, 8, 8, CLOSE);
-    rect(fb, WIN_X + 1, WIN_Y + TITLE_H + 1, WIN_W - 2, WIN_H - TITLE_H - 2, WIN_BODY);
+    rect(fb, WIN_X, WIN_Y, WIN_W, WIN_H, t3);
+    rect(fb, WIN_X + 1, WIN_Y + 1, WIN_W - 2, TITLE_H, t2);
+    rect(fb, WIN_X + WIN_W - 9, WIN_Y + 1, 8, 8, t1);
+    rect(fb, WIN_X + 1, WIN_Y + TITLE_H + 1, WIN_W - 2, WIN_H - TITLE_H - 2, t1);
     let bx = WIN_X + 1;
     let by = WIN_Y + TITLE_H + 1;
+    if matches!(app, App::Clock | App::Settings) {
+        let nome: &[u8] = if app == App::Clock { b"ORA" } else { b"IMPOSTAZIONI" };
+        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, nome, t0);
+        match app {
+            App::Clock => view::clock(fb, W, H, bx, by, &d.clock, d.settings.palette()),
+            _ => view::settings(fb, W, H, bx, by, &d.settings, d.settings.palette()),
+        }
+        return;
+    }
     if app == App::Calc {
-        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"CALC", TEXT);
+        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"CALC", t0);
         // Superficie propria della calcolatrice, copiata nel corpo della finestra.
         for y in 0..calc_ui::SH {
             for x in 0..calc_ui::SW {
@@ -295,7 +351,7 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
     title[0] = b'/';
     let cwd = d.term.cwd();
     let tn = upper_into(&mut title[1..], cwd);
-    crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, &title[..1 + tn], TEXT);
+    crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, &title[..1 + tn], t0);
     // Prompt: "$ " e la voce del menu scelta con su/giù. A la esegue.
     let mut prompt = [0u8; terminal::INPUT_MAX + terminal::LABEL_MAX + 4];
     prompt[0] = b'$';
@@ -313,14 +369,14 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
         let ln = d.term.label(fs, d.term.sel, &mut lab);
         upper_into(&mut prompt[2..], &lab[..ln])
     };
-    crate::font::draw(fb, W, H, WIN_X + 4, by + 2, &prompt[..2 + n], TEXT);
+    crate::font::draw(fb, W, H, WIN_X + 4, by + 2, &prompt[..2 + n], t0);
     // Output: sotto il prompt, una riga per voce.
     for k in 0..d.term.lines() {
         let mut out = [0u8; terminal::LINE_MAX];
         let n = upper_into(&mut out, d.term.line(k));
-        crate::font::draw(fb, W, H, WIN_X + 4, by + 10 + k * 7, &out[..n], TEXT);
+        crate::font::draw(fb, W, H, WIN_X + 4, by + 10 + k * 7, &out[..n], t0);
     }
-    put(fb, WIN_X + 1, WIN_Y + 1, WIN_BORDER);
+    put(fb, WIN_X + 1, WIN_Y + 1, t3);
 }
 
 #[cfg(test)]
@@ -390,7 +446,7 @@ mod tests {
         assert_eq!(launchable(0), Some(App::Files));
         assert_eq!(launchable(TERM_ICON), Some(App::Term));
         assert_eq!(launchable(CALC_ICON), Some(App::Calc));
-        assert_eq!(launchable(ICONS - 1), Some(App::Notes));
+        assert_eq!(launchable(3), Some(App::Notes));
         assert_eq!(launchable(ICONS + 5), None);
     }
 
@@ -407,11 +463,11 @@ mod tests {
     #[test]
     fn notes_icon_requests_editor_run() {
         let mut d = Desktop::new();
-        for _ in 0..ICONS - 1 {
+        for _ in 0..3 {
             d.step(KEY_RIGHT, &Fs::new());
             d.step(0, &Fs::new());
         }
-        assert_eq!(d.sel(), ICONS - 1);
+        assert_eq!(d.sel(), 3); // NOTES
         d.step(KEY_A, &Fs::new());
         assert_eq!(d.take_run(), Some(App::Notes));
     }
@@ -479,5 +535,87 @@ mod tests {
     fn window_fits_on_screen() {
         assert!(WIN_X + WIN_W <= W);
         assert!(WIN_Y + WIN_H <= H);
+    }
+}
+
+#[cfg(test)]
+mod tests_apps {
+    use super::*;
+    use crate::apps::settings::PALETTES;
+
+    fn screen(d: &Desktop) -> Vec<u16> {
+        let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
+        d.draw_calc(&mut surf);
+        let mut fb = vec![0u16; W * H];
+        paint(&mut fb, d, &surf, &Fs::new());
+        fb
+    }
+
+    fn open(d: &mut Desktop, icona: usize, app: App) {
+        while d.sel() != icona {
+            d.step(KEY_RIGHT, &Fs::new());
+            d.step(0, &Fs::new());
+        }
+        d.step(KEY_A, &Fs::new());
+        d.step(0, &Fs::new());
+        assert_eq!(d.win, Some(app));
+    }
+
+    #[test]
+    fn tema_cambia_palette_sullo_schermo() {
+        let mut d = Desktop::new();
+        assert_eq!(screen(&d)[(H - 1) * W], PALETTES[0][0]);
+        open(&mut d, 5, App::Settings);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        assert_eq!(d.settings.theme(), 1);
+        let fb = screen(&d);
+        assert_eq!(fb[(H - 1) * W], PALETTES[1][0]); // sfondo
+        assert_eq!(fb[(WIN_Y + WIN_H - 3) * W + WIN_X + WIN_W - 3], PALETTES[1][1]); // corpo finestra
+    }
+
+    #[test]
+    fn orologio_avanza_e_si_regola() {
+        let mut d = Desktop::new();
+        d.clock = Clock::new(9, 5);
+        let mut cambiato = false;
+        for _ in 0..60 * 60 {
+            cambiato |= d.tick();
+        }
+        assert!(cambiato);
+        assert_eq!(d.clock.testo(), *b"09:06");
+        open(&mut d, 4, App::Clock);
+        assert!(d.step(KEY_RIGHT, &Fs::new())); // +1 ora: il desktop si ridisegna
+        d.step(0, &Fs::new());
+        assert_eq!(d.clock.testo(), *b"10:06");
+    }
+
+    /// Genera PPM del desktop (`OUT=cartella cargo`-free): `rustc --test host/test_root.rs && OUT=dir ./test --ignored screenshot`.
+    #[test]
+    #[ignore]
+    fn screenshot_app_di_sistema() {
+        let dir = std::env::var("OUT").unwrap_or(".".into());
+        let salva = |nome: &str, d: &Desktop| {
+            let fb = screen(d);
+            let mut out = format!("P6\n{} {}\n255\n", W, H).into_bytes();
+            for &c in &fb {
+                let r = (c & 31) as u32 * 255 / 31;
+                let g = ((c >> 5) & 31) as u32 * 255 / 31;
+                let b = ((c >> 10) & 31) as u32 * 255 / 31;
+                out.extend_from_slice(&[r as u8, g as u8, b as u8]);
+            }
+            std::fs::write(format!("{}/{}.ppm", dir, nome), out).unwrap();
+        };
+        let mut d = Desktop::new();
+        salva("1_home", &d);
+        d.clock = Clock::new(9, 5);
+        open(&mut d, 4, App::Clock);
+        salva("2_orologio", &d);
+        d.step(KEY_B, &Fs::new());
+        d.step(0, &Fs::new());
+        open(&mut d, 5, App::Settings);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        salva("3_impostazioni", &d);
     }
 }

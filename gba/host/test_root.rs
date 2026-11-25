@@ -22,3 +22,9 @@ mod calc;
 mod calc_ui;
 #[path = "../src/terminal.rs"]
 mod terminal;
+#[path = "../src/glyph.rs"]
+mod glyph;
+#[path = "../src/editor.rs"]
+mod editor;
+#[path = "../src/apps/mod.rs"]
+mod apps;

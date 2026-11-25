@@ -22,6 +22,12 @@ impl Clock {
         *self = Clock::new(h, m);
     }
 
+    /// Sposta l'ora di `delta` minuti (anche negativi), con giro a 24 ore.
+    pub fn adjust(&mut self, delta: i32) {
+        let s = self.secs as i64 + delta as i64 * 60;
+        self.secs = s.rem_euclid(DAY as i64) as u32;
+    }
+
     /// Avanza di `n` frame.
     pub fn tick(&mut self, n: u32) {
         let total = self.frames + n as u64;
