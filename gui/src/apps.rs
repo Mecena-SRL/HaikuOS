@@ -2,7 +2,7 @@
 //! Browser ed editor restano con testo statico (fase successiva).
 use sysapps::{shell, Store};
 
-pub const LINE_H: i32 = 6;
+pub const LINE_H: i32 = crate::layout::FONT_H + 1;
 /// Righe di testo in una finestra alta 80 px (corpo 60 px, passo 6 px).
 pub const TEXT_ROWS: usize = 10;
 /// Temi disponibili (vedi `Shell::next_theme`); i nomi sono per IMPOST.
