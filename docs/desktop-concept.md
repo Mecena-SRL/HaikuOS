@@ -5,6 +5,15 @@
 
 ## 1. Idea
 
+Stile scelto da Ivan: **pochi colori**, 4 tinte forti, retro. Tavolozza (15 bit, `r | g<<5 | b<<10`):
+
+| Tinta | Uso | RGB (5 bit) |
+|---|---|---|
+| T0 | sfondo | (1, 2, 6) |
+| T1 | corpo finestra, icona trasparente | (31, 31, 31) |
+| T2 | titolo finestra, icone | (31, 16, 0) |
+| T3 | barra superiore | (0, 20, 31) |
+
 Un desktop a finestre, pensato prima per GBA (240×160, 15 bit) e poi esteso a schermi più grandi e al touch. Regola unica: **i programmi disegnano nella loro superficie, il compositor decide cosa si vede**.
 
 ## 2. Schermata principale (GBA)
@@ -70,6 +79,6 @@ Nel compositore (`gba/src/compositor.rs`) un test host compone tre elementi: sfo
 
 ## 9. Domande aperte
 
-1. Estetica: colori e tono visivo (colori caldi, freddi, a 4 o 16 tinte?) — da decidere con Ivan.
+1. ~~Estetica~~ Decisa: pochi colori, 4 tinte forti, stile retro (scelta di Ivan).
 2. Font: un font di 8 px disegnato a mano, o uno standard già libero?
 3. Il terminale è la prima app o viene dopo il file manager? Cambia l'ordine dei lavori.
