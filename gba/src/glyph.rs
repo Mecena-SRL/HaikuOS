@@ -82,21 +82,26 @@ pub const ROWS: usize = 6;
 pub const ORIGIN: usize = 2;
 pub const LINE: usize = GH + 1;
 
-/// Disegna `text` a capo ogni `COLS` caratteri, mostrando le ultime `ROWS` righe.
-/// Il carattere in attesa `pending` va in fondo, alla posizione successiva all'ultimo.
-pub fn draw_wrapped(px: &mut [u16], w: usize, h: usize, text: &[u8], pending: u8, text_color: u16, pending_color: u16) {
-    let len = text.len();
-    let total_lines = len / COLS + 1;
+/// Disegna `text` a capo ogni `COLS` caratteri, con `pending` inserito alla posizione `pos`
+/// (il cursore). Mostra le ultime `ROWS` righe. Il carattere in attesa ha `pending_color`.
+pub fn draw_wrapped(px: &mut [u16], w: usize, h: usize, text: &[u8], pos: usize, pending: u8, text_color: u16, pending_color: u16) {
+    let shown = text.len() + 1;
+    let total_lines = (shown - 1) / COLS + 1;
     let start = total_lines.saturating_sub(ROWS);
-    for i in 0..=len {
-        let c = if i < len { text[i] } else { pending };
-        let color = if i < len { text_color } else { pending_color };
-        let line = i / COLS;
+    for j in 0..shown {
+        let (c, color) = if j < pos {
+            (text[j], text_color)
+        } else if j == pos {
+            (pending, pending_color)
+        } else {
+            (text[j - 1], text_color)
+        };
+        let line = j / COLS;
         if line < start {
             continue;
         }
         let row = line - start;
-        let x = ORIGIN + (i % COLS) * ADVANCE;
+        let x = ORIGIN + (j % COLS) * ADVANCE;
         let y = ORIGIN + row * LINE;
         draw_text(px, w, h, x, y, &[c], color);
     }
@@ -122,15 +127,28 @@ mod tests {
     fn a_capo_e_scorrimento() {
         // 15 caratteri: riga piena. Il cursore (pending) va alla riga successiva, colonna 0.
         let mut px = std::vec![0u16; 64 * 48];
-        draw_wrapped(&mut px, 64, 48, &[b'I'; 15], b'X', 1, 2);
+        draw_wrapped(&mut px, 64, 48, &[b'I'; 15], 15, b'X', 1, 2);
         assert_eq!(px[ORIGIN * 64 + ORIGIN], 1);
         assert_eq!(px[(ORIGIN + LINE) * 64 + ORIGIN], 2);
         // 120 caratteri: 9 righe con il cursore. Scorrono via le prime 3, restano 6 righe visibili.
         let mut px = std::vec![0u16; 64 * 48];
-        draw_wrapped(&mut px, 64, 48, &[b'I'; COLS * 8], b'X', 1, 2);
+        draw_wrapped(&mut px, 64, 48, &[b'I'; COLS * 8], COLS * 8, b'X', 1, 2);
         assert_eq!(px[(ORIGIN + (ROWS - 1) * LINE) * 64 + ORIGIN], 2); // cursore in fondo
         let visibili = px.iter().filter(|&&p| p == 1).count();
         assert_eq!(visibili, 5 * COLS * 9); // 5 righe piene di 'I' (9 pixel per glifo)
+    }
+
+    #[test]
+    fn cursore_in_mezzo() {
+        // "II" con 'X' inserita a posizione 1 -> "IXI". 'X' arancio (2) in colonna 1, 'I' in colonna 2.
+        let mut px = std::vec![0u16; 64 * 48];
+        draw_wrapped(&mut px, 64, 48, b"II", 1, b'X', 1, 2);
+        let y = ORIGIN; // prima riga, prima riga di pixel del glifo: 'I' = 111, 'X' = 101
+        assert_eq!(px[y * 64 + ORIGIN], 1); // 'I' colonna 0
+        assert_eq!(px[y * 64 + ORIGIN + ADVANCE], 2); // 'X' colonna 0 (arancio)
+        assert_eq!(px[y * 64 + ORIGIN + ADVANCE + 1], 0); // 'X' colonna 1 vuota
+        assert_eq!(px[y * 64 + ORIGIN + ADVANCE + 2], 2); // 'X' colonna 2
+        assert_eq!(px[y * 64 + ORIGIN + 2 * ADVANCE], 1); // seconda 'I' spinta a destra
     }
 
     #[test]

@@ -46,14 +46,14 @@ Fuori da questo documento (altre categorie): browser, telefono, scacchi, player,
 
 ## Prototipo
 
-- **Collegate al desktop (ROM)**: Note (icona NOTES), Orologio (CLOCK, anche nella barra), Impostazioni (SETTINGS). Tasti:
-  - Note: su/giù carattere, A aggiunge, sinistra cancella, destra crea nota, B chiude.
+- **Collegate al desktop (ROM)**: Orologio (CLOCK, anche nella barra) e Impostazioni (SETTINGS). Tasti:
   - Orologio: su/giù ±1 minuto, destra/sinistra ±1 ora, B chiude.
   - Impostazioni: destra/sinistra cambia tema (4 palette, le altre tre sono **provvisorie**), B chiude. Il nome si legge ma non si modifica ancora.
+- **Note non collegate**: l'icona NOTES apre l'editor a schermo intero già su main (altro thread). `apps/notes.rs` (più note) resta pronto ma non è nel desktop: da decidere se sostituisce quell'editor.
 - `gba/src/apps/`: logica (`notes.rs`, `clock.rs`, `settings.rs`), disegno nel corpo finestra (`view.rs`), contenitore archivio (`archive.rs`, senza compressione né cifratura).
-- Test host: `cd gba && rustc --edition 2021 --test host/test_root.rs -o /tmp/gba_t && /tmp/gba_t` (68 test, tutti ok) e `host/test_apps.rs`.
-- Screenshot: `gba/host/screens.rs` disegna con la stessa `paint` della ROM e salva PPM; non c'è emulatore (libmgba non installato), quindi non è un test sul GBA.
-- Archiviatore: solo il contenitore. Compressione e cifratura da fare.
+- Test host: `cd gba && rustc --edition 2021 --test host/test_root.rs -o /tmp/gba_t && /tmp/gba_t` (71 test, tutti ok) e `host/test_apps.rs` (13 test).
+- Screenshot: test ignorato `screenshot_app_di_sistema` (`OUT=cartella /tmp/gba_t screenshot_app_di_sistema --ignored`), stessa `paint` della ROM, senza emulatore.
+- Archiviatore: solo il contenitore (`apps/archive.rs`, 2 test). Compressione e cifratura da fare.
 
 ### Misura Ascon (host x86, `sim/tests/ascon_misura.rs`)
 

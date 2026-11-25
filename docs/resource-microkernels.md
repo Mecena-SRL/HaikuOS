@@ -209,3 +209,26 @@ Totale per connessione sull'host (struttura più buffer RX, senza segmenti in vo
 ### Misura RAM sull'emulatore: non fatta
 
 Lo stack non è nella ROM GBA: `gba/` non include `sim/`, e il codice di `sim/` usa `std` (Vec, BTreeMap, VecDeque). Misurare sull'emulatore richiede prima un porting `no_std` dello stack e un harness che lo compili per ARM7. Il dato resta la stima della sezione 13 (circa 600 byte per connessione con buffer da 256), da verificare.
+
+## 16. Stack TCP/IP senza allocazione (no_std)
+
+- `sim/src/ip.rs`, `sim/src/tcp.rs`, `sim/src/csum.rs`: nessun `Vec`, `BTreeMap` o `VecDeque`. Usano solo `core`. Verificato compilando questi tre file come crate `#![no_std]` separato (scratch, fuori dal repo).
+- **Buffer fissi** in `ConnN<RX>`: RX e TX di `RX` byte, 8 slot di segmenti in attesa di ACK (solo metadati; i dati stanno nel TX), 4 slot di dati fuori ordine da 128 byte. Profilo GBA: `ConnN<256>`. Host: `Conn = ConnN<1024>`.
+- **API:** i segmenti non si allocano: `Segment::new(...).with_data(..).with_sacks(..)`; si codificano in un buffer del chiamante (`encode`); `tick()` ritorna al più un segmento per chiamata; `read(&mut buf)` copia nel buffer del chiamante.
+- Tutti i 171 test host passano. `net.rs` (frame, coda) resta con `Vec`: fuori dallo stack TCP/IP e fuori da questo passo.
+
+### RAM misurata (host, 64 bit)
+
+| Oggetto | Byte |
+|---|---|
+| `ConnN<256>` (profilo GBA) | 1624 |
+| `ConnN<1024>` (host) | 3160 |
+| `Segment` | 172 |
+| `Packet` (IP) | 32 |
+
+**Correzione alla stima della sezione 13.** La stima di circa 600 byte per connessione valeva per allocazione dinamica. Con slot fissi ogni connessione occupa la sua dimensione massima, anche se inutilizzata: circa 1,6 KB con buffer da 256. Il budget `net-ethernet-generic` (8 KB) regge quindi al massimo quattro connessioni con buffer da 256, non una di più con buffer da 1 KB.
+
+### Non fatto: misura sulla GBA
+
+- Il target ARM7 (`thumbv4t-none-eabi` / `armv4t-none-eabi`) richiede `nightly` e `rust-src`, non installati nel sandbox. Il `gba/` usa `nightly` con `build-std`.
+- Quindi la misura su ARM7 non è stata fatta. Su ARM7 i campi `usize` sono di 4 byte invece di 8: la struttura dovrebbe scendere di qualche decina di byte. Stima da verificare con `cargo +nightly build --target thumbv4t-none-eabi`.

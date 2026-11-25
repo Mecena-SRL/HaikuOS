@@ -17,7 +17,7 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 | 1 | File manager | Elenca e apre directory e file | File system (lettura), superficie | Sulla ROM: spazio di lavoro (`gba/src/workspace.rs`), su/giù, A apre, B su, Start crea file. Nessuno scorrimento: al massimo 16 voci entrano nella griglia | Leggibilità del testo a 8 px |
 | 2 | Calcolatrice | Somma, sottrazione, moltiplicazione, divisione intere su tastierino | Superficie, tastiera Sulla ROM sul desktop, con superficie propria (`gba/src/calc_ui.rs`, logica in `gba/src/calc.rs`, test host) | Tastierino dentro la superficie; overflow a 16 bit (`i32` in centesimi) |
 | 3 | Editor di testo | Modifica un file di testo | File system (lettura/scrittura), superficie | Parziale: visualizzatore/editor di riga (vedi sotto) | Dimensione massima file (8 KB totali nello store) |
-| 4 | Task manager | Elenca programmi attivi, memoria e slot, chiude un programma | Monolite (stato), superficie | Nuovo | Dati letti dal monolite senza costi extra |
+| 4 | Task manager | Elenca programmi attivi, memoria e slot, chiude un programma | Monolite (stato), superficie | Prototipo: logica, disegno e test (`gba/src/taskman.rs`), non collegato alla ROM; sola lettura | Dati letti dal monolite senza costi extra |
 | 5 | Visualizzatore di immagini | Mostra una immagine a 15 bit già pronta | File system (lettura), superficie | Nuovo | Formato immagine; RAM per una superficie piena |
 | 6 | Impostazioni / orologio | Ora, nome del sistema, tema (4 tinte) | Risorse (timer), file system (salvataggio) | Nuovo | Timer per l'orologio (desktop-concept, §2) |
 | 7 | Terminale | Comandi base (`ls`, `cd`, `cat`, `echo`) | File system, superficie a caratteri | Nuovo, dopo il file manager | Griglia 30×16 caratteri (desktop-concept, §4) |
@@ -57,8 +57,9 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 | Tasto | Azione |
 |---|---|
 | Su / Giù | Cambia il carattere in attesa (arancio) |
-| A | Aggiunge il carattere in attesa |
-| B | Cancella l'ultimo carattere |
+| L / R | Sposta il cursore a sinistra / destra |
+| A | Inserisce il carattere in attesa alla posizione del cursore |
+| B | Cancella il carattere prima del cursore |
 | Select | Salva (riga di stato "SALVATO" o "ERRORE") |
 | Start | Esce |
 
@@ -77,10 +78,9 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 ### Limiti noti
 
 - 128 caratteri per file: il resto viene tagliato.
-- A capo ogni 15 caratteri. Si vedono solo le ultime 6 righe: il cursore è sempre in fondo, non c'è scorrimento.
+- A capo ogni 15 caratteri. Si vedono solo le ultime 6 righe: non c'è scorrimento, quindi una modifica lontana dalla fine può essere fuori schermo.
 - Il salvataggio è verificato solo nella SRAM di libmgba (`gba/host/vram_check.c`, modalità `save`).
 
 ### Da verificare
 
 - Tempi di scrittura della SRAM su hardware reale.
-- Modifica nel mezzo del testo: non supportata, si lavora solo in fondo.

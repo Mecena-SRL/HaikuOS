@@ -38,3 +38,23 @@ fn cancella_e_limiti() {
     assert!(e.backspace());
     assert_eq!(e.text().len(), MAX - 1);
 }
+
+#[test]
+fn cursore_inserisce_e_cancella_in_mezzo() {
+    let mut e = Editor::new();
+    e.load(b"AC");
+    assert!(e.left()); // pos 1
+    e.up(); // 'A'.. pending diventa 'B' (CHARS: ' ' A B ...)
+    e.up();
+    assert_eq!(e.pending(), b'B');
+    assert!(e.commit());
+    assert_eq!(e.text(), b"ABC");
+    assert_eq!(e.pos(), 2);
+    assert!(e.backspace()); // cancella 'B'
+    assert_eq!(e.text(), b"AC");
+    assert_eq!(e.pos(), 1);
+    assert!(e.right());
+    assert!(!e.right());
+    assert!(e.left() && e.left());
+    assert!(!e.left());
+}

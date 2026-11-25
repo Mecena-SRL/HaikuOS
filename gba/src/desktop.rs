@@ -48,15 +48,20 @@ pub const CALC_ICON: usize = 2;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum App {
     None,
+    /// Spazio di lavoro (file manager): schermo intero, si esce con L.
+    Files,
+    /// Visualizzatore/editor di testo: schermo intero, si esce con Start.
+    Notes,
     Term,
     Calc,
-    Notes,
+    /// Orologio: finestra con ora e regolazione.
     Clock,
+    /// Impostazioni: tema e nome del sistema.
     Settings,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
-pub const APPS: [App; ICONS] = [App::None, App::Term, App::Calc, App::Notes, App::Clock, App::Settings];
+pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
 pub fn launchable(i: usize) -> Option<App> {
@@ -66,8 +71,10 @@ pub fn launchable(i: usize) -> Option<App> {
     }
 }
 
-use crate::apps::{clock::Clock, notes::Notes, settings::Settings, view};
+use crate::apps::{clock::Clock, settings::Settings, view};
 use crate::calc_ui::{self, CalcUi};
+use crate::fs::Fs;
+use crate::terminal::{self, Terminal};
 
 pub const KEY_A: u16 = 1 << 0;
 pub const KEY_B: u16 = 1 << 1;
@@ -75,21 +82,34 @@ pub const KEY_RIGHT: u16 = 1 << 4;
 pub const KEY_LEFT: u16 = 1 << 5;
 pub const KEY_UP: u16 = 1 << 6;
 pub const KEY_DOWN: u16 = 1 << 7;
+pub const KEY_SELECT: u16 = 1 << 2;
 
 /// Stato del desktop: icona selezionata, programma in finestra (indice icona), calcolatrice.
 pub struct Desktop {
     sel: usize,
     win: Option<App>,
+    pub term: Terminal,
+    /// Programma a schermo intero da avviare (lo gestisce il chiamante).
+    run: Option<App>,
     prev: u16,
     calc: CalcUi,
-    notes: Notes,
     clock: Clock,
     settings: Settings,
 }
 
 impl Desktop {
     pub const fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), notes: Notes::new(), clock: Clock::new(9, 0), settings: Settings::new() }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new() }
+    }
+
+    /// Vero se c'è un programma a schermo intero da avviare.
+    pub fn run_requested(&self) -> bool {
+        self.run.is_some()
+    }
+
+    /// Prende il programma a schermo intero richiesto.
+    pub fn take_run(&mut self) -> Option<App> {
+        self.run.take()
     }
 
     pub fn sel(&self) -> usize {
@@ -109,65 +129,147 @@ impl Desktop {
         self.calc.draw(surf);
     }
 
-    /// Avanza di `n` frame l'orologio. Ritorna true se il testo dell'ora è cambiato.
+    /// Un passo di input. Con la calcolatrice in finestra, la croce e A vanno a lei; B chiude la finestra.
+    /// Ritorna true se il desktop va ridisegnato.
+    /// Avanza di un frame l'orologio. Ritorna true se il testo dell'ora è cambiato.
     pub fn tick(&mut self) -> bool {
         let prima = self.clock.testo();
         self.clock.tick(1);
         prima != self.clock.testo()
     }
 
-    /// Un passo di input. L'app in finestra prende i tasti, B la chiude.
-    /// Ritorna true se il desktop va ridisegnato.
-    pub fn step(&mut self, keys: u16) -> bool {
+    pub fn step(&mut self, keys: u16, fs: &Fs) -> bool {
         let pressed = keys & !self.prev;
         self.prev = keys;
-        let app_takes = matches!(self.win, Some(App::Calc | App::Notes | App::Clock | App::Settings));
-        if app_takes {
-            match self.win {
-                Some(App::Calc) => {
-                    self.calc.step(keys);
+        let before = (
+            self.sel,
+            self.win,
+            self.calc.cursor(),
+            self.calc.calc().shown(),
+            self.calc.calc().err.is_some(),
+            self.term.sel,
+            self.term.lines(),
+            self.term.typing,
+            self.term.pick,
+            self.term.input().len(),
+            self.clock.hms(),
+            self.settings.theme(),
+        );
+        match self.win {
+            Some(App::Calc) => {
+                self.calc.step(keys);
+                if pressed & KEY_B != 0 {
+                    self.win = None;
                 }
-                Some(App::Notes) => {
-                    if pressed & KEY_UP != 0 { self.notes.up(); }
-                    if pressed & KEY_DOWN != 0 { self.notes.down(); }
-                    if pressed & KEY_A != 0 { self.notes.commit(); }
-                    if pressed & KEY_LEFT != 0 { self.notes.backspace(); }
-                    if pressed & KEY_RIGHT != 0 { self.notes.nuova(); }
-                }
-                Some(App::Clock) => {
-                    if pressed & KEY_UP != 0 { self.clock.adjust(1); }
-                    if pressed & KEY_DOWN != 0 { self.clock.adjust(-1); }
-                    if pressed & KEY_RIGHT != 0 { self.clock.adjust(60); }
-                    if pressed & KEY_LEFT != 0 { self.clock.adjust(-60); }
-                }
-                Some(App::Settings) => {
-                    if pressed & KEY_RIGHT != 0 { self.settings.next_theme(); }
-                    if pressed & KEY_LEFT != 0 { self.settings.prev_theme(); }
-                }
-                _ => {}
             }
-            if pressed & KEY_B != 0 {
-                self.win = None;
+            Some(App::Term) => {
+                if pressed & KEY_SELECT != 0 {
+                    self.term.toggle_typing();
+                }
+                if self.term.typing {
+                    // Digitazione: su/giù scelgono il carattere, A lo aggiunge, B cancella, sinistra esegue.
+                    if pressed & KEY_UP != 0 {
+                        self.term.pick_step(-1);
+                    }
+                    if pressed & KEY_DOWN != 0 {
+                        self.term.pick_step(1);
+                    }
+                    if pressed & KEY_A != 0 {
+                        self.term.type_pick();
+                    }
+                    if pressed & KEY_B != 0 {
+                        self.term.backspace();
+                    }
+                    if pressed & KEY_LEFT != 0 {
+                        self.term.run_input(fs);
+                    }
+                } else {
+                    if pressed & KEY_UP != 0 {
+                        self.term.step_sel(fs, -1);
+                    }
+                    if pressed & KEY_DOWN != 0 {
+                        self.term.step_sel(fs, 1);
+                    }
+                    if pressed & KEY_A != 0 {
+                        self.term.run(fs, self.term.sel);
+                    }
+                    if pressed & KEY_B != 0 {
+                        self.win = None;
+                    }
+                }
             }
-            return pressed != 0;
-        }
-        let before = (self.sel, self.win);
-        if pressed & (KEY_RIGHT | KEY_DOWN) != 0 {
-            self.sel = (self.sel + 1) % ICONS;
-        }
-        if pressed & (KEY_LEFT | KEY_UP) != 0 {
-            self.sel = (self.sel + ICONS - 1) % ICONS;
-        }
-        if pressed & KEY_A != 0 {
-            if let Some(app) = launchable(self.sel) {
-                self.win = Some(app);
+            Some(App::Clock) => {
+                if pressed & KEY_UP != 0 {
+                    self.clock.adjust(1);
+                }
+                if pressed & KEY_DOWN != 0 {
+                    self.clock.adjust(-1);
+                }
+                if pressed & KEY_RIGHT != 0 {
+                    self.clock.adjust(60);
+                }
+                if pressed & KEY_LEFT != 0 {
+                    self.clock.adjust(-60);
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            Some(App::Settings) => {
+                if pressed & KEY_RIGHT != 0 {
+                    self.settings.next_theme();
+                }
+                if pressed & KEY_LEFT != 0 {
+                    self.settings.prev_theme();
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            _ => {
+                if pressed & (KEY_RIGHT | KEY_DOWN) != 0 {
+                    self.sel = (self.sel + 1) % ICONS;
+                }
+                if pressed & (KEY_LEFT | KEY_UP) != 0 {
+                    self.sel = (self.sel + ICONS - 1) % ICONS;
+                }
+                if pressed & KEY_A != 0 {
+                    match launchable(self.sel) {
+                        Some(App::Files) | Some(App::Notes) => self.run = launchable(self.sel),
+                        Some(app) => self.win = Some(app),
+                        None => {}
+                    }
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
             }
         }
-        if pressed & KEY_B != 0 {
-            self.win = None;
-        }
-        before != (self.sel, self.win)
+        before
+            != (
+                self.sel,
+                self.win,
+                self.calc.cursor(),
+                self.calc.calc().shown(),
+                self.calc.calc().err.is_some(),
+                self.term.sel,
+                self.term.lines(),
+                self.term.typing,
+                self.term.pick,
+                self.term.input().len(),
+                self.clock.hms(),
+                self.settings.theme(),
+            )
     }
+}
+
+/// Copia `src` in maiuscolo in `dst` (il font ha solo le maiuscole). Ritorna i byte scritti.
+fn upper_into(dst: &mut [u8], src: &[u8]) -> usize {
+    let n = src.len().min(dst.len());
+    for i in 0..n {
+        dst[i] = src[i].to_ascii_uppercase();
+    }
+    n
 }
 
 /// Posizione (x, y) dell'icona `i` nella griglia: 4 colonne.
@@ -190,7 +292,7 @@ fn rect(fb: &mut [u16], x: usize, y: usize, w: usize, h: usize, c: u16) {
 }
 
 /// Disegna il desktop completo in `fb` (W * H pixel). `surf` è la superficie della calcolatrice.
-pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16]) {
+pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
     assert!(fb.len() >= W * H);
     let [t0, t1, t2, t3] = d.settings.palette();
     rect(fb, 0, 0, W, H, t0);
@@ -221,6 +323,15 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16]) {
     rect(fb, WIN_X + 1, WIN_Y + TITLE_H + 1, WIN_W - 2, WIN_H - TITLE_H - 2, t1);
     let bx = WIN_X + 1;
     let by = WIN_Y + TITLE_H + 1;
+    if matches!(app, App::Clock | App::Settings) {
+        let nome: &[u8] = if app == App::Clock { b"ORA" } else { b"IMPOSTAZIONI" };
+        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, nome, t0);
+        match app {
+            App::Clock => view::clock(fb, W, H, bx, by, &d.clock, d.settings.palette()),
+            _ => view::settings(fb, W, H, bx, by, &d.settings, d.settings.palette()),
+        }
+        return;
+    }
     if app == App::Calc {
         crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"CALC", t0);
         // Superficie propria della calcolatrice, copiata nel corpo della finestra.
@@ -235,23 +346,36 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16]) {
         }
         return;
     }
-    if matches!(app, App::Notes | App::Clock | App::Settings) {
-        let nome: &[u8] = match app {
-            App::Notes => b"NOTE",
-            App::Clock => b"ORA",
-            _ => b"IMPOSTAZIONI",
-        };
-        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, nome, t0);
-        match app {
-            App::Notes => view::notes(fb, W, H, bx, by, &d.notes, d.settings.palette()),
-            App::Clock => view::clock(fb, W, H, bx, by, &d.clock, d.settings.palette()),
-            _ => view::settings(fb, W, H, bx, by, &d.settings, d.settings.palette()),
-        }
-        return;
+    // Titolo: "/" più la cartella corrente del terminale (es. "/DOCS"), fino a 16 caratteri.
+    let mut title = [0u8; 17];
+    title[0] = b'/';
+    let cwd = d.term.cwd();
+    let tn = upper_into(&mut title[1..], cwd);
+    crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, &title[..1 + tn], t0);
+    // Prompt: "$ " e la voce del menu scelta con su/giù. A la esegue.
+    let mut prompt = [0u8; terminal::INPUT_MAX + terminal::LABEL_MAX + 4];
+    prompt[0] = b'$';
+    prompt[1] = b' ';
+    let n = if d.term.typing {
+        // Digitazione: testo scritto e carattere scelto (lo spazio si vede come _).
+        let inp = d.term.input();
+        let mut n = upper_into(&mut prompt[2..], inp);
+        let c = terminal::ALPHA[d.term.pick];
+        prompt[2 + n] = if c == b' ' { b'_' } else { c };
+        n += 1;
+        n
+    } else {
+        let mut lab = [0u8; terminal::LABEL_MAX];
+        let ln = d.term.label(fs, d.term.sel, &mut lab);
+        upper_into(&mut prompt[2..], &lab[..ln])
+    };
+    crate::font::draw(fb, W, H, WIN_X + 4, by + 2, &prompt[..2 + n], t0);
+    // Output: sotto il prompt, una riga per voce.
+    for k in 0..d.term.lines() {
+        let mut out = [0u8; terminal::LINE_MAX];
+        let n = upper_into(&mut out, d.term.line(k));
+        crate::font::draw(fb, W, H, WIN_X + 4, by + 10 + k * 7, &out[..n], t0);
     }
-    crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"TERMINALE", t0);
-    // Prima riga del prompt, come nel concept ("$ ls").
-    rect(fb, WIN_X + 4, WIN_Y + TITLE_H + 5, 10, 2, t0);
     put(fb, WIN_X + 1, WIN_Y + 1, t3);
 }
 
@@ -263,63 +387,63 @@ mod tests {
         let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
         d.draw_calc(&mut surf);
         let mut fb = [0u16; W * H];
-        paint(&mut fb, d, &surf);
+        paint(&mut fb, d, &surf, &Fs::new());
         fb
     }
 
     #[test]
     fn navigation_wraps_and_terminal_opens_and_closes() {
         let mut d = Desktop::new();
-        assert!(d.step(KEY_RIGHT));
+        assert!(d.step(KEY_RIGHT, &Fs::new()));
         assert_eq!(d.sel(), 1);
-        assert!(!d.step(KEY_RIGHT)); // tasto ancora premuto: nessun passo in più
-        d.step(0);
-        assert!(d.step(KEY_RIGHT));
+        assert!(!d.step(KEY_RIGHT, &Fs::new())); // tasto ancora premuto: nessun passo in più
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_RIGHT, &Fs::new()));
         assert_eq!(d.sel(), 2);
-        d.step(0);
-        assert!(d.step(KEY_A)); // sel 2 = CALC: apre la calcolatrice
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_A, &Fs::new())); // sel 2 = CALC: apre la calcolatrice
         assert_eq!(d.win, Some(App::Calc));
-        d.step(0);
-        assert!(d.step(KEY_B));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_B, &Fs::new()));
         assert!(!d.win_open());
-        d.step(0);
-        d.step(KEY_LEFT);
+        d.step(0, &Fs::new());
+        d.step(KEY_LEFT, &Fs::new());
         assert_eq!(d.sel(), TERM_ICON);
-        d.step(0);
-        assert!(d.step(KEY_A));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_A, &Fs::new()));
         assert!(d.win_open());
-        d.step(0);
-        assert!(d.step(KEY_B));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_B, &Fs::new()));
         assert!(!d.win_open());
-        d.step(0);
-        d.step(KEY_UP);
+        d.step(0, &Fs::new());
+        d.step(KEY_UP, &Fs::new());
         assert_eq!(d.sel(), 0);
-        d.step(0);
-        d.step(KEY_LEFT);
+        d.step(0, &Fs::new());
+        d.step(KEY_LEFT, &Fs::new());
         assert_eq!(d.sel(), ICONS - 1);
     }
 
     #[test]
     fn calculator_takes_keys_while_open() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_A); // apre CALC
-        d.step(0);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new()); // apre CALC
+        d.step(0, &Fs::new());
         // Croce e A vanno alla calcolatrice: A preme il tasto 7 (cursore in 0).
-        assert!(d.step(KEY_A));
+        assert!(d.step(KEY_A, &Fs::new()));
         assert_eq!(d.calc().calc().shown(), 700);
         assert_eq!(d.sel(), CALC_ICON); // la selezione delle icone non si muove
-        d.step(0);
-        assert!(d.step(KEY_RIGHT));
+        d.step(0, &Fs::new());
+        assert!(d.step(KEY_RIGHT, &Fs::new()));
         assert_eq!(d.calc().cursor(), 1);
     }
 
     #[test]
     fn launcher_table_maps_icons_to_apps() {
-        assert_eq!(launchable(0), None); // FILES: ancora senza programma
+        assert_eq!(launchable(0), Some(App::Files));
         assert_eq!(launchable(TERM_ICON), Some(App::Term));
         assert_eq!(launchable(CALC_ICON), Some(App::Calc));
         assert_eq!(launchable(3), Some(App::Notes));
@@ -327,10 +451,25 @@ mod tests {
     }
 
     #[test]
-    fn a_on_icon_without_program_opens_nothing() {
+    fn a_on_files_requests_fullscreen_run_not_window() {
         let mut d = Desktop::new();
-        assert!(!d.step(KEY_A)); // icona 0 = FILES
+        d.step(KEY_A, &Fs::new()); // icona 0 = FILES
+        assert!(d.run_requested());
         assert!(!d.win_open());
+        assert_eq!(d.take_run(), Some(App::Files));
+        assert!(!d.run_requested());
+    }
+
+    #[test]
+    fn notes_icon_requests_editor_run() {
+        let mut d = Desktop::new();
+        for _ in 0..3 {
+            d.step(KEY_RIGHT, &Fs::new());
+            d.step(0, &Fs::new());
+        }
+        assert_eq!(d.sel(), 3); // NOTES
+        d.step(KEY_A, &Fs::new());
+        assert_eq!(d.take_run(), Some(App::Notes));
     }
 
     #[test]
@@ -354,9 +493,9 @@ mod tests {
     #[test]
     fn window_has_title_body_and_close_button() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT); // icona del terminale
-        d.step(0);
-        d.step(KEY_A);
+        d.step(KEY_RIGHT, &Fs::new()); // icona del terminale
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new());
         let fb = screen(&d);
         assert_eq!(fb[(WIN_Y + 2) * W + WIN_X + 3], WIN_TITLE);
         assert_eq!(fb[(WIN_Y + 3) * W + WIN_X + WIN_W - 5], CLOSE);
@@ -367,11 +506,11 @@ mod tests {
     #[test]
     fn calculator_surface_is_inside_window_body() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_A);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new());
         let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
         d.draw_calc(&mut surf);
         let fb = screen(&d);
@@ -383,9 +522,9 @@ mod tests {
     #[test]
     fn only_the_four_tints_are_used() {
         let mut d = Desktop::new();
-        d.step(KEY_RIGHT);
-        d.step(0);
-        d.step(KEY_A);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        d.step(KEY_A, &Fs::new());
         let fb = screen(&d);
         for px in fb.iter() {
             assert!([T0, T1, T2, T3].contains(px), "colore fuori tavolozza: {px:#06x}");
@@ -408,34 +547,18 @@ mod tests_apps {
         let mut surf = [0u16; calc_ui::SW * calc_ui::SH];
         d.draw_calc(&mut surf);
         let mut fb = vec![0u16; W * H];
-        paint(&mut fb, d, &surf);
+        paint(&mut fb, d, &surf, &Fs::new());
         fb
     }
 
     fn open(d: &mut Desktop, icona: usize, app: App) {
         while d.sel() != icona {
-            d.step(KEY_RIGHT);
-            d.step(0);
+            d.step(KEY_RIGHT, &Fs::new());
+            d.step(0, &Fs::new());
         }
-        d.step(KEY_A);
-        d.step(0);
+        d.step(KEY_A, &Fs::new());
+        d.step(0, &Fs::new());
         assert_eq!(d.win, Some(app));
-    }
-
-    #[test]
-    fn nota_si_apre_e_scrive() {
-        let mut d = Desktop::new();
-        open(&mut d, 3, App::Notes);
-        d.step(KEY_RIGHT); // nuova nota
-        d.step(0);
-        assert_eq!(d.notes.count(), 1);
-        d.step(KEY_UP); // ' ' -> 'A'
-        d.step(0);
-        d.step(KEY_A);
-        d.step(0);
-        assert_eq!(d.notes.testo(), b"A");
-        d.step(KEY_B);
-        assert!(!d.win_open());
     }
 
     #[test]
@@ -443,8 +566,8 @@ mod tests_apps {
         let mut d = Desktop::new();
         assert_eq!(screen(&d)[(H - 1) * W], PALETTES[0][0]);
         open(&mut d, 5, App::Settings);
-        d.step(KEY_RIGHT);
-        d.step(0);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
         assert_eq!(d.settings.theme(), 1);
         let fb = screen(&d);
         assert_eq!(fb[(H - 1) * W], PALETTES[1][0]); // sfondo
@@ -462,8 +585,37 @@ mod tests_apps {
         assert!(cambiato);
         assert_eq!(d.clock.testo(), *b"09:06");
         open(&mut d, 4, App::Clock);
-        d.step(KEY_RIGHT); // +1 ora
-        d.step(0);
+        assert!(d.step(KEY_RIGHT, &Fs::new())); // +1 ora: il desktop si ridisegna
+        d.step(0, &Fs::new());
         assert_eq!(d.clock.testo(), *b"10:06");
+    }
+
+    /// Genera PPM del desktop (`OUT=cartella cargo`-free): `rustc --test host/test_root.rs && OUT=dir ./test --ignored screenshot`.
+    #[test]
+    #[ignore]
+    fn screenshot_app_di_sistema() {
+        let dir = std::env::var("OUT").unwrap_or(".".into());
+        let salva = |nome: &str, d: &Desktop| {
+            let fb = screen(d);
+            let mut out = format!("P6\n{} {}\n255\n", W, H).into_bytes();
+            for &c in &fb {
+                let r = (c & 31) as u32 * 255 / 31;
+                let g = ((c >> 5) & 31) as u32 * 255 / 31;
+                let b = ((c >> 10) & 31) as u32 * 255 / 31;
+                out.extend_from_slice(&[r as u8, g as u8, b as u8]);
+            }
+            std::fs::write(format!("{}/{}.ppm", dir, nome), out).unwrap();
+        };
+        let mut d = Desktop::new();
+        salva("1_home", &d);
+        d.clock = Clock::new(9, 5);
+        open(&mut d, 4, App::Clock);
+        salva("2_orologio", &d);
+        d.step(KEY_B, &Fs::new());
+        d.step(0, &Fs::new());
+        open(&mut d, 5, App::Settings);
+        d.step(KEY_RIGHT, &Fs::new());
+        d.step(0, &Fs::new());
+        salva("3_impostazioni", &d);
     }
 }

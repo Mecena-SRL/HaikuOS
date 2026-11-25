@@ -20,6 +20,8 @@ mod font;
 mod calc;
 #[path = "../src/calc_ui.rs"]
 mod calc_ui;
+#[path = "../src/terminal.rs"]
+mod terminal;
 #[path = "../src/glyph.rs"]
 mod glyph;
 #[path = "../src/editor.rs"]

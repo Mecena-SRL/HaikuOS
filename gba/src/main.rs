@@ -9,6 +9,7 @@ mod calc;
 mod calc_ui;
 mod compositor;
 mod desktop;
+mod terminal;
 mod font;
 mod fs;
 mod editor;
@@ -199,7 +200,7 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
 fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor, status: Option<&[u8]>) {
     if let Some(px) = surf.pixels_mut(0) {
         px.fill(BLACK);
-        glyph::draw_wrapped(px, surfaces::SW, surfaces::SH, ed.text(), ed.pending(), GREEN, ORANGE);
+        glyph::draw_wrapped(px, surfaces::SW, surfaces::SH, ed.text(), ed.pos(), ed.pending(), GREEN, ORANGE);
         if let Some(msg) = status {
             glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 40, msg, BLUE);
         }
@@ -238,6 +239,10 @@ fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save
             ed.commit()
         } else if pressed & workspace::KEY_B != 0 {
             ed.backspace()
+        } else if pressed & KEY_L != 0 {
+            ed.left()
+        } else if pressed & KEY_R != 0 {
+            ed.right()
         } else {
             false
         };
@@ -247,6 +252,10 @@ fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save
     }
     let _ = surf.close(m, 0);
 }
+
+/// Tasti L e R (dorsali): spostano il cursore nell'editor.
+const KEY_R: u16 = 1 << 8;
+const KEY_L: u16 = 1 << 9;
 
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
 /// Superficie propria della calcolatrice (in EWRAM, non nello stack).
@@ -366,27 +375,47 @@ pub extern "C" fn rust_main() -> ! {
         let _ = surf.close(&mut m, p);
     }
 
-    // Desktop del concept: croce per scegliere un'icona, A apre il terminale, B lo chiude.
-    // Start passa allo spazio di lavoro.
+    // Desktop del concept: croce per scegliere un'icona, A apre, B chiude la finestra.
+    // Il lanciatore avvia a schermo intero FILES (spazio di lavoro) e NOTES (editor). Start = FILES.
     let mut dk = desktop::Desktop::new();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
+    loop {
     dk.draw_calc(surf);
-    desktop::paint(fb, &dk, surf);
-    while keys() & workspace::KEY_START == 0 {
+    desktop::paint(fb, &dk, surf, sp.usr.fs());
+    while keys() & workspace::KEY_START == 0 && !dk.run_requested() {
         sram::vblank();
         let ticked = dk.tick();
-        if dk.step(keys()) | ticked {
+        if dk.step(keys(), sp.usr.fs()) | ticked {
             dk.draw_calc(surf);
-            desktop::paint(fb, &dk, surf);
+            desktop::paint(fb, &dk, surf, sp.usr.fs());
         }
     }
     while keys() & workspace::KEY_START != 0 {
         sram::vblank();
     }
-    // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file.
-    let mut ws = Workspace::new();
+    let app = dk.take_run().unwrap_or(desktop::App::Files);
+    if app == desktop::App::Notes {
+        let mut t = [0u8; editor::MAX];
+        let n = sp.usr.read(b"docs/hello", 0, &mut t).unwrap_or(0);
+        fill(0, 0, W, 160, BLACK);
+        let surf = unsafe { &mut *core::ptr::addr_of_mut!(SURFACES) };
+        run_editor(surf, &mut m, &t[..n], &mut |txt| {
+            sp.usr.write(b"docs/hello", 0, editor::MAX, txt).is_ok() && sp.usr.sync().is_ok()
+        });
+        continue;
+    }
+    // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file, L torna al desktop.
+    // Stessa cartella del terminale: il file manager non ha stato proprio all'avvio.
+    let mut ws = Workspace::new_at(sp.usr.fs(), dk.term.cwd());
     loop {
+        if keys() & workspace::KEY_L != 0 {
+            while keys() & workspace::KEY_L != 0 {
+                sram::vblank();
+            }
+            dk.term.set_cwd(ws.cwd());
+            break;
+        }
         sram::vblank();
         let _ = sp.sys.frame();
         let _ = sp.usr.frame();
@@ -399,6 +428,11 @@ pub extern "C" fn rust_main() -> ! {
                     let _ = sp.usr.write(&nm[..nl], 0, 64, &[n; 8]);
                 }
                 ws.dirty = true;
+            }
+            Action::Back => {
+                // B nella radice: torna al desktop; il terminale riprende la cartella mostrata.
+                dk.term.set_cwd(ws.cwd());
+                break;
             }
             Action::FormatSys => {
                 // Il workspace agisce con la capacità di sistema: formatta solo lo spazio di sistema.
@@ -430,6 +464,7 @@ pub extern "C" fn rust_main() -> ! {
             draw_workspace(&ws, &sp.usr);
             ws.dirty = false;
         }
+    }
     }
 }
 
