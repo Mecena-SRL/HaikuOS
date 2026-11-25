@@ -12,3 +12,5 @@ mod monolith;
 mod workspace;
 #[path = "../src/space.rs"]
 mod space;
+#[path = "../src/desktop.rs"]
+mod desktop;

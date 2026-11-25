@@ -5,6 +5,7 @@
 
 mod alloc;
 mod compositor;
+mod desktop;
 mod fs;
 mod editor;
 mod glyph;
@@ -340,6 +341,15 @@ pub extern "C" fn rust_main() -> ! {
         let _ = surf.close(&mut m, p);
     }
 
+    // Desktop del concept: visibile finché non si preme A.
+    let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    desktop::paint(fb);
+    while keys() & workspace::KEY_A == 0 {
+        sram::vblank();
+    }
+    while keys() & workspace::KEY_A != 0 {
+        sram::vblank();
+    }
     // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file.
     let mut ws = Workspace::new();
     loop {

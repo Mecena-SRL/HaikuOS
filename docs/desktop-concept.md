@@ -75,7 +75,7 @@ Il cursore è uno sprite 8×8 e si muove di 1 px per frame, con passo rapido ten
 
 ## 8. Cosa mostra il primo schizzo
 
-Nel compositore (`gba/src/compositor.rs`) un test host compone tre elementi: sfondo, barra, una finestra con icona trasparente. Il test legge i pixel del framebuffer, come già fatto per la demo. Non è ancora una schermata sulla ROM: nessuna modifica a `haiku-gba.gba`.
+Nel compositore (`gba/src/compositor.rs`) un test host compone tre elementi: sfondo, barra, una finestra con icona trasparente. Il test legge i pixel del framebuffer, come già fatto per la demo. Dal PR di collegamento la schermata è sulla ROM (`gba/src/desktop.rs`): compare dopo la demo del compositore e resta finché non si preme A. Tema scuro e freddo.
 
 ## 9. Domande aperte
 
