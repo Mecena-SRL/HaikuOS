@@ -112,3 +112,16 @@ fn tampered_metadata_is_detected() {
     assert_eq!(s.read_checked("a"), Err(SnapError::Corrupt));
     assert!(s.read_checked("nessuno").unwrap().is_none());
 }
+
+#[test]
+fn tampered_snapshot_blocks_rollback_without_changes() {
+    let mut s = Store::new();
+    s.write("a", b"v1").unwrap();
+    s.snapshot("s").unwrap();
+    s.write("a", b"v2").unwrap();
+    assert!(s.verify().is_ok());
+    s.tamper_snapshot("s", "a", 9);
+    assert_eq!(s.verify(), Err(SnapError::Corrupt));
+    assert_eq!(s.rollback("s"), Err(SnapError::Corrupt));
+    assert_eq!(s.read("a").unwrap(), b"v2");
+}

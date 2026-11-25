@@ -80,6 +80,7 @@ Non raggiungibili dal sandbox: docs.kernel.org e support.apple.com (rete bloccat
 
 - `sim/src/snapshot.rs`: store a blocchi con riferimenti. Snapshot = copia della tabella file -> blocco. Scrittura = blocco nuovo. Rollback e drop con conteggio dei riferimenti.
 - `sim/tests/snapshot.rs`: 9 test. Costo zero in blocchi allo snapshot; un blocco per overwrite; drop libera i blocchi; rollback recupera file cancellati; limiti (64 blocchi, 4 snapshot, 64 byte per file) **da verificare**.
+- Snapshot: `verify()` controlla i checksum di tabella viva e snapshot. Il rollback verifica lo snapshot prima di toccare i riferimenti: se è alterato, errore `Corrupt` e stato invariato. Test di manomissione.
 - Checksum sui metadati (nome, blocco, lunghezza) per ogni voce, verificato in `read_checked`; test di manomissione. È il passo 1 della priorità, portato nel sim.
 - `gba/src/fs.rs`: checksum dei metadati per ogni voce (nome, flag, owner, testa, lunghezza), verificato in `entry()`; test di manomissione. 32 test host verdi, build GBA release ok.
 

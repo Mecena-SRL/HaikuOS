@@ -33,6 +33,16 @@ fn meta_sum(name: &str, blk: usize, len: usize) -> u32 {
     h
 }
 
+/// Controlla il checksum di ogni voce di una tabella (vista viva o snapshot).
+fn check_table(t: &Table) -> Result<(), SnapError> {
+    for (name, &(b, len, sum)) in t {
+        if sum != meta_sum(name, b, len) {
+            return Err(SnapError::Corrupt);
+        }
+    }
+    Ok(())
+}
+
 pub struct Store {
     blocks: Vec<[u8; SNAP_BLOCK_BYTES]>,
     /// Riferimenti per blocco: 0 = libero.
@@ -91,6 +101,22 @@ impl Store {
         }
     }
 
+    /// Verifica i checksum di tutte le voci, vivo e snapshot.
+    pub fn verify(&self) -> Result<(), SnapError> {
+        check_table(&self.files)?;
+        self.snaps.iter().try_for_each(|(_, t)| check_table(t))
+    }
+
+    /// Solo per i test: altera il blocco di una voce di uno snapshot.
+    #[doc(hidden)]
+    pub fn tamper_snapshot(&mut self, label: &str, name: &str, new_blk: usize) {
+        if let Some((_, t)) = self.snaps.iter_mut().find(|(l, _)| l == label) {
+            if let Some(e) = t.get_mut(name) {
+                e.0 = new_blk;
+            }
+        }
+    }
+
     /// Solo per i test: altera il blocco di una voce senza aggiornarne il checksum.
     #[doc(hidden)]
     pub fn tamper_meta(&mut self, name: &str, new_blk: usize) {
@@ -125,6 +151,8 @@ impl Store {
     pub fn rollback(&mut self, label: &str) -> Result<(), SnapError> {
         let i = self.snaps.iter().position(|(l, _)| l == label).ok_or(SnapError::NoSuchSnapshot)?;
         let target = self.snaps[i].1.clone();
+        // Si verifica prima di toccare qualsiasi refcount: un errore non cambia lo stato.
+        check_table(&target)?;
         // Prima si incrementa il target, poi si rilascia il vivo: i blocchi condivisi non si liberano.
         for &(b, _, _) in target.values() {
             self.refs[b] += 1;
