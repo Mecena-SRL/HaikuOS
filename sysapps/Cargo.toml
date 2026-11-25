@@ -1,0 +1,7 @@
+[package]
+name = "sysapps"
+version = "0.1.0"
+edition = "2021"
+description = "App di sistema di HaikuOS: browser e editor di script (logica, no_std, senza heap)"
+
+[dependencies]

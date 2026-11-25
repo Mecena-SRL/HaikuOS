@@ -1,7 +1,7 @@
 [workspace]
+members = ["sysapps", "setup", "kernel"]
+exclude = ["sim"]
 resolver = "2"
-members = ["setup", "kernel"]
-default-members = ["setup"]
 
 [profile.release]
 opt-level = 3

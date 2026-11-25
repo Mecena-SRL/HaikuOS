@@ -76,17 +76,19 @@ Un programma che si comporta come un unikernel: contiene solo ciò che gli serve
 
 ## 6. Limiti di partenza (bozza)
 
-Su Game Boy Advance, con circa 288 KB di RAM (da verificare: la quantità esatta disponibile dopo il sistema):
+Su Game Boy Advance, con 288 KB di RAM utili (EWRAM 256 KB + IWRAM 32 KB, vedi `docs/feasibility-gba.md`):
 
 | Voce | Valore di partenza |
 |---|---|
-| Monolite | 64 KB |
+| Monolite | 64 KB, in EWRAM (IWRAM è 32 KB, troppo piccola) |
 | Agente di allocazione | 16 KB |
 | Slot per programma | 32 KB ciascuno |
-| Programmi contemporanei | massimo 4 |
-| Slot libero | sempre uno disponibile |
+| Programmi registrati | massimo 4 |
+| Quote concedibili | massimo 3: uno slot è sempre libero |
 
-Somma indicativa: 64 + 16 + 4 × 32 = 208 KB, quindi resta circa 80 KB per il resto. **Da verificare** se tutto questo entra davvero, e quanta memoria serve al microkernel hardware.
+Somma indicativa: 64 + 16 + 3 × 32 = 176 KB, quindi restano circa 112 KB per il resto. Il valore 208 KB (4 slot pieni) non è ammesso dalla regola dello slot libero.
+
+**Da verificare** quanta memoria serve davvero al microkernel hardware e al sistema, dopo i 176 KB.
 
 ## 7. Obiettivi tecnici
 
@@ -104,3 +106,36 @@ Da decidere con Ivan:
 4. **Priorità:** quale uso è il primo da supportare dopo il desktop generico?
 5. **Limiti:** i valori della sezione 6 vanno bene come punto di partenza, o cambiano?
 6. **Filtro messaggi:** quali regole fisse sono necessarie al primo rilascio?
+
+## 9. Decisione: nucleo e piattaforme
+
+Valida per GBA e per una macchina potente.
+
+- **Nucleo:** monolite logico, agente, file system e messaggi sono Rust `no_std` puro, senza dipendenze dall'hardware.
+- **Piattaforma:** ogni piattaforma fornisce solo un livello sottile: avvio, timer, memoria fisica, schermo o console. Si scrive in assembly per GBA, in assembly o Rust per x86-64 e ARM64.
+- **Parametri, non costanti:** blocchi, slot e limiti sono parametri di configurazione. GBA usa i valori piccoli, la macchina potente quelli grandi.
+- **File system senza allocazione dinamica:** solo blocchi fissi nel nucleo, così il codice è identico su entrambe le piattaforme.
+- **Linguaggi:** assembly solo per l'hardware, Rust ovunque il resto. C resta piano B.
+- **Test:** solo in emulatore per ora. Il logo Nintendo e il checksum della ROM non sono inclusi.
+
+## 10. Misure sull'emulatore (GBA, mGBA)
+
+Cicli del timer a 16,78 MHz, media su più esecuzioni. Non sono misure su hardware.
+
+| Operazione | Cicli | Tempo circa |
+|---|---|---|
+| alloc 4 KB + free (64 blocchi) | 35 414 | 2,1 ms |
+| sync di un file da 100 byte | 165 122 | 9,8 ms |
+
+Il sync azzera un buffer da 8 KB a ogni chiamata: è probabilmente la parte più costosa. Da correggere prima di aumentare la frequenza di salvataggio.
+
+## 11. Obiettivi non ancora realizzati
+
+Questi sono obiettivi, non funzionalità esistenti.
+
+- **Multicore:** esecuzione su più core, con scheduling e sincronizzazione.
+- **Multithreading:** più thread dentro lo stesso programma.
+- **GPU:** accelerazione grafica sulle piattaforme che la hanno.
+- **Compressione e cifratura in RAM:** dati compressi e cifrati in memoria, per i sistemi con poca RAM.
+- **Swap:** spostamento di pagine su un supporto più lento quando la RAM non basta.
+- **Portabilità a 64 bit e x86:** il nucleo è pensato per essere portabile, ma oggi gira solo sul GBA.
