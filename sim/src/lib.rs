@@ -12,6 +12,7 @@ pub mod install;
 pub mod lzss;
 pub mod net;
 pub mod memory;
+pub mod partition;
 pub mod power;
 pub mod process;
 pub mod resource;

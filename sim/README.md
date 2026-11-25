@@ -42,3 +42,8 @@ cargo test
 - LZSS a finestra 256 byte, poi Ascon-AEAD128 con AAD che lega il blocco allo slot.
 - Test in `tests/memoria.rs`: `cargo test`.
 - Misure e limiti: `docs/memory-security.md`, sezione 7. **Da verificare** su GBA.
+
+## Tabelle delle partizioni (`src/partition.rs`, `tests/particioni.rs`)
+
+- Lettura in sola lettura di MBR e GPT da un'immagine in memoria. Verifica i CRC32 e i limiti del disco.
+- Scelte e limiti: `docs/compatibility.md`. Non legge l'intestazione di backup GPT. **Da verificare**.
