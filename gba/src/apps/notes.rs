@@ -64,6 +64,11 @@ impl Notes {
         true
     }
 
+    /// Carattere in attesa della nota selezionata (spazio se non ci sono note).
+    pub fn pending(&self) -> u8 {
+        if self.len == 0 { b' ' } else { self.items[self.cur].pending() }
+    }
+
     pub fn testo(&self) -> &[u8] {
         if self.len == 0 {
             return b"";

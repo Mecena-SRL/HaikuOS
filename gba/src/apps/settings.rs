@@ -21,7 +21,7 @@ pub struct Settings {
 impl Settings {
     pub const fn new() -> Self {
         let mut name = [0u8; NAME_MAX];
-        let def = b"HaikuOS";
+        let def = b"HAIKUOS";
         let mut i = 0;
         while i < def.len() {
             name[i] = def[i];

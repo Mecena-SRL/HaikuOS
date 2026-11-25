@@ -4,6 +4,7 @@
 #![no_main]
 
 mod alloc;
+mod apps;
 mod calc;
 mod calc_ui;
 mod compositor;
@@ -374,7 +375,8 @@ pub extern "C" fn rust_main() -> ! {
     desktop::paint(fb, &dk, surf);
     while keys() & workspace::KEY_START == 0 {
         sram::vblank();
-        if dk.step(keys()) {
+        let ticked = dk.tick();
+        if dk.step(keys()) | ticked {
             dk.draw_calc(surf);
             desktop::paint(fb, &dk, surf);
         }

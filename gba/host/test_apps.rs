@@ -72,7 +72,7 @@ fn orologio_avanza_e_fa_il_giro() {
 #[test]
 fn impostazioni_nome_e_limiti() {
     let mut s = Settings::new();
-    assert_eq!(s.nome(), b"HaikuOS");
+    assert_eq!(s.nome(), b"HAIKUOS");
     for _ in 0..NAME_MAX {
         s.push(b'x');
     }
@@ -97,4 +97,16 @@ fn impostazioni_temi_fanno_il_giro() {
         s.next_theme();
     }
     assert_eq!(s.theme(), 0);
+}
+
+#[path = "../src/apps/archive.rs"]
+mod archive;
+
+#[test]
+fn archivio_contenitore() {
+    let mut out = [0u8; 64];
+    let n = archive::pack(&[(b"a", b"xy")], &mut out).unwrap();
+    assert_eq!(n, 4 + 1 + 1 + 2 + 2);
+    let mut r = archive::Reader::new(&out[..n]).unwrap();
+    assert_eq!(r.next_file().unwrap().unwrap().1, b"xy");
 }

@@ -17,10 +17,10 @@ Risorse: RAM = stima di memoria statica; FS = file system; Cifr. = crittografia 
 | # | App | Scopo | Risorse | Dipendenze | Priorità | Verificabile sul GBA |
 |---|---|---|---|---|---|---|
 | 1 | Editor di testo | Modifica un file di testo | RAM ~140 B, FS r/w | `editor.rs`, `fs.rs` | Quasi pronto | Dimensione massima file (8 KB) |
-| 2 | Note | Più note di una riga, fino a 8 | RAM ~1,2 KB (8 editor), FS r/w | `editor.rs` | **Prototipo** (`apps/notes.rs`) | Quanti caratteri entrano su schermo |
-| 3 | Orologio | Ora su 24 ore, HH:MM | RAM 8 B, timer/frame | nessuna | **Prototipo** (`apps/clock.rs`) | Deriva dei 60 fps contro i ~59,73 reali: **da verificare** |
-| 4 | Impostazioni di sistema | Tema (4 palette), nome del sistema | RAM 16 B, FS (salvataggio) | `desktop-concept.md` | **Prototipo** (`apps/settings.rs`) | Palette su schermo reale: da verificare |
-| 5 | Archiviatore | Crea, legge, decomprime archivi; cifra file e cartelle | RAM e CPU da misurare | FS, Cifr. (Ascon), quote | Dopo 2–4 | Tempo di cifratura: da verificare |
+| 2 | Note | Più note di una riga, fino a 8 | RAM ~1,2 KB (8 editor), FS r/w | `editor.rs` | **Collegata** (`apps/notes.rs`) | Quanti caratteri entrano su schermo |
+| 3 | Orologio | Ora su 24 ore, HH:MM | RAM 8 B, timer/frame | nessuna | **Collegata** (`apps/clock.rs`) | Deriva dei 60 fps contro i ~59,73 reali: **da verificare** |
+| 4 | Impostazioni di sistema | Tema (4 palette), nome del sistema | RAM 16 B, FS (salvataggio) | `desktop-concept.md` | **Collegata** (`apps/settings.rs`) | Palette su schermo reale: da verificare |
+| 5 | Archiviatore | Crea, legge, decomprime archivi; cifra file e cartelle | Contenitore fatto; RAM e CPU da misurare | FS, Cifr. (Ascon), quote | Dopo 2–4 | Tempo di cifratura: da verificare |
 | 6 | Gestore password | Archivio cifrato di credenziali | RAM ~ decine di KB (da verificare) | Cifr., FS | Dopo 5 | Dimensione archivio in SRAM |
 | 7 | Terminale | Shell di base (`ls`, `cd`, `cat`) | Superficie a caratteri | FS, superficie | In corso (altro thread) | Griglia 30×16: da verificare |
 | 8 | File manager | Elenca e apre directory | FS (lettura) | FS | In corso (altro thread) | 16 voci a schermo |
@@ -44,13 +44,28 @@ Fuori da questo documento (altre categorie): browser, telefono, scacchi, player,
 3. Archiviatore (serve la cifratura Ascon: prima va misurata).
 4. Il resto, con priorità da rivedere dopo le misure su hardware.
 
-## Prototipo (questo passo)
+## Prototipo
 
-- `gba/src/apps/notes.rs`: fino a 8 note, selezione, sporco/salvato, caricamento senza sporcare.
-- `gba/src/apps/clock.rs`: ora 24 ore dai frame; test di avanzamento, minuto e giro di mezzanotte.
-- `gba/src/apps/settings.rs`: 4 palette (la prima è quella del concept, le altre tre sono **provvisorie**), nome di 12 caratteri ASCII.
-- Test: `cd gba && rustc --edition 2021 --test host/test_apps.rs -o /tmp/apps_t && /tmp/apps_t` (9 test, tutti ok).
-- Non ancora collegati alla ROM (`main.rs` invariato) e senza disegno. Schermate: da fare quando le app avranno una superficie.
+- **Collegate al desktop (ROM)**: Note (icona NOTES), Orologio (CLOCK, anche nella barra), Impostazioni (SETTINGS). Tasti:
+  - Note: su/giù carattere, A aggiunge, sinistra cancella, destra crea nota, B chiude.
+  - Orologio: su/giù ±1 minuto, destra/sinistra ±1 ora, B chiude.
+  - Impostazioni: destra/sinistra cambia tema (4 palette, le altre tre sono **provvisorie**), B chiude. Il nome si legge ma non si modifica ancora.
+- `gba/src/apps/`: logica (`notes.rs`, `clock.rs`, `settings.rs`), disegno nel corpo finestra (`view.rs`), contenitore archivio (`archive.rs`, senza compressione né cifratura).
+- Test host: `cd gba && rustc --edition 2021 --test host/test_root.rs -o /tmp/gba_t && /tmp/gba_t` (68 test, tutti ok) e `host/test_apps.rs`.
+- Screenshot: `gba/host/screens.rs` disegna con la stessa `paint` della ROM e salva PPM; non c'è emulatore (libmgba non installato), quindi non è un test sul GBA.
+- Archiviatore: solo il contenitore. Compressione e cifratura da fare.
+
+### Misura Ascon (host x86, `sim/tests/ascon_misura.rs`)
+
+Dati ripetitivi (LZSS li comprime bene): i tempi sono ottimistici.
+
+| Dimensione | Seal (LZSS + Ascon) | Open | Cifrato |
+|---|---|---|---|
+| 1 KB | 126,5 µs | 8,7 µs | 436 B |
+| 4 KB | 272 µs | 20,5 µs | 896 B |
+| 8 KB | 467 µs | 20,7 µs | 1511 B |
+
+Su ARM7TDMI il costo sarà molto più alto: **da verificare**.
 
 ## Da verificare
 
