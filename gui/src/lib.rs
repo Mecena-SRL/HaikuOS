@@ -4,6 +4,7 @@
 #![no_std]
 
 pub mod apps;
+pub mod icons;
 pub mod input;
 pub mod layout;
 pub mod palette;

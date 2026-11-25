@@ -4,6 +4,7 @@ use crate::palette::Tok::{self, T0, T1, T2, T3};
 use crate::apps::{num_str, FILES, LINE_H, TEXT_ROWS, THEME_NAMES, TL};
 use sysapps::browser::{parse_line, Line};
 use crate::shell::{Shell, MENU_MAX};
+use crate::icons::{cuts, BLOCK};
 
 pub trait Canvas {
     fn fill(&mut self, r: Rect, t: Tok);
@@ -168,8 +169,15 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         let i = start + k;
         let ic = &s.icons[i];
         let cell = icon_cell(k);
-        let sq = if i == s.sel { T1 } else { T2 };
-        c.fill(cell, sq);
+        if i == s.sel {
+            c.fill(cell, T1);
+        } else {
+            let (bx, by, bw, bh) = BLOCK;
+            c.fill(Rect::new(cell.x + bx, cell.y + by, bw, bh), T2);
+        }
+        for &(x, y, w, h) in cuts(ic.label) {
+            c.fill(Rect::new(cell.x + x, cell.y + y, w, h), T0);
+        }
         if s.wm.find_app(ic.app).is_some() {
             c.fill(Rect::new(cell.x, cell.y + UNDERLINE_DY, ICON, 1), T2);
         }
