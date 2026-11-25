@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name = "haiku-kernel"
 version = "0.1.0"
