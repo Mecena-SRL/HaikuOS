@@ -421,7 +421,7 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
     crate::font::draw(fb, W, H, 4, 3, b"HAIKUOS", t0);
     crate::font::draw(fb, W, H, 92, 3, b"TERM", t0);
     crate::font::draw(fb, W, H, 120, 3, b"FILES", t0);
-    crate::font::draw(fb, W, H, W - 30, 3, &d.clock.testo(), t1);
+    crate::font::draw(fb, W, H, W - 30, 3, &d.clock.testo(), t0);
 
     // Icone con etichetta. Riquadro chiaro = icona selezionata.
     for i in 0..ICONS {
