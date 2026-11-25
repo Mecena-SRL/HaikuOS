@@ -67,6 +67,12 @@ Dati ripetitivi (LZSS li comprime bene): i tempi sono ottimistici.
 
 Su ARM7TDMI il costo sarà molto più alto: **da verificare**.
 
+### Misure in mGBA (libmgba 0.10.2): non ancora confermate
+
+- Ascon-AEAD128 per blocchi da 64 byte è in ROM (`gba/src/ascon.rs`, test host su vettori di `sim/src/slot.rs`). Nel boot la schermata delle misure mostra seal e open, ma **non abbiamo ancora letto con sicurezza il valore dallo schermo emulato**: le prime letture (circa 161 000 cicli per seal, 147 000 per open per blocco) non sono verificate.
+- Il controllo di apertura sulla ROM non è confermato: il rettangolo di esito non compare nei fotogrammi campionati.
+- Prossimo passo: leggere i valori dalla memoria dell'emulatore invece che dai pixel.
+
 ## Da verificare
 
 - Consumo reale di RAM e stack su ARM7TDMI.
