@@ -120,3 +120,15 @@ Prese dal coordinatore (scelte tecniche, 2026-11-25):
 Da confermare con Ivan (filosofia): nessuna.
 
 Tappe successive: checksum sui metadati (`Entry`) e snapshot, nel simulatore.
+
+## 10. Misure (GBA)
+
+Misurate sul build release (`gba/`, `llvm-size` sull'ELF):
+
+- `.text` (ROM): 17 088 byte.
+- `.bss` (RAM statica, totale): 40 032 byte. Entra in EWRAM da 256 KB.
+- `Fs` (store in RAM, host x86_64): 10 056 byte. Budget di test: 16 KB.
+- SRAM della cartuccia: 32 KB. Il wear è già gestito in `persist.rs`: due regioni alternate e limite di salvataggi al minuto (`Profile`).
+
+Non misurato: esecuzione in mGBA. `libmgba` non è installato nel sandbox, quindi i numeri sono del binario, non dell'emulatore. **Da verificare** con `host/*.c` (`-lmgba`).
+

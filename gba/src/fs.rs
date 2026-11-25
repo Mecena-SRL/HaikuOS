@@ -423,6 +423,12 @@ mod tests {
     }
 
     #[test]
+    fn budget_memoria_store() {
+        // Budget di RAM per lo store in memoria (EWRAM). Da verificare sul GBA reale.
+        assert!(core::mem::size_of::<Fs>() <= 16 * 1024);
+    }
+
+    #[test]
     fn metadata_corruption_detected() {
         let mut fs = Fs::new();
         let id = fs.create(b"m", 0).unwrap();
