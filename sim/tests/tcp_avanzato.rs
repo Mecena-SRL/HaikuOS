@@ -9,16 +9,21 @@ fn established_pair() -> (Conn, Conn) {
     (cli, srv)
 }
 
+fn read_all(c: &mut Conn) -> (Vec<u8>, Option<haiku_alloc_sim::tcp::Segment>) {
+    let mut buf = [0u8; 2048];
+    let (n, ack) = c.read(&mut buf);
+    (buf[..n].to_vec(), ack)
+}
+
 #[test]
 fn syn_perso_viene_ritrasmesso() {
     let mut srv = Conn::listen(80);
     let (mut cli, _lost_syn) = Conn::connect(5000, 80, 100);
     for _ in 0..RTO_TICKS - 1 {
-        assert!(cli.tick().is_empty());
+        assert!(cli.tick().is_none());
     }
-    let again = cli.tick();
-    assert_eq!(again.len(), 1);
-    let synack = srv.on_segment(&again[0]).unwrap();
+    let again = cli.tick().expect("SYN ritrasmesso");
+    let synack = srv.on_segment(&again).unwrap();
     let ack = cli.on_segment(&synack).unwrap();
     srv.on_segment(&ack);
     assert_eq!(cli.state, State::Established);
@@ -33,7 +38,7 @@ fn syn_ack_perso_il_syn_ripetuto_lo_rimanda() {
     for _ in 0..RTO_TICKS - 1 {
         cli.tick();
     }
-    let syn2 = cli.tick().pop().unwrap();
+    let syn2 = cli.tick().expect("SYN ritrasmesso");
     let synack2 = srv.on_segment(&syn2).expect("il server rimanda il SYN-ACK");
     let ack = cli.on_segment(&synack2).unwrap();
     srv.on_segment(&ack);
@@ -59,11 +64,9 @@ fn congestione_cresce_in_slow_start_e_collassa_al_timeout() {
     cli.on_segment(&ack);
     assert_eq!(cli.cwnd(), 2 * MSS, "slow start: +1 MSS per segmento confermato");
 
-    // ora perdiamo un segmento: al timeout la finestra torna a 1 MSS
     let _lost = cli.send(&[2; MSS]).unwrap();
     for _ in 0..cli.rto() {
-        let r = cli.tick();
-        if !r.is_empty() {
+        if cli.tick().is_some() {
             assert_eq!(cli.cwnd(), MSS);
             return;
         }
@@ -84,7 +87,7 @@ fn rto_si_adatta_alla_misura_e_raddoppia_al_timeout() {
 
     let _lost = cli.send(b"pong").unwrap();
     let mut ticks = 0;
-    while cli.tick().is_empty() {
+    while cli.tick().is_none() {
         ticks += 1;
     }
     assert_eq!(ticks + 1, 6, "timeout dopo RTO tick");
@@ -106,7 +109,7 @@ fn profilo_gba_totale_ricevuto_corretto() {
         let seg = cli.send(chunk).unwrap();
         let ack = srv.on_segment(&seg).unwrap();
         cli.on_segment(&ack);
-        let (d, upd) = srv.read();
+        let (d, upd) = read_all(&mut srv);
         got.extend(d);
         if let Some(u) = upd {
             cli.on_segment(&u);

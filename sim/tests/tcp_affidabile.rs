@@ -1,4 +1,4 @@
-use haiku_alloc_sim::tcp::{Conn, State, RTO_TICKS};
+use haiku_alloc_sim::tcp::{Conn, Segment, State, RTO_TICKS};
 
 fn connected() -> (Conn, Conn) {
     let mut srv = Conn::listen(80);
@@ -11,6 +11,13 @@ fn connected() -> (Conn, Conn) {
     (cli, srv)
 }
 
+/// Legge tutto ciò che è in RX.
+fn read_all(c: &mut Conn) -> (Vec<u8>, Option<Segment>) {
+    let mut buf = [0u8; 2048];
+    let (n, ack) = c.read(&mut buf);
+    (buf[..n].to_vec(), ack)
+}
+
 #[test]
 fn ritrasmissione_dopo_perdita() {
     let (mut cli, mut srv) = connected();
@@ -18,16 +25,17 @@ fn ritrasmissione_dopo_perdita() {
     assert_eq!(cli.in_flight(), 3);
     // prima del timeout nulla
     for _ in 0..RTO_TICKS - 1 {
-        assert!(cli.tick().is_empty());
+        assert!(cli.tick().is_none());
     }
-    let again = cli.tick();
-    assert_eq!(again, vec![lost.clone()]);
+    let again = cli.tick().expect("ritrasmissione allo scadere del RTO");
+    assert_eq!(again.seq, lost.seq);
+    assert_eq!(again.data(), b"abc");
     // la ritrasmissione arriva e viene confermata
-    let ack = srv.on_segment(&again[0]).unwrap();
-    assert_eq!(srv.received, b"abc");
+    let ack = srv.on_segment(&again).unwrap();
+    assert_eq!(srv.received(), b"abc");
     cli.on_segment(&ack);
     assert_eq!(cli.in_flight(), 0);
-    assert!(cli.tick().is_empty());
+    assert!(cli.tick().is_none());
 }
 
 #[test]
@@ -36,7 +44,7 @@ fn duplicato_non_raddoppia_i_dati() {
     let d = cli.send(b"abc").unwrap();
     srv.on_segment(&d);
     let dup = srv.on_segment(&d).unwrap(); // stesso segmento due volte
-    assert_eq!(srv.received, b"abc");
+    assert_eq!(srv.received(), b"abc");
     assert_eq!(dup.ack, d.seq.wrapping_add(3));
 }
 
@@ -51,7 +59,7 @@ fn finestra_blocca_il_mittente_e_la_lettura_la_riapre() {
     assert_eq!(cli.in_flight(), 0);
     assert!(cli.send(b"e").is_none(), "finestra a zero: nessun invio");
 
-    let (data, upd) = srv.read();
+    let (data, upd) = read_all(&mut srv);
     assert_eq!(data, b"abcd");
     let upd = upd.expect("la lettura annuncia la finestra aperta");
     assert_eq!(upd.wnd, 4);

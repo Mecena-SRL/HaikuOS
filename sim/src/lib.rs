@@ -19,6 +19,7 @@ pub mod input;
 pub mod ip;
 pub mod cpu;
 pub mod crypto;
+pub mod csum;
 pub mod install;
 pub mod keys;
 pub mod lzss;
