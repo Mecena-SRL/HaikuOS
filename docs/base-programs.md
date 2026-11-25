@@ -57,8 +57,9 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 | Tasto | Azione |
 |---|---|
 | Su / Giù | Cambia il carattere in attesa (arancio) |
-| A | Aggiunge il carattere in attesa |
-| B | Cancella l'ultimo carattere |
+| L / R | Sposta il cursore a sinistra / destra |
+| A | Inserisce il carattere in attesa alla posizione del cursore |
+| B | Cancella il carattere prima del cursore |
 | Select | Salva (riga di stato "SALVATO" o "ERRORE") |
 | Start | Esce |
 
@@ -77,10 +78,9 @@ Ogni programma è un processo con una sola superficie. Usa solo:
 ### Limiti noti
 
 - 128 caratteri per file: il resto viene tagliato.
-- A capo ogni 15 caratteri. Si vedono solo le ultime 6 righe: il cursore è sempre in fondo, non c'è scorrimento.
+- A capo ogni 15 caratteri. Si vedono solo le ultime 6 righe: non c'è scorrimento, quindi una modifica lontana dalla fine può essere fuori schermo.
 - Il salvataggio è verificato solo nella SRAM di libmgba (`gba/host/vram_check.c`, modalità `save`).
 
 ### Da verificare
 
 - Tempi di scrittura della SRAM su hardware reale.
-- Modifica nel mezzo del testo: non supportata, si lavora solo in fondo.

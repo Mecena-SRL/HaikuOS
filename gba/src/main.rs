@@ -198,7 +198,7 @@ fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::S
 fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor, status: Option<&[u8]>) {
     if let Some(px) = surf.pixels_mut(0) {
         px.fill(BLACK);
-        glyph::draw_wrapped(px, surfaces::SW, surfaces::SH, ed.text(), ed.pending(), GREEN, ORANGE);
+        glyph::draw_wrapped(px, surfaces::SW, surfaces::SH, ed.text(), ed.pos(), ed.pending(), GREEN, ORANGE);
         if let Some(msg) = status {
             glyph::draw_text(px, surfaces::SW, surfaces::SH, 2, 40, msg, BLUE);
         }
@@ -237,6 +237,10 @@ fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save
             ed.commit()
         } else if pressed & workspace::KEY_B != 0 {
             ed.backspace()
+        } else if pressed & KEY_L != 0 {
+            ed.left()
+        } else if pressed & KEY_R != 0 {
+            ed.right()
         } else {
             false
         };
@@ -246,6 +250,10 @@ fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save
     }
     let _ = surf.close(m, 0);
 }
+
+/// Tasti L e R (dorsali): spostano il cursore nell'editor.
+const KEY_R: u16 = 1 << 8;
+const KEY_L: u16 = 1 << 9;
 
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
 /// Superficie propria della calcolatrice (in EWRAM, non nello stack).
