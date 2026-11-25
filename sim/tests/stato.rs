@@ -1,6 +1,6 @@
 use haiku_alloc_sim::audio::{AudioError, Mixer};
 use haiku_alloc_sim::cpu::{AdmitError, Cpu, TaskReq};
-use haiku_alloc_sim::net::{Frame, NetError, NetLink, BROADCAST};
+use haiku_alloc_sim::net::{encode_frame, NetError, NetLink, BROADCAST, FRAME_MAX};
 use haiku_alloc_sim::resource::{Arch, Driver, Kind, Manifest, Microkernel, Status};
 use haiku_alloc_sim::swap::{Swap, SwapError, PAGE_BYTES};
 use haiku_alloc_sim::crypto::Vault;
@@ -29,38 +29,47 @@ fn cpu_gba_rifiuta_programma_64_bit() {
     assert_eq!(c.caps().bits, 32);
 }
 
+fn raw(dst: [u8; 6], src: [u8; 6], et: u16, payload: &[u8]) -> Vec<u8> {
+    let mut b = [0u8; FRAME_MAX];
+    let n = encode_frame(&mut b, &dst, &src, et, payload).unwrap();
+    b[..n].to_vec()
+}
+
 #[test]
 fn rete_filtra_per_mac_e_accetta_broadcast() {
     let mut n = NetLink::new(MAC, 4);
-    let mine = Frame { dst: MAC, src: OTHER, ethertype: 0x0800, payload: vec![1] }.encode().unwrap();
-    let other = Frame { dst: OTHER, src: OTHER, ethertype: 0x0800, payload: vec![2] }.encode().unwrap();
-    let bc = Frame { dst: BROADCAST, src: OTHER, ethertype: 0x0806, payload: vec![3] }.encode().unwrap();
+    let mine = raw(MAC, OTHER, 0x0800, &[1]);
+    let other = raw(OTHER, OTHER, 0x0800, &[2]);
+    let bc = raw(BROADCAST, OTHER, 0x0806, &[3]);
     assert_eq!(n.receive(&mine), Ok(true));
     assert_eq!(n.receive(&other), Ok(false));
     assert_eq!(n.receive(&bc), Ok(true));
-    assert_eq!(n.next_rx().unwrap().payload, vec![1]);
-    assert_eq!(n.next_rx().unwrap().payload, vec![3]);
-    assert!(n.next_rx().is_none());
+    let mut out = [0u8; FRAME_MAX];
+    let l = n.next_rx(&mut out).unwrap();
+    assert_eq!(&out[14..l], &[1]);
+    let l = n.next_rx(&mut out).unwrap();
+    assert_eq!(&out[14..l], &[3]);
+    assert!(n.next_rx(&mut out).is_none());
 }
 
 #[test]
 fn rete_coda_piena_e_link_giu() {
     let mut n = NetLink::new(MAC, 1);
-    let f = Frame { dst: MAC, src: OTHER, ethertype: 0, payload: vec![] };
-    n.send(f.clone()).unwrap();
-    assert_eq!(n.send(f.clone()), Err(NetError::Full));
-    assert!(n.next_tx().is_some());
+    let mut out = [0u8; FRAME_MAX];
+    n.send(&MAC, &OTHER, 0, &[]).unwrap();
+    assert_eq!(n.send(&MAC, &OTHER, 0, &[]), Err(NetError::Full));
+    assert!(n.next_tx(&mut out).is_some());
     n.set_link(false);
     assert_eq!(n.status(), Status::Stopped);
-    assert_eq!(n.send(f), Err(NetError::Down));
+    assert_eq!(n.send(&MAC, &OTHER, 0, &[]), Err(NetError::Down));
 }
 
 #[test]
 fn rete_rifiuta_frame_oltre_mtu_prima_di_accodare() {
     let mut n = NetLink::new(MAC, 2);
-    let big = Frame { dst: MAC, src: OTHER, ethertype: 0, payload: vec![0; 1501] };
-    assert_eq!(n.send(big), Err(NetError::TooLarge));
-    assert!(n.next_tx().is_none());
+    let mut out = [0u8; FRAME_MAX];
+    assert_eq!(n.send(&MAC, &OTHER, 0, &[0; 1501]), Err(NetError::TooLarge));
+    assert!(n.next_tx(&mut out).is_none());
 }
 
 #[test]
