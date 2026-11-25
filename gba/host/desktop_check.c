@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 
     /* Punti chiave: barra, orologio, icona 0 (evidenziata), icona 1, titolo, chiudi, corpo, testo, bordo. */
     punto p[] = {
-        {0, 0, 3, "barra"}, {10, 5, 1, "orologio"}, {1, 20, 0, "sfondo"},
+        {0, 0, 3, "barra"}, {200, 1, 3, "barra"}, {1, 20, 0, "sfondo"},
         {16, 32, 2, "icona 0"}, {64, 32, 1, "icona 1 (selezionata)"},
         {127, 32, 2, "titolo"}, {227, 33, 1, "chiudi"},
         {127, 43, 1, "corpo"}, {129, 45, 0, "testo prompt"}, {124, 30, 3, "bordo"},
