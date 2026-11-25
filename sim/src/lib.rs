@@ -4,6 +4,7 @@
 
 pub mod agent;
 pub mod lzss;
+pub mod process;
 pub mod slot;
 pub use agent::{Agent, GreedyAgent, Proposal, QuotaRequest};
 
