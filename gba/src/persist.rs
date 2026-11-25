@@ -34,7 +34,7 @@ pub trait Medium {
 }
 
 const SLOT: usize = 16;
-const HDR_AREA: usize = 2 * SLOT;
+pub const HDR_AREA: usize = 2 * SLOT;
 const K_CREATE: u8 = 1;
 const K_WRITE: u8 = 2;
 const K_REMOVE: u8 = 3;
