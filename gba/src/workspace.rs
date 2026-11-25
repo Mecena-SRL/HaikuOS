@@ -218,6 +218,51 @@ mod tests {
         assert!(!ws.confirming());
     }
 
+    /// Un tocco: tasti premuti per un frame, poi rilascio.
+    fn tap(ws: &mut Workspace, fs: &Fs, keys: u16) -> Action {
+        let a = ws.step(fs, keys);
+        ws.step(fs, 0);
+        a
+    }
+
+    #[test]
+    fn regression_all_commands_on_test_fs() {
+        let mut fs = tree();
+        let mut ws = Workspace::new();
+        // Creazione: Start chiede un file, la root riceve "f0" dopo il passo in main.
+        assert_eq!(tap(&mut ws, &fs, KEY_START), Action::Create);
+        let (nm, n) = child_name(ws.cwd(), 0);
+        assert_eq!(&nm[..n], b"f0");
+        fs.create(&nm[..n], 0).unwrap();
+        // Navigazione: giù, su, su con limite (wrap), apri file.
+        assert_eq!(tap(&mut ws, &fs, KEY_DOWN), Action::None);
+        assert_eq!(tap(&mut ws, &fs, KEY_UP), Action::None);
+        assert_eq!(ws.sel(), 0);
+        assert_eq!(tap(&mut ws, &fs, KEY_UP), Action::None);
+        assert_eq!(ws.sel(), 2); // tre voci: docs, b, f0
+        assert_eq!(tap(&mut ws, &fs, KEY_DOWN), Action::None);
+        assert_eq!(ws.sel(), 0);
+        assert_eq!(tap(&mut ws, &fs, KEY_DOWN), Action::None);
+        assert_eq!(tap(&mut ws, &fs, KEY_A), Action::File);
+        assert_eq!(ws.open_id(), fs.find_name(b"b"));
+        // Directory: apri docs, poi B risale alla radice.
+        assert_eq!(tap(&mut ws, &fs, KEY_UP), Action::None);
+        assert_eq!(tap(&mut ws, &fs, KEY_A), Action::Dir);
+        assert_eq!(ws.cwd(), b"docs");
+        assert_eq!(tap(&mut ws, &fs, KEY_B), Action::Dir);
+        assert_eq!(ws.cwd(), b"");
+        // Formattazione: Select+B apre la conferma, B annulla, poi A conferma.
+        assert_eq!(tap(&mut ws, &fs, KEY_SELECT | KEY_B), Action::FormatAsk);
+        assert!(ws.confirming());
+        assert_eq!(tap(&mut ws, &fs, KEY_B), Action::None);
+        assert!(!ws.confirming());
+        assert_eq!(tap(&mut ws, &fs, KEY_SELECT | KEY_B), Action::FormatAsk);
+        assert_eq!(tap(&mut ws, &fs, KEY_A), Action::FormatSys);
+        assert!(!ws.confirming());
+        // Il file creato resta: la formattazione tocca solo lo spazio di sistema (fuori da questo test).
+        assert!(fs.find_name(b"f0").is_some());
+    }
+
     #[test]
     fn start_asks_for_create_and_names_child() {
         let fs = tree();

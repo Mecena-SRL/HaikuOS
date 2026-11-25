@@ -156,3 +156,14 @@ Deviazioni residue:
 1. **Il monolite non legge ancora lo stato in modo comune.** Lo stato è esposto dal trait, ma nessun componente lo usa per decidere.
 2. **Stato solo sull'alimentazione e sugli oggetti sopra.** Memoria, storage, crittografia restano senza fermo: in sim non serve ancora.
 3. **Stack TCP/IP, driver Wi-Fi e driver reali** non esistono: il prototipo di rete copre frame, filtro e code.
+
+## 12. Monolite che legge lo stato, fermo, stack TCP/IP
+
+- **Scelta del monolite:** `resource::pick_ready(kernels, kind)` restituisce il primo microkernel `Ready` del tipo richiesto. Con più GPU, se una è ferma il lavoro va alla successiva. Test in `sim/tests/stack.rs`.
+- **Fermo (`halt`)** su memoria, storage e crittografia. Il fermo blocca le operazioni che cambiano stato (allocazioni, scritture, cifratura). Letture e revoche restano, per svuotare il sistema. Stato esposto dal trait `Microkernel::status()`.
+- **Stack TCP/IP nel simulatore:**
+  - `sim/src/ip.rs`: IPv4 senza opzioni, checksum verificato in lettura, versione e lunghezza controllate.
+  - `sim/src/tcp.rs`: handshake a tre vie, dati in ordine, FIN. Checksum su pseudo-intestazione.
+  - Test in `sim/tests/stack.rs`: un messaggio TCP attraversa IP ed ethernet tra due `NetLink`.
+- Limiti del TCP: nessuna ritrasmissione, nessuna finestra, nessun controllo di congestione. Segmenti fuori ordine vengono scartati. Da fare prima dell'uso reale.
+- **Da verificare:** la RAM che lo stack richiede sulla GBA (oggi non entra nel budget di 8 KB dichiarato).
