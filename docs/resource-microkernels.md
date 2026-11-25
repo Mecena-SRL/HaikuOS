@@ -187,3 +187,12 @@ Deviazioni residue:
 Totale per connessione sull'host (struttura più buffer RX, senza segmenti in volo): **1112 byte**. Il test `sim/tests/ram_stack.rs` lo fissa sotto 2 KB.
 
 **Stima GBA (ARM7, 32 bit): da verificare.** I puntatori e i `Vec` sono circa la metà. Stima per connessione: struttura circa 60 byte, RX 1024 byte, TX in volo fino a 1024 byte (la finestra del peer). Nel caso peggiore circa 2,1 KB per connessione. Con `RCV_BUF = 256` si scende a circa 600 byte. Il budget del manifest `net-ethernet-generic` è 8 KB: regge una connessione con buffer piccoli, non due con buffer da 1 KB. Decisione da prendere: buffer piccoli sulla GBA, da misurare sull'emulatore.
+
+## 14. Congestione, RTO adattivo, SYN ritrasmesso
+
+- **Controllo di congestione:** finestra di congestione `cwnd` partita da 1 MSS (128 byte). In slow start cresce di un MSS per segmento confermato; sopra `ssthresh` cresce di circa un MSS per RTT. Al timeout: `ssthresh` = metà dei byte in volo (minimo 2 MSS), `cwnd` = 1 MSS.
+- **RTO adattivo** (Jacobson/Karels, in tick): SRTT e RTTVAR dalle misure; RTO = SRTT + 4·RTTVAR, tra 1 e 64 tick. Regola di Karn: i segmenti ritrasmessi non misurano il RTT. Al timeout il RTO raddoppia.
+- **SYN e SYN-ACK ritrasmessi** ogni 3 tick, fino a 5 tentativi; poi la connessione passa a `Closed`. Un SYN ripetuto con il SYN-ACK perso ottiene il SYN-ACK di nuovo.
+- **Profilo GBA:** buffer di ricezione da 256 byte (`rcv_buf = 256`). Test `sim/tests/tcp_avanzato.rs`: 600 byte trasferiti con segmenti da 128 e lettura a ogni passo.
+- Test: `sim/tests/tcp_avanzato.rs` (7 test: SYN perso, SYN-ACK perso, handshake che si chiude, congestione, RTO adattivo con backoff, profilo GBA).
+- **Limiti ancora aperti:** niente SACK, niente ritrasmissione veloce (solo timeout), niente Nagle, niente buffer fuori ordine. RAM stimata sulla GBA: vedi sezione 13, da verificare sull'emulatore.

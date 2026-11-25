@@ -1,6 +1,7 @@
-//! TCP essenziale nel simulatore: handshake a tre vie, dati in ordine, finestra di base,
-//! ritrasmissione a timeout (go-back-N, RTO in tick), FIN. Sta sopra `ip.rs`.
-//! Non ancora: controllo di congestione, buffer fuori ordine, RTO adattivo.
+//! TCP essenziale nel simulatore: handshake a tre vie con ritrasmissione del SYN, dati in ordine,
+//! finestra, controllo di congestione (slow start, congestion avoidance, collasso a timeout),
+//! RTO adattivo (Jacobson/Karels, in tick) con backoff, FIN. Sta sopra `ip.rs`.
+//! Non ancora: buffer fuori ordine, SACK, Nagle, ritrasmissione veloce.
 //! Nessun hardware reale. Regole: docs/resource-microkernels.md, sezione 12.
 
 use crate::ip::PROTO_TCP;
@@ -11,10 +12,16 @@ pub const FLAG_FIN: u8 = 0x01;
 pub const FLAG_SYN: u8 = 0x02;
 pub const FLAG_ACK: u8 = 0x10;
 const HDR: usize = 20;
-/// Tick senza ACK prima di ritrasmettere.
+/// RTO iniziale in tick, prima di avere una misura. Anche il timer fisso del SYN.
 pub const RTO_TICKS: u32 = 3;
-/// Buffer di ricezione di default, in byte: la finestra annunciata è il buffer libero.
+pub const RTO_MIN: u32 = 1;
+pub const RTO_MAX: u32 = 64;
+/// Dimensione massima di segmento, in byte. Dimensione di una finestra di congestione iniziale.
+pub const MSS: usize = 128;
+/// Buffer di ricezione di default, in byte. Profilo GBA: 256 (vedi docs, sezione 13).
 pub const RCV_BUF: usize = 1024;
+/// Tentativi di SYN o SYN-ACK prima di chiudere.
+pub const HS_MAX_TRIES: u32 = 5;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Segment {
@@ -95,7 +102,15 @@ pub enum State {
     CloseWait,
 }
 
-/// Una connessione: stato, sequenze, finestra, segmenti in attesa di ACK, dati ricevuti.
+/// Segmento in attesa di ACK, con l'istante di invio per la misura del RTT.
+struct Out {
+    seg: Segment,
+    sent_at: u32,
+    /// Ritrasmesso: non serve per misurare il RTT (regola di Karn).
+    rexmit: bool,
+}
+
+/// Una connessione: stato, sequenze, finestre, timer, segmenti in attesa di ACK, dati ricevuti.
 pub struct Conn {
     pub state: State,
     local: u16,
@@ -108,10 +123,20 @@ pub struct Conn {
     peer_wnd: u16,
     /// Dimensione del buffer di ricezione (byte).
     pub rcv_buf: usize,
-    /// Segmenti inviati e non ancora confermati, in ordine di sequenza.
-    outstanding: VecDeque<Segment>,
-    /// Tick dall'ultimo invio o dall'ultimo ACK ricevuto.
+    outstanding: VecDeque<Out>,
+    /// Orologio in tick.
+    now: u32,
+    /// Tick dall'ultimo progresso: serve al timer di ritrasmissione.
     idle: u32,
+    srtt: Option<u32>,
+    rttvar: u32,
+    rto: u32,
+    cwnd: usize,
+    ssthresh: usize,
+    /// SYN o SYN-ACK in attesa di risposta, con i suoi tentativi.
+    hs: Option<Segment>,
+    hs_idle: u32,
+    hs_tries: u32,
     pub received: Vec<u8>,
 }
 
@@ -127,7 +152,16 @@ impl Conn {
             peer_wnd: RCV_BUF as u16,
             rcv_buf: RCV_BUF,
             outstanding: VecDeque::new(),
+            now: 0,
             idle: 0,
+            srtt: None,
+            rttvar: 0,
+            rto: RTO_TICKS,
+            cwnd: MSS,
+            ssthresh: RCV_BUF,
+            hs: None,
+            hs_idle: 0,
+            hs_tries: 0,
             received: vec![],
         }
     }
@@ -141,6 +175,7 @@ impl Conn {
         let mut c = Self::blank(State::SynSent, local, remote, iss);
         c.snd_nxt = iss.wrapping_add(1); // il SYN occupa un numero di sequenza
         let syn = Segment { src_port: local, dst_port: remote, seq: iss, ack: 0, flags: FLAG_SYN, wnd: c.window(), payload: vec![] };
+        c.hs = Some(syn.clone());
         (c, syn)
     }
 
@@ -164,21 +199,30 @@ impl Conn {
                 self.rcv_nxt = s.seq.wrapping_add(1);
                 let synack = self.seg(self.snd_nxt, FLAG_SYN | FLAG_ACK, vec![]);
                 self.snd_nxt = self.snd_nxt.wrapping_add(1); // il SYN-ACK occupa un numero
+                self.hs = Some(synack.clone());
                 self.state = State::SynReceived;
                 Some(synack)
             }
+            // SYN ripetuto: il SYN-ACK si è perso, lo rimandiamo.
+            State::SynReceived if s.flags & FLAG_SYN != 0 => self.hs.clone(),
             State::SynSent if s.flags & (FLAG_SYN | FLAG_ACK) == (FLAG_SYN | FLAG_ACK) => {
                 self.rcv_nxt = s.seq.wrapping_add(1);
                 self.snd_una = self.snd_nxt;
+                self.hs = None;
                 self.state = State::Established;
                 Some(self.seg(self.snd_nxt, FLAG_ACK, vec![]))
             }
             State::SynReceived if s.flags & FLAG_ACK != 0 => {
                 self.snd_una = self.snd_nxt;
+                self.hs = None;
                 self.state = State::Established;
                 None
             }
             State::Established | State::CloseWait | State::FinWait => {
+                // SYN-ACK ripetuto dopo il nostro ACK perso: rispondiamo con un ACK.
+                if s.flags & FLAG_SYN != 0 {
+                    return Some(self.seg(self.snd_nxt, FLAG_ACK, vec![]));
+                }
                 if s.flags & FLAG_ACK != 0 {
                     self.on_ack(s.ack);
                 }
@@ -202,7 +246,7 @@ impl Conn {
         }
     }
 
-    /// Conferma i segmenti fino ad `ack` e riporta il timer a zero.
+    /// Conferma i segmenti fino ad `ack`: misura il RTT, fa crescere la finestra di congestione.
     fn on_ack(&mut self, ack: u32) {
         let newly = ack.wrapping_sub(self.snd_una);
         let in_flight = self.snd_nxt.wrapping_sub(self.snd_una);
@@ -210,47 +254,119 @@ impl Conn {
             return;
         }
         self.snd_una = ack;
-        while let Some(front) = self.outstanding.front() {
-            let end = front.seq.wrapping_add(front.payload.len() as u32);
-            if ack.wrapping_sub(end) as i32 >= 0 {
-                self.outstanding.pop_front();
-            } else {
+        let mut sample = None;
+        loop {
+            let end = match self.outstanding.front() {
+                Some(f) => f.seg.seq.wrapping_add(f.seg.payload.len() as u32),
+                None => break,
+            };
+            if (ack.wrapping_sub(end) as i32) < 0 {
                 break;
             }
+            let o = self.outstanding.pop_front().unwrap();
+            if !o.rexmit {
+                sample = Some(self.now.wrapping_sub(o.sent_at).max(1));
+            }
+        }
+        // Congestione: slow start fino a ssthresh, poi crescita lineare (~1 MSS per RTT).
+        let n = newly as usize;
+        if self.cwnd < self.ssthresh {
+            self.cwnd += n.min(MSS);
+        } else {
+            self.cwnd += (MSS * MSS / self.cwnd).max(1);
+        }
+        if let Some(r) = sample {
+            self.rtt_update(r);
         }
         self.idle = 0;
     }
 
-    /// Invia dati in stato Established, nei limiti della finestra del peer.
-    /// Ritorna `None` se non c'è stato o se i dati non entrano nella finestra.
+    /// Jacobson/Karels: stima di SRTT e RTTVAR, RTO = SRTT + 4·RTTVAR, limitato.
+    fn rtt_update(&mut self, r: u32) {
+        match self.srtt {
+            None => {
+                self.srtt = Some(r);
+                self.rttvar = r / 2;
+            }
+            Some(s) => {
+                let err = if r > s { r - s } else { s - r };
+                self.rttvar = (3 * self.rttvar + err) / 4;
+                self.srtt = Some((7 * s + r) / 8);
+            }
+        }
+        let s = self.srtt.unwrap_or(r);
+        self.rto = (s + 4 * self.rttvar).clamp(RTO_MIN, RTO_MAX);
+    }
+
+    /// Invia dati in stato Established, nei limiti di finestra del peer e di congestione.
+    /// Ritorna `None` se non c'è stato o se i dati non entrano.
     pub fn send(&mut self, data: &[u8]) -> Option<Segment> {
         if self.state != State::Established {
             return None;
         }
-        let in_flight = self.snd_nxt.wrapping_sub(self.snd_una) as usize;
-        if in_flight + data.len() > self.peer_wnd as usize {
+        let limit = (self.peer_wnd as usize).min(self.cwnd);
+        if self.in_flight() + data.len() > limit {
             return None;
         }
         let s = self.seg(self.snd_nxt, FLAG_ACK, data.to_vec());
         self.snd_nxt = self.snd_nxt.wrapping_add(data.len() as u32);
         if !data.is_empty() {
-            self.outstanding.push_back(s.clone());
+            if self.outstanding.is_empty() {
+                self.idle = 0;
+            }
+            self.outstanding.push_back(Out { seg: s.clone(), sent_at: self.now, rexmit: false });
         }
-        self.idle = 0;
         Some(s)
     }
 
-    /// Un tick del timer. Se ci sono segmenti senza ACK da troppo tempo, li rimanda tutti (go-back-N).
+    /// Un tick del timer. Ritrasmette il SYN/SYN-ACK in sospeso, oppure, allo scadere del RTO,
+    /// tutti i segmenti non confermati (go-back-N) con collasso della congestione e backoff.
     pub fn tick(&mut self) -> Vec<Segment> {
+        self.now = self.now.wrapping_add(1);
+        if let Some(h) = self.hs.clone() {
+            self.hs_idle += 1;
+            if self.hs_idle < RTO_TICKS {
+                return vec![];
+            }
+            self.hs_idle = 0;
+            self.hs_tries += 1;
+            if self.hs_tries > HS_MAX_TRIES {
+                self.hs = None;
+                self.state = State::Closed;
+                return vec![];
+            }
+            return vec![h];
+        }
         if self.outstanding.is_empty() {
+            self.idle = 0;
             return vec![];
         }
         self.idle += 1;
-        if self.idle < RTO_TICKS {
+        if self.idle < self.rto {
             return vec![];
         }
+        // Timeout: ssthresh a metà del volume in volo, finestra di congestione a 1 MSS, RTO raddoppiato.
+        self.ssthresh = (self.in_flight() / 2).max(2 * MSS);
+        self.cwnd = MSS;
+        self.rto = (self.rto * 2).min(RTO_MAX);
         self.idle = 0;
-        self.outstanding.iter().cloned().collect()
+        self.outstanding
+            .iter_mut()
+            .map(|o| {
+                o.rexmit = true;
+                o.seg.clone()
+            })
+            .collect()
+    }
+
+    /// Finestra di congestione corrente, in byte.
+    pub fn cwnd(&self) -> usize {
+        self.cwnd
+    }
+
+    /// Timeout di ritrasmissione corrente, in tick.
+    pub fn rto(&self) -> u32 {
+        self.rto
     }
 
     /// L'applicazione legge i dati ricevuti. Se la finestra si apre, ritorna un ACK per il peer.
