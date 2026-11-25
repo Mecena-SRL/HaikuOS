@@ -1,0 +1,76 @@
+//! Microkernel rete nel simulatore: frame ethernet e checksum IPv4 (RFC 1071).
+//! Lo stack TCP/IP è un microkernel separato che usa questo livello. Nessun hardware reale.
+//! Regole: docs/resource-microkernels.md, sezione 4.1.
+
+use crate::resource::{Arch, Kind, Manifest};
+
+pub const MTU: usize = 1500;
+pub const ETH_HEADER: usize = 14;
+
+pub const NET_MANIFEST: Manifest = Manifest {
+    name: "net-ethernet-generic",
+    kind: Kind::Network,
+    archs: &[Arch::Arm64, Arch::X86_64],
+    required: true,
+    bytes: 8 * 1024,
+    queue_depth: 16,
+};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NetError {
+    TooShort,
+    TooLarge,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Frame {
+    pub dst: [u8; 6],
+    pub src: [u8; 6],
+    pub ethertype: u16,
+    pub payload: Vec<u8>,
+}
+
+impl Frame {
+    pub fn encode(&self) -> Result<Vec<u8>, NetError> {
+        if self.payload.len() > MTU {
+            return Err(NetError::TooLarge);
+        }
+        let mut out = Vec::with_capacity(ETH_HEADER + self.payload.len());
+        out.extend_from_slice(&self.dst);
+        out.extend_from_slice(&self.src);
+        out.extend_from_slice(&self.ethertype.to_be_bytes());
+        out.extend_from_slice(&self.payload);
+        Ok(out)
+    }
+
+    pub fn parse(raw: &[u8]) -> Result<Frame, NetError> {
+        if raw.len() < ETH_HEADER {
+            return Err(NetError::TooShort);
+        }
+        if raw.len() - ETH_HEADER > MTU {
+            return Err(NetError::TooLarge);
+        }
+        Ok(Frame {
+            dst: raw[0..6].try_into().unwrap(),
+            src: raw[6..12].try_into().unwrap(),
+            ethertype: u16::from_be_bytes([raw[12], raw[13]]),
+            payload: raw[ETH_HEADER..].to_vec(),
+        })
+    }
+}
+
+/// Checksum Internet (RFC 1071): somma a 16 bit con riporto, complemento a uno.
+pub fn internet_checksum(data: &[u8]) -> u16 {
+    let mut sum: u32 = 0;
+    let mut chunks = data.chunks_exact(2);
+    for c in &mut chunks {
+        sum += u16::from_be_bytes([c[0], c[1]]) as u32;
+    }
+    if let [last] = chunks.remainder() {
+        sum += (*last as u32) << 8;
+    }
+    while sum >> 16 != 0 {
+        sum = (sum & 0xffff) + (sum >> 16);
+    }
+    !(sum as u16)
+}
