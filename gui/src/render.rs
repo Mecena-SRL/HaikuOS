@@ -124,10 +124,12 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             c.text(cc.x, row_y(2), clip("EUROPA ROMA", cols), T0);
         }
         8 => {
-            // Lettore: il file scelto in FILE, con scorrimento.
-            let (_, body) = FILES[s.files.sel];
-            for (k, line) in body.lines().skip(s.rscroll).take(rows.min(TEXT_ROWS)).enumerate() {
-                c.text(cc.x, row_y(k), clip(line, cols), T0);
+            // Lettore: nome del file scelto (←/→), poi il testo con scorrimento (↑/↓).
+            let (name, body) = FILES[s.files.sel];
+            c.text(cc.x, row_y(0), clip(name, cols), T0);
+            c.fill(Rect::new(cc.x, row_y(1), cc.w, 1), T3);
+            for (k, line) in body.lines().skip(s.rscroll).take(rows.min(TEXT_ROWS) - 2).enumerate() {
+                c.text(cc.x, row_y(k + 2), clip(line, cols), T0);
             }
         }
         _ => {}

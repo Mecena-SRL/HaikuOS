@@ -260,6 +260,14 @@ impl Shell {
                 self.bsel += 1;
                 self.follow_sel();
             }
+            (8, Key::Left) if self.files.sel > 0 => {
+                self.files.sel -= 1;
+                self.rscroll = 0;
+            }
+            (8, Key::Right) if self.files.sel + 1 < FILES.len() => {
+                self.files.sel += 1;
+                self.rscroll = 0;
+            }
             (8, Key::Up) if self.rscroll > 0 => self.rscroll -= 1,
             (8, Key::Down) if self.rscroll + 1 < self.file_lines() => self.rscroll += 1,
             (5, Key::Up) => self.editor.up(),
