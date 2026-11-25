@@ -355,13 +355,18 @@ pub extern "C" fn rust_main() -> ! {
         let _ = surf.close(&mut m, p);
     }
 
-    // Desktop del concept: visibile finché non si preme A.
+    // Desktop del concept: croce per scegliere un'icona, A apre il terminale, B lo chiude.
+    // Start passa allo spazio di lavoro.
+    let mut dk = desktop::Desktop::new();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
-    desktop::paint(fb);
-    while keys() & workspace::KEY_A == 0 {
+    desktop::paint(fb, &dk);
+    while keys() & workspace::KEY_START == 0 {
         sram::vblank();
+        if dk.step(keys()) {
+            desktop::paint(fb, &dk);
+        }
     }
-    while keys() & workspace::KEY_A != 0 {
+    while keys() & workspace::KEY_START != 0 {
         sram::vblank();
     }
     // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file.
