@@ -7,7 +7,7 @@
 
 1. **RAM: lo spazio è molto piccolo.** Tutta la RAM di lavoro è **8 KB** (WRAM). Il modello a 64 KB / 16 KB / 32 KB per slot non entra: va ridisegnato in byte (sezione 1).
 2. **Il codice non occupa RAM.** Su DMG il programma gira direttamente dalla cartuccia (ROM). Solo i dati consumano la WRAM. Questo cambia il modello rispetto al GBA, dove si copiava il codice in RAM.
-3. **Rust no_std: non è un target ufficiale.** Il DMG (CPU SM83) non è nei target Rust, nemmeno Tier 3. Esiste solo un fork non upstream (rust-z80 / llvm-z80). Non è una base stabile per un OS. **Consiglio: C con SDCC/GBDK-2020, oppure assembly per l'avvio.**
+3. **Rust ufficiale: bloccato.** Il DMG (CPU SM83) non ha supporto in rustc, nemmeno Tier 3. Con solo Rust ufficiale il DMG non si può costruire. Opzioni realistiche: (a) rimandare il DMG e partire dal GBA (ARM7TDMI, Rust supportato); (b) scrivere un backend LLVM per SM83, progetto grande, durata **da verificare**.
 4. **Messaggio da 64 byte: realistico.** Un ring buffer di 16 messaggi occupa 1 KB, cioè l'8% della RAM.
 5. **Agente di allocazione: realistico**, con blocchi fissi e bitmap di pochi byte.
 
@@ -46,13 +46,13 @@ Il vincolo di scala si esprime meglio in byte: il monolite conta i byte, non i K
 
 | Opzione | Stato | Pro | Contro |
 |---|---|---|---|
-| Rust no_std (rust-z80 fork) | Fork non upstream | Linguaggio scelto in architecture.md | Nessun supporto stabile, binari e manutenzione da verificare. Fonte: [rust-gb README](https://github.com/zlfn/rust-gb) |
+| Rust no_std (rust-z80 fork, escluso) | Fork non upstream | Linguaggio scelto in architecture.md | Nessun supporto stabile, binari e manutenzione da verificare. Fonte: [rust-gb README](https://github.com/zlfn/rust-gb) |
 | C con SDCC / GBDK-2020 | Maturo, supporta SM83 e ROM a banchi | Toolchain testata, documentazione | Più verboso di Rust, meno garanzie sulla memoria |
 | Assembly (RGBDS o simili) | Maturo | Controllo totale, binari minimi | Lento da scrivere, difficile da mantenere |
 
 Fonti: [GBDK-2020](https://github.com/gbdk-2020/gbdk-2020) (SDCC per sm83). Dimensioni dei binari: **da verificare** (non misurate).
 
-**Proposta:** avvio in assembly (poche righe), kernel e monolite in C. Rust resta valido per la parte alta (agente, programmi) solo se il fork diventa stabile. Il piano B di architecture.md (C) diventa piano principale per il DMG.
+**Decisione di Ivan:** solo Rust originale, niente C e niente fork. Con questo vincolo il DMG è bloccato: non si procede con C. Il fork rust-z80 resta descritto ma escluso. Il DMG va rimandato o affrontato con un backend LLVM dedicato.
 
 ## 3. Messaggio da 64 byte e allocazione
 
@@ -66,7 +66,7 @@ Fonti: [GBDK-2020](https://github.com/gbdk-2020/gbdk-2020) (SDCC per sm83). Dime
 2. §5 Admission control: il controllo si fa in byte, non in KB.
 3. §6 Limiti: sostituire la tabella con il budget in byte della sezione 1, marcato "da verificare".
 4. §2.5 e §2.6: precisare che il codice dei programmi gira da ROM e non conta nella WRAM.
-5. §8 Domande aperte: aggiungere "Linguaggio per il DMG: C o Rust?" (decisione per Ivan).
+5. §8 Domande aperte: aggiungere "DMG: rimandare, oppure scrivere un backend LLVM SM83?" (decisione per Ivan). Il linguaggio è già deciso: solo Rust.
 6. Il file `feasibility-gba.md` va marcato come superato o rimosso in una PR separata.
 
 ## 5. Ipotesi da verificare
