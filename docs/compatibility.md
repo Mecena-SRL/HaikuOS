@@ -56,5 +56,6 @@ In questa PR nessuna specifica è stata scaricata: i link sotto vanno letti prim
 ## 8. Stato FAT32 ed exFAT (aggiornato)
 
 - FAT32: lettore in sola lettura in `sim/src/fat32.rs`, 8 test in `sim/tests/fat32.rs`. Offset e regole verificati sull'implementazione Linux (fs/fat, GPL), non sul testo Microsoft: il sandbox non ha raggiunto `download.microsoft.com`. **Da verificare** sul fatgen103.
-- exFAT: specifica Microsoft non raggiunta dal sandbox. Nessun codice ancora. **Da verificare**.
+- exFAT: lettore in sola lettura in `sim/src/exfat.rs`, 9 test in `sim/tests/exfat.rs`. Offset dall'header Linux (fs/exfat/exfat_raw.h), checksum dell'insieme di voci da fs/exfat/dir.c. Specifica Microsoft non raggiunta dal sandbox. **Da verificare**.
+- Limiti dei lettori: un solo FAT (niente TexFAT), nessun controllo del nome hash exFAT, niente tabella upcase, niente scrittura.
 - Limiti del lettore FAT32: nomi solo dalla voce corta se il checksum LFN non combacia; niente bit di minuscole del nome corto; niente scrittura.
