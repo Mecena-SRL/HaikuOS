@@ -10,6 +10,7 @@ mod calc;
 mod calc_ui;
 mod compositor;
 mod desktop;
+mod gui;
 mod terminal;
 mod reminders;
 mod font;

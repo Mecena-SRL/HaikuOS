@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "haiku-gba"
 version = "0.1.0"
+dependencies = [
+ "haiku-gui",
+]
+
+[[package]]
+name = "haiku-gui"
+version = "0.1.0"

@@ -26,7 +26,7 @@ Test (`cargo test` in `gui/`):
 
 ## 2. Cosa manca
 
-1. **GBA**: `gba/src/desktop.rs` (939 righe) usa ancora la sua logica. Va sostituito da `haiku-gui` con un `Canvas` sopra il buffer 240×160 e il font 3×5 di `gba/src/font.rs`. Non fatto: il toolchain ARM non è installato qui, quindi non è verificabile in questa sessione.
+1. **GBA**: `gba/src/gui.rs` implementa `Canvas` sopra il framebuffer 240×160 e il font 3×5 e compila per `thumbv4t-none-eabi`. Non ancora collegato: `gba/src/desktop.rs` (939 righe) usa ancora la sua logica. Il collegamento è da fare. Conflitto da decidere: `desktop.rs` ha 20 icone in 5 colonne (passo 46×36, finestra 124,30); la bibbia dice 4 colonne (passo 48×40, da 8,24). 20 icone in 4 colonne non entrano in 160 px di altezza. Propongo di seguire la bibbia e paginare le icone.
 2. **x86 framebuffer**: `x86/kernel` ha solo testo VGA 80×25 (`console.rs`). Serve modo grafico (VBE in `stage2.asm`, o GOP/UEFI) e un `Canvas` per il framebuffer. Non esiste ancora.
 3. **Scala grande**: `gba/src/scale.rs` ingrandisce il 240×160 con fattore intero. Su x86 il layout va rifatto con la stessa griglia moltiplicata (bibbia §9), non ancora collegato.
 4. **Finestre**: niente trascinamento né ridimensionamento (fuori dalla prima versione, come da concept).
@@ -34,14 +34,20 @@ Test (`cargo test` in `gui/`):
 6. **Orologio** nella barra: non presente (serve il timer). Da verificare.
 7. **Hardware**: nessuna verifica su Game Boy Advance né su x86 reale o QEMU. Tutto il comportamento grafico è verificato solo da test sui pixel su host.
 
-## 3. Da verificare
+## 3. Come si compila
+
+- GBA (da `gba/`, con nightly e `rust-src`, da `rust-toolchain.toml`): `cargo +nightly build --release`. Verificato: compila (ARM tramite `build-std`, nessun gcc ARM richiesto). Per questo `gba` è in `exclude` del workspace radice.
+- `gui/` su host: `cargo test` dentro `gui/`.
+- x86: nessun comando, il framebuffer non esiste ancora. QEMU non è installato in questa sessione.
+
+## 4. Da verificare
 
 - Leggibilità del 3×5 su schermo GBA reale (T2 su T1).
 - Tasti: 5 tasti per un'app è accettabile con 9 icone; con più icone il limite cresce (da misurare con utenti reali).
 - Dimensione di `Wm` (6 finestre × 20 byte circa) dentro la RAM del GBA: da misurare con il linker.
 
-## 4. Ordine suggerito
+## 5. Ordine suggerito
 
-1. Adattatore GBA (`Canvas` su VRAM) e sostituzione di `desktop.rs`, con build GBA verificata.
+1. Collegare `gba/src/gui.rs` a `main.rs` al posto di `desktop.rs`, previa decisione sul layout delle icone, poi test su emulatore GBA.
 2. Modo grafico x86 (VBE) e `Canvas` su framebuffer, poi QEMU.
 3. Test di usabilità con una persona (non solo conteggio tasti).
