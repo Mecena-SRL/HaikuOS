@@ -1,6 +1,7 @@
 //! Disegno della scrivania sopra un `Canvas`. Il canvas ritaglia da solo.
 use crate::layout::*;
 use crate::palette::Tok::{self, T0, T1, T2, T3};
+use crate::apps::{num_str, FILES, LINE_H, TL};
 use crate::shell::{Shell, MENU_MAX};
 
 pub trait Canvas {
@@ -12,6 +13,60 @@ pub trait Canvas {
 fn clip(s: &str, cols: i32) -> &str {
     let n = (cols.max(0) as usize).min(s.len());
     s.get(..n).unwrap_or("")
+}
+
+/// Contenuto di una finestra: stato vero per FILE, TERM, CALC; testo statico per le altre.
+fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
+    let cols = cc.w / (FONT_W + 1);
+    let rows = (cc.h / LINE_H).max(0) as usize;
+    let row_y = |k: usize| cc.y + k as i32 * LINE_H;
+    match app {
+        1 if s.files.open => {
+            let (_, body) = FILES[s.files.sel];
+            c.text(cc.x, row_y(0), clip(body, cols), T0);
+        }
+        1 => {
+            for (k, (name, _)) in FILES.iter().enumerate() {
+                if k == s.files.sel {
+                    c.fill(Rect::new(cc.x + 1, row_y(k), cc.w - 2, LINE_H), T2);
+                }
+                c.text(cc.x + 1, row_y(k) + 1, clip(name, cols), T0);
+            }
+        }
+        2 => {
+            // Ultime righe di storico, poi il prompt con il cursore.
+            let t = &s.term;
+            let total = t.hn + 1;
+            for (k, idx) in (total.saturating_sub(rows)..total).enumerate() {
+                if idx < t.hn {
+                    let line = core::str::from_utf8(&t.hist[idx][..t.hl[idx]]).unwrap_or("");
+                    c.text(cc.x, row_y(k), clip(line, cols), T0);
+                } else {
+                    // Prompt ": " e cursore come blocco T2 (il font non ha il trattino basso).
+                    let mut p = [0u8; TL + 2];
+                    p[..2].copy_from_slice(b": ");
+                    p[2..2 + t.len].copy_from_slice(&t.line[..t.len]);
+                    let line = core::str::from_utf8(&p[..2 + t.len]).unwrap_or("");
+                    c.text(cc.x, row_y(k), clip(line, cols), T0);
+                    let cx = cc.x + (2 + t.len as i32) * (FONT_W + 1);
+                    if cx + FONT_W <= cc.x + cc.w {
+                        c.fill(Rect::new(cx, row_y(k), FONT_W, FONT_H), T2);
+                    }
+                }
+            }
+        }
+        3 => {
+            let mut buf = [0u8; 21];
+            let shown = s.calc.show(&mut buf);
+            c.text(cc.x, row_y(0), shown, T0);
+            c.text(cc.x, row_y(2), clip("0-9 + - * / = C", cols), T0);
+        }
+        _ => {
+            for (k, line) in crate::apps::lines(app).iter().enumerate() {
+                c.text(cc.x, row_y(k), line, T0);
+            }
+        }
+    }
 }
 
 pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
@@ -68,14 +123,7 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         c.fill(max_button(f), T0);
         c.fill(min_button(f), T0);
         c.fill(body(f), T1);
-        let cc = content(f);
-        for (k, line) in crate::apps::lines(w.app).iter().enumerate() {
-            let y = cc.y + k as i32 * crate::apps::LINE_H;
-            if y + FONT_H > cc.y + cc.h {
-                break;
-            }
-            c.text(cc.x, y, line, T0);
-        }
+        draw_app(c, s, w.app, content(f));
     }
 
     // Menu applicazioni: riga di ricerca, poi le voci che corrispondono; in cima a tutto.

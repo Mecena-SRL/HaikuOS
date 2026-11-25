@@ -102,5 +102,47 @@ fn window_body_shows_app_content() {
     s.key(Key::A);
     let mut b = common::Buf::new(320, 240);
     haiku_gui::render::draw(&mut b, &s);
-    assert!(b.texts.iter().any(|t| t == "LEGGIMI.TXT"));
+    assert!(b.texts.iter().any(|t| t == "leggimi.txt"));
+}
+
+#[test]
+fn calculator_adds_and_shows_result() {
+    let mut s = Shell::new(&ICONS, 320, 240);
+    s.key(Key::A); // FILE: prima finestra; poi la calcolatrice non c'è: uso un'icona apposta
+    let mut c = haiku_gui::Calc::new();
+    let mut buf = [0u8; 21];
+    for b in b"5+3=" {
+        c.key(*b);
+    }
+    assert_eq!(c.show(&mut buf), "8");
+    c.key(b'C');
+    assert_eq!(c.show(&mut buf), "0");
+}
+
+#[test]
+fn terminal_runs_sysapps_command() {
+    let mut t = haiku_gui::Term::new();
+    for b in b"echo ciao" {
+        t.type_char(*b);
+    }
+    t.enter();
+    assert_eq!(&t.hist[1][..t.hl[1]], b"ciao", "riga 0 è il comando");
+}
+
+#[test]
+fn file_view_selects_and_opens() {
+    let mut s = Shell::new(&ICONS, 320, 240);
+    s.key(Key::A);
+    s.key(Key::Down);
+    assert_eq!(s.files.sel, 1);
+    s.text(0x0D);
+    assert!(s.files.open);
+}
+
+#[test]
+fn enter_on_desktop_opens_selected_icon_and_text_goes_to_app() {
+    let mut s = Shell::new(&ICONS, 320, 240);
+    assert_eq!(s.text(0x0D), Event::Launch(1));
+    assert_eq!(s.text(b'5'), Event::None);
+    assert_eq!(s.calc.show(&mut [0u8; 21]), "0"); // è FILE, non CALC: nessun effetto
 }

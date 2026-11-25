@@ -42,16 +42,33 @@ def shot(name):
     Image.open(ppm).save(os.path.join(OUT, name))
     print("salvato", os.path.join(OUT, name))
 
+def type_text(text):
+    for ch in text:
+        if ch == " ":
+            key("spc")
+        elif ch == "+":
+            key("shift", "equal")
+        elif ch == "=":
+            key("equal")
+        else:
+            key(ch)
+
 cmd("qmp_capabilities")
 time.sleep(1)
 shot("01_desktop.png")
 key("meta_l")                                  # menu applicazioni
-for q in ["t", "e", "r", "m"]:
-    key(q)                                     # ricerca "term"
+type_text("calc")                              # ricerca
 shot("02_menu_ricerca.png")
-key("ret")                                     # apre il terminale
-key("alt")                                     # nessun effetto: controllo che il tasto non rompa nulla
-shot("03_finestra_terminale.png")
+key("ret")                                     # apre la calcolatrice
+type_text("5+3=")                              # 8
+shot("03_calcolatrice.png")
+key("f4")                                      # F4 chiude la finestra
+key("meta_l")
+type_text("term")
+key("ret")
+type_text("echo ciao")
+key("ret")                                     # esegue con sysapps
+shot("04_terminale.png")
 key("f2")                                      # tema successivo
-shot("04_tema_verde.png")
+shot("05_tema_verde.png")
 qemu.terminate(); qemu.wait()
