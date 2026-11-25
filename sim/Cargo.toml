@@ -1,0 +1,15 @@
+[package]
+name = "haiku-alloc-sim"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ascon-aead = { version = "0.6", optional = true }
+
+[features]
+# Simulazione completa (Vec, String, ascon). Senza, solo i moduli `no_std`: target ARM7.
+default = ["std"]
+std = ["dep:ascon-aead"]
+# Scrittura FAT32 (solo simulatore). Spenta di default: `cargo test --features fat32-write`.
+fat32-write = []

@@ -1,0 +1,38 @@
+//! Test host: `cd gba && rustc --edition 2021 --test host/test_root.rs -o /tmp/gba_t && /tmp/gba_t`
+#![allow(dead_code)]
+#[path = "../src/fs.rs"]
+mod fs;
+#[path = "../src/persist.rs"]
+mod persist;
+#[path = "../src/alloc.rs"]
+mod alloc;
+#[path = "../src/monolith.rs"]
+mod monolith;
+#[path = "../src/workspace.rs"]
+mod workspace;
+#[path = "../src/space.rs"]
+mod space;
+#[path = "../src/reminders.rs"]
+mod reminders;
+#[path = "../src/desktop.rs"]
+mod desktop;
+#[path = "../src/font.rs"]
+mod font;
+#[path = "../src/calc.rs"]
+mod calc;
+#[path = "../src/calc_ui.rs"]
+mod calc_ui;
+#[path = "../src/terminal.rs"]
+mod terminal;
+#[path = "../src/glyph.rs"]
+mod glyph;
+#[path = "../src/editor.rs"]
+mod editor;
+#[path = "../src/apps/mod.rs"]
+mod apps;
+#[path = "../src/ascon.rs"]
+mod ascon;
+#[path = "../src/chess.rs"]
+mod chess;
+#[path = "../src/media_ui.rs"]
+mod media_ui;

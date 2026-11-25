@@ -1,0 +1,238 @@
+# Microkernel per risorsa
+
+> Stato: bozza di ricerca e design. Nessun codice per hardware reale. Il prototipo è in `sim/src/resource.rs` (host, 8 test). Ogni ipotesi non verificata è segnata **da verificare**.
+> Legato a [architecture.md](architecture.md) (sezioni 2.2, 2.3, 9) e a [portability.md](portability.md) (regole di rilevamento e installazione atomica).
+
+## 1. Sintesi
+
+- **Un microkernel per risorsa:** CPU, GPU/video, memoria RAM/VRAM, storage, swap e compressione, audio, input/periferiche, alimentazione, crittografia.
+- **Un contratto comune:** ogni microkernel dichiara cosa fa, dove gira e quanto costa, e parla con gli altri solo con richieste asincrone a coda fissa.
+- **Più driver insieme:** si caricano più microkernel per la stessa risorsa (es. GPU interna più NVIDIA e AMD). Ognuno ha coda e stato propri; avanzano in parallelo senza condividere memoria.
+- **Generico e specifico:** ogni risorsa ha un driver generico che funziona ovunque con il minimo. I micro-componenti specifici per hardware si caricano sopra, solo se il rilevamento li trova.
+- **Architetture:** 32 bit (ARM7TDMI sul GBA), 64 bit (ARM64, Apple Silicon compreso, e x86-64). **Non esistono CPU general purpose a 128 bit in uso**: il 128 bit non è un target. Le GPU non sono una "modalità" della CPU: sono un altro dispositivo con il proprio microkernel, con memoria e linguaggio di comando propri.
+
+## 2. Fonti e stato dell'arte
+
+| Sistema | Cosa prendiamo | Cosa scartiamo | Fonte |
+|---|---|---|---|
+| seL4 | Driver in spazio utente, interrupt e DMA come capability concesse dal kernel; framework sDDF con code condivise e notifiche | Verifica formale e modello di capability completo (troppo per GBA) | [sDDF design](https://trustworthy.systems/projects/drivers/sddf-design.pdf), [sDDF su GitHub](https://github.com/au-ts/sddf), [seL4 manual](https://www.sel4.systems/Info/Docs/seL4-manual-latest.pdf) |
+| Zircon / Fuchsia | Driver come componenti con dipendenze dichiarate (DFv2); accesso tramite handle | Gli oggetti kernel generici e il runtime di componenti | [Driver framework (DFv2)](https://fuchsia.dev/docs/concepts/drivers/driver_framework) |
+| Linux DRM | Scheduler di GPU a code per contesto, dipendenze tra lavori, memoria gestita dal driver | Il modello monolitico e la complessità del device model | [DRM GPU scheduler](https://sources.debian.org/src/linux/6.17.7-2/drivers/gpu/drm/scheduler/sched_main.c), [drm-internals](https://docs.kernel.org/gpu/drm-internals.html) |
+| Redox | Driver in user space come servizi (scheme) | Il design UNIX completo | [Redox graphics e driver](https://doc.redox-os.org/book/ch04-09-graphics-windowing.html) |
+| Vulkan | Modello di accesso GPU: command buffer, code di lavoro, sincronizzazione esplicita con fence e semafori | Il ruolo di API grafica completa | [Vulkan spec](https://docs.vulkan.org/spec/latest/) |
+| Metal (Apple) | Comandi raggruppati per coda, memoria condivisa unificata su Apple Silicon | Dipendenza dall'ecosistema Apple | [Metal](https://developer.apple.com/metal/) (da verificare il dettaglio sulle code) |
+
+Nota: le fonti sono state trovate con la ricerca web. Le pagine principali sono state verificate solo per titolo e contenuto generale; i dettagli di API sono **da verificare** sui documenti ufficiali prima di fissare una specifica.
+
+## 3. Contratto comune
+
+Ogni microkernel per risorsa espone:
+
+1. **Manifest (dichiarato, statico):** `name`, `kind` (CPU, GPU, memoria, storage, swap, audio, input, alimentazione, crittografia), `archs` (architetture supportate), `required` (indispensabile o no), `bytes` (RAM necessaria), `queue_depth` (dimensione della coda).
+2. **Capacità (dichiarate):** cosa sa fare e i limiti (es. "GPU: 2 code, max 64 MB VRAM"). Il monolite le legge, non le modifica.
+3. **Stato:** `Ready`, `Running`, `Stopped`. Solo il monolite cambia lo stato di un driver.
+4. **Richieste asincrone:** `submit(richiesta) -> Ok | Full | Stopped`. La richiesta entra in coda e il completamento arriva dopo, con `id`. Nessuna chiamata bloccante.
+5. **Errori:** un insieme chiuso (`Full`, `Stopped`, più quelli specifici di risorsa). Un errore non ferma gli altri driver.
+
+Regole del contratto:
+- Coda a dimensione fissa, nessuna allocazione dinamica dopo l'avvio (come `docs/process-management.md`).
+- Il completamento ritorna allo stesso driver che ha fatto la richiesta. Nessun driver legge le code degli altri.
+- Un driver non conosce gli altri driver della stessa risorsa: il coordinamento passa dal monolite.
+
+## 4. Microkernel per risorsa
+
+| Risorsa | Generico (sempre) | Specifico (se rilevato) | Architetture generiche | Note |
+|---|---|---|---|---|
+| **CPU** | pianificazione a priorità e budget (vedi process-management) | tabelle di scheduling per core (futuro SMP) | GBA, ARM64, x86-64 | Su GBA un solo core. Il timer è il livello basso. |
+| **GPU / video** | framebuffer lineare o modo video semplice | driver per GPU NVIDIA, AMD, integrata | GBA: VRAM (modi 3/4). ARM64/x86: framebuffer UEFI | Una GPU è un dispositivo a sé con la sua memoria. Vedi graphics.md. |
+| **Memoria RAM / VRAM** | pool a blocchi fissi, quote dal monolite | gestione VRAM del driver GPU | tutte | La VRAM è una quota separata, con revoca. |
+| **Storage (SSD, dischi)** | blocchi, checksum metadati (vedi filesystem-roadmap) | driver NVMe, SATA, SD, flash GBA | GBA: SRAM/flash cartuccia. ARM64/x86: blocchi | Ogni disco è un driver: più dischi = più istanze. |
+| **Swap e compressione** | compressione offline (LZSS) su GBA | compressione runtime (LZ4/Zstd) su macchine potenti | tutte, con limiti diversi | Vedi memory-security.md. Swap solo dove c'è un disco. |
+| **Audio** | mixer a campioni fissi | driver specifici per codec | GBA: registri audio. ARM64/x86: buffer | Un driver di mix per programma è un'ipotesi **da verificare**. |
+| **Input / periferiche** | tastiera e pulsanti (GBA), polling | USB, mouse, touch, controller | tutte | Ogni periferica dichiara i suoi eventi. |
+| **Alimentazione** | stato batteria e modi di riposo | regolatori specifici | GBA: nessuno. ARM64: da verificare. x86: da verificare | Non tocca la CPU direttamente: chiede al monolite. |
+| **Crittografia** | Ascon-AEAD128 (ovunque) | AES hardware, ChaCha20 software | tutte | Vedi memory-security.md. |
+
+## 4.1 Elenco completo dei microkernel
+
+Priorità: **P1** necessario per avviare e far girare un programma; **P2** necessario per un sistema utilizzabile; **P3** utile, più avanti.
+
+| # | Microkernel | Ruolo | Generico (sempre) | Specifico (componenti) | Priorità | Stato |
+|---|---|---|---|---|---|---|
+| 1 | CPU | ammissione, capacità (bit, core, MMU), scheduling via monolite | `cpu.rs`, `process.rs` | tabelle per core (SMP, futuro) | P1 | prototipo |
+| 2 | Memoria RAM/VRAM | pool a blocchi, quote, revoca con azzeramento | `memory.rs` | gestione VRAM del driver GPU | P1 | prototipo |
+| 3 | Storage | blocchi, checksum metadati | `storage.rs` (checksum per blocco) | NVMe, SATA, USB, flash cartuccia | P1 | prototipo |
+| 4 | Rete | link layer (ethernet) e stack TCP/IP separato sopra | `net.rs`: frame ethernet, checksum IPv4 | Wi-Fi, schede specifiche | P1 | prototipo |
+| 5 | Video / GPU | VRAM propria e code di comandi | `gpu.rs`: VRAM separata, comandi asincroni | NVIDIA, AMD, GPU integrata | P1 | prototipo |
+| 6 | Input e periferiche | eventi da tastiera, pulsanti, mouse, touch | `input.rs`: coda fissa, scarto contato | USB, controller, touch | P2 | prototipo |
+| 7 | Alimentazione | stati di riposo, batteria | `power.rs`: macchina a stati, soglia batteria | regolatori specifici | P2 | prototipo |
+| 8 | Crittografia | AEAD, chiavi per slot, nonce a contatore | `crypto.rs` su `slot.rs` | AES hardware, ChaCha20 software | P2 | prototipo |
+| 9 | Swap e compressione | pagine compresse e cifrate su storage | `swap.rs`: LZSS poi Ascon, blocco con checksum | LZ4/Zstd runtime, swap su SSD | P2 | prototipo |
+| 10 | Audio | buffer e mix a campioni | registri audio GBA | codec specifici | P3 | da fare |
+
+### Rete: scelte
+
+- **Link layer (ethernet):** driver generico: frame con MAC, MTU fisso. Ogni scheda è un componente specifico che dichiara `archs` e `bytes`.
+- **Wi-Fi:** componente specifico, non generico: firmware e gestione dell'associazione dipendono dal chip. Caricato solo se rilevato. Da verificare: quali chip e quali firmware sono redistribuibili.
+- **TCP/IP:** microkernel separato, sopra il link layer. Comunica con gli altri solo tramite il monolite e il contratto comune. Versione essenziale: IPv4, TCP semplice, DNS fuori scope. Da verificare la RAM necessaria sulla GBA: probabilmente non fattibile, quindi la rete sul GBA resta da decidere.
+- Nessun programma accede al link layer direttamente: passa dallo stack.
+- Prototipo P2: `sim/src/input.rs`, `power.rs`, `crypto.rs`, `swap.rs`; test in `sim/tests/p2.rs` (8 test). Lo swap usa `storage.rs` e `slot.rs`.
+- Prototipo: `sim/src/net.rs` (frame, MTU 1500, checksum RFC 1071 con vettore di prova) in `sim/tests/storage_gpu_rete.rs`. Storage (`storage.rs`) e GPU (`gpu.rs`) hanno test nello stesso file.
+
+## 5. Regole di caricamento
+
+1. **Rilevamento:** all'avvio il livello basso costruisce `Target { arch, ram_free }`. Architettura sconosciuta: nulla caricato (fail closed).
+2. **Verifica (`plan`):** per ogni manifest, se l'architettura è supportata lo si attiva; se è incompatibile e `required`, blocca l'installazione; se è opzionale, lo si salta e lo si registra nel log. RAM insufficiente blocca tutto. Nessuna modifica di stato.
+3. **Attivazione (`activate`):** in ordine di dipendenza. Se una attivazione fallisce, si fermano quelle già attive in ordine inverso e lo stato resta quello precedente.
+4. **Specifici sopra il generico:** un micro-componente per hardware (es. "GPU NVIDIA X") si carica solo se il rilevamento lo trova, e dichiara le sue capacità e i suoi limiti. Se manca, resta il driver generico.
+5. **Più driver per la stessa risorsa:** ammessi. Ogni istanza ha id proprio e coda propria. Il monolite assegna le richieste; non c'è un driver "principale" fisso.
+
+## 6. Regole di isolamento
+
+- **GBA:** isolamento solo logico (decisione di Ivan, `docs/process-management.md`). I driver sono nello stesso spazio; il monolite e Rust fanno rispettare le code e i confini.
+- **ARM64 e x86-64:** ogni driver in un proprio microkernel con MMU. Accesso all'hardware (registri, DMA, interrupt) solo tramite capability concesse dal monolite (ispirato a seL4). **Da verificare** come gestire il DMA su ogni piattaforma (IOMMU).
+- Un crash di un driver non tocca gli altri: il monolite lo ferma (`Stopped`) e revoca le sue quote.
+- Memoria condivisa tra driver: solo con una regola esplicita dell'allowlist del monolite.
+
+## 7. Cosa è generico e cosa è specifico
+
+- **Generico (codice comune, Rust `no_std`):** il contratto, la coda, il manifest, `plan`, `activate`, la gestione degli errori.
+- **Specifico (livello basso):** registri, interrupt, DMA, firmware, formato dei comandi della GPU. Non entra nel codice comune.
+- **Specifico per hardware (micro-componenti):** dichiarano capacità e limiti, non cambiano il contratto.
+
+## 8. GPU non è una modalità della CPU
+
+Una GPU ha memoria propria (VRAM o memoria unificata con accesso dichiarato), code di lavoro, sincronizzazione asincrona e linguaggio di comando specifico. Per questo ha un microkernel suo. La CPU la comanda con richieste, non la esegue. Su Apple Silicon la memoria è unificata: la differenza è una capacità dichiarata (**da verificare** il dettaglio), non una eccezione al contratto.
+
+## 9. Prototipo (`sim/`)
+
+- `sim/src/resource.rs`: `Arch`, `Kind`, `Manifest`, `Driver` (coda fissa, `submit`/`step`/`stop`), `plan`, `activate` con rollback, `tick`.
+- `sim/tests/risorse.rs`: 8 test, tutti passati. Coprono: opzionale incompatibile saltato, richiesto incompatibile bloccante, RAM insufficiente, architettura sconosciuta, rollback in ordine inverso, due GPU in parallelo senza mescolare i risultati, coda piena, stop di un driver senza effetti sugli altri.
+- Il lavoro simulato è `op + 1`. Nessuna misura di prestazioni.
+- `sim/src/cpu.rs`: capacità dichiarate per architettura (bit, core, MMU) e ammissione dei programmi. Lo scheduling resta in `process.rs`.
+- `sim/src/memory.rs`: pool RAM e VRAM separati a blocchi fissi, quote per proprietario, revoca che azzera prima del riuso. Test in `sim/tests/cpu_memoria.rs` (7 test, passati).
+
+## 10. Da verificare
+
+- Dimensione di coda e numero di driver per risorsa sulla GBA (RAM 288 KB).
+- Modello di DMA e IOMMU su ARM64 e x86-64.
+- Gestione della memoria unificata di Apple Silicon e della VRAM separata.
+- Forma delle capability dichiarate (formato binario o testo) e loro versione.
+- Driver audio: quanti buffer servono per non avere scatti.
+- Alimentazione su ARM64 e x86-64: quali stati esistono davvero.
+- Ordine di attivazione tra risorse (es. memoria prima di GPU): oggi è fisso nel manifest.
+
+## 11. Revisione di coerenza con il contratto comune
+
+Verificata per ogni microkernel nel simulatore. Test di coerenza in `sim/tests/audio_coerenza.rs` (manifest unici, architetture e memoria dichiarate, risorse indispensabili su tutte le architetture).
+
+| Microkernel | Manifest | Capacità | Stato | Richieste asincrone | Errori tipizzati | Note |
+|---|---|---|---|---|---|---|
+| CPU (`cpu.rs`) | sì | `caps_of` | in `process.rs` | no (ammissione sincrona) | `AdmitError` | conforme |
+| Memoria (`memory.rs`) | sì | quote | conteggio blocchi | no (sincrona) | `MemError` | conforme |
+| Storage (`storage.rs`) | sì | dimensione blocco | no | no (sincrono) | `StorageError` | conforme |
+| Rete (`net.rs`) | sì | MTU | no | no (solo frame) | `NetError` | stack TCP/IP da fare |
+| GPU (`gpu.rs`) | sì (2) | VRAM | no | sì (`submit`/`run`) | `GpuError` | conforme |
+| Input (`input.rs`) | sì | profondità coda | no | sì (`push`/`poll`) | `resource::Error` | corretto: prima restituiva `bool` |
+| Alimentazione (`power.rs`) | sì | soglia batteria | sì (`State`) | no | `PowerError` | conforme |
+| Crittografia (`crypto.rs`) | sì | slot | no | no | `CryptoError` | conforme |
+| Swap (`swap.rs`) | sì | pagina fissa | no | no | `SwapError` | conforme |
+| Audio (`audio.rs`) | sì | canali (max 4) | underrun contati | sì (`push`/`mix`) | `AudioError` | conforme |
+
+Aggiornamento (trait comune):
+- `resource::Microkernel` (trait con `manifest()`) è implementato da tutti i moduli con stato: memoria, storage, GPU, input, alimentazione, crittografia, swap, audio, e dal `Driver`. CPU e rete non hanno ancora una struttura con stato.
+- `resource::Queue<T>` è la coda generica a profondità fissa. Il `Driver`, la GPU e l'input la usano; così il comportamento "piena → `Full`" è uno solo.
+- Test: `sim/tests/contratto.rs` (coda, manifest via `dyn Microkernel`, GPU/input su coda comune, stop del driver).
+
+Aggiornamento (stato e code):
+- `resource::Status` (`Ready`, `Stopped`) è nel trait `Microkernel` con default `Ready`. Il `Driver`, la CPU e la rete lo sovrascrivono.
+- CPU (`Cpu`): conta i programmi ammessi fino a un limite, `halt()` ferma nuove ammissioni.
+- Rete (`NetLink`): code di ricezione e trasmissione a profondità fissa, filtro per MAC e broadcast, link su/giù.
+- Audio: i canali sono `Queue<i16>`; un blocco di campioni entra tutto o niente.
+- Swap: i blocchi liberi sono una `Queue<usize>`; la doppia liberazione viene rifiutata quando la coda è piena.
+- Test: `sim/tests/stato.rs` (stato, limiti, MTU, filtro, code piene, doppia liberazione).
+
+Deviazioni residue:
+1. **Il monolite non legge ancora lo stato in modo comune.** Lo stato è esposto dal trait, ma nessun componente lo usa per decidere.
+2. **Stato solo sull'alimentazione e sugli oggetti sopra.** Memoria, storage, crittografia restano senza fermo: in sim non serve ancora.
+3. **Stack TCP/IP, driver Wi-Fi e driver reali** non esistono: il prototipo di rete copre frame, filtro e code.
+
+## 12. Monolite che legge lo stato, fermo, stack TCP/IP
+
+- **Scelta del monolite:** `resource::pick_ready(kernels, kind)` restituisce il primo microkernel `Ready` del tipo richiesto. Con più GPU, se una è ferma il lavoro va alla successiva. Test in `sim/tests/stack.rs`.
+- **Fermo (`halt`)** su memoria, storage e crittografia. Il fermo blocca le operazioni che cambiano stato (allocazioni, scritture, cifratura). Letture e revoche restano, per svuotare il sistema. Stato esposto dal trait `Microkernel::status()`.
+- **Stack TCP/IP nel simulatore:**
+  - `sim/src/ip.rs`: IPv4 senza opzioni, checksum verificato in lettura, versione e lunghezza controllate.
+  - `sim/src/tcp.rs`: handshake a tre vie, dati in ordine, FIN. Checksum su pseudo-intestazione.
+  - Test in `sim/tests/stack.rs`: un messaggio TCP attraversa IP ed ethernet tra due `NetLink`.
+- Limiti del TCP: vedi sezione 13 (ritrasmissione e finestra ora presenti).
+- **Da verificare:** la RAM che lo stack richiede sulla GBA (oggi non entra nel budget di 8 KB dichiarato).
+
+## 13. TCP con finestra e ritrasmissione; RAM dello stack
+
+- **Finestra di base:** ogni segmento annuncia il buffer libero (`wnd`). Il mittente non supera la finestra del peer; con finestra zero non invia. La lettura dell'applicazione (`read`) riapre la finestra con un ACK.
+- **Ritrasmissione:** i segmenti senza ACK restano in coda. Dopo `RTO_TICKS` (3) tick senza conferma li rimanda tutti (go-back-N). Un duplicato non raddoppia i dati e riceve un ACK.
+- **Limiti ancora aperti:** nessun controllo di congestione, RTO fisso (non adattivo), nessun buffer fuori ordine, SYN non ritrasmesso. Il numero di sequenza del SYN-ACK ora avanza di uno, come richiede il protocollo.
+- Test: `sim/tests/tcp_affidabile.rs` (4 test: perdita e ritrasmissione, duplicato, finestra a zero e riapertura, byte in volo limitati).
+
+### RAM dello stack (misurata sull'host, 64 bit)
+
+| Oggetto | Byte host | Note |
+|---|---|---|
+| `Conn` (connessione) | 88 | struttura, senza buffer |
+| buffer di ricezione (`RCV_BUF`) | 1024 | default, riducibile |
+| `Segment` / `Packet` / `Frame` | 40 | per messaggio in volo |
+| `NetLink` | 88 | due code di frame |
+
+Totale per connessione sull'host (struttura più buffer RX, senza segmenti in volo): **1112 byte**. Il test `sim/tests/ram_stack.rs` lo fissa sotto 2 KB.
+
+**Misura GBA (ARM7, thumbv4t, misurata in sezione 16).** Una connessione con `RCV_BUF = 256` occupa 1592 byte. Il budget del manifest `net-ethernet-generic` è 8 KB: regge quattro connessioni con buffer da 256 byte, non due con buffer da 1 KB. Decisione: buffer piccoli sulla GBA. Resta da verificare sull'emulatore.
+
+## 14. Congestione, RTO adattivo, SYN ritrasmesso
+
+- **Controllo di congestione:** finestra di congestione `cwnd` partita da 1 MSS (128 byte). In slow start cresce di un MSS per segmento confermato; sopra `ssthresh` cresce di circa un MSS per RTT. Al timeout: `ssthresh` = metà dei byte in volo (minimo 2 MSS), `cwnd` = 1 MSS.
+- **RTO adattivo** (Jacobson/Karels, in tick): SRTT e RTTVAR dalle misure; RTO = SRTT + 4·RTTVAR, tra 1 e 64 tick. Regola di Karn: i segmenti ritrasmessi non misurano il RTT. Al timeout il RTO raddoppia.
+- **SYN e SYN-ACK ritrasmessi** ogni 3 tick, fino a 5 tentativi; poi la connessione passa a `Closed`. Un SYN ripetuto con il SYN-ACK perso ottiene il SYN-ACK di nuovo.
+- **Profilo GBA:** buffer di ricezione da 256 byte (`rcv_buf = 256`). Test `sim/tests/tcp_avanzato.rs`: 600 byte trasferiti con segmenti da 128 e lettura a ogni passo.
+- Test: `sim/tests/tcp_avanzato.rs` (7 test: SYN perso, SYN-ACK perso, handshake che si chiude, congestione, RTO adattivo con backoff, profilo GBA).
+- **Limiti ancora aperti:** niente SACK, niente ritrasmissione veloce (solo timeout), niente Nagle, niente buffer fuori ordine. RAM stimata sulla GBA: vedi sezione 13, da verificare sull'emulatore.
+
+## 15. SACK, ritrasmissione veloce, buffer fuori ordine
+
+- **Buffer fuori ordine:** il ricevitore tiene i segmenti fuori sequenza, per inizio, se entrano nel buffer. Quando arriva il buco, svuota in ordine. Il buffer libero (buffer meno dati tenuti) è la finestra annunciata.
+- **SACK:** l'ACK porta fino a 3 blocchi (inizio, fine) dei dati già ricevuti oltre il buco, come opzione TCP (kind 5). Il mittente marca come confermati i segmenti coperti da un blocco e non li rimanda.
+- **Ritrasmissione veloce:** a 3 ACK duplicati si rimanda subito il primo segmento non SACKato, senza aspettare il timer. La finestra di congestione scende a metà del volume in volo. Il segmento esce da `take_fast_rexmit()`.
+- Il timeout non rimanda i segmenti già SACKati.
+- **Limiti:** un solo segmento fast-retransmit per ACK duplicato a 3; niente recovery multi-buco (NewReno), niente Nagle, niente finestra scalata.
+- **Test:** `sim/tests/tcp_sack.rs` (5 test: buffer fuori ordine, blocchi SACK fusi, codifica/decodifica con opzioni, ritrasmissione veloce senza timeout, SACK che evita di rimandare i dati ricevuti). Suite `sim/` verde (170 test).
+
+### Misura RAM sull'emulatore: non fatta
+
+Lo stack non è nella ROM GBA: `gba/` non include `sim/`, e il codice di `sim/` usa `std` (Vec, BTreeMap, VecDeque). Misurare sull'emulatore richiede prima un porting `no_std` dello stack e un harness che lo compili per ARM7. Il dato resta la stima della sezione 13 (circa 600 byte per connessione con buffer da 256), da verificare.
+
+## 16. Stack TCP/IP senza allocazione (no_std)
+
+- `sim/src/ip.rs`, `sim/src/tcp.rs`, `sim/src/csum.rs`: nessun `Vec`, `BTreeMap` o `VecDeque`. Usano solo `core`. Verificato compilando questi tre file come crate `#![no_std]` separato (scratch, fuori dal repo).
+- **Buffer fissi** in `ConnN<RX>`: RX e TX di `RX` byte, 8 slot di segmenti in attesa di ACK (solo metadati; i dati stanno nel TX), 4 slot di dati fuori ordine da 128 byte. Profilo GBA: `ConnN<256>`. Host: `Conn = ConnN<1024>`.
+- **API:** i segmenti non si allocano: `Segment::new(...).with_data(..).with_sacks(..)`; si codificano in un buffer del chiamante (`encode`); `tick()` ritorna al più un segmento per chiamata; `read(&mut buf)` copia nel buffer del chiamante.
+- Tutti i 171 test host passano. `net.rs` (frame, coda) resta con `Vec`: fuori dallo stack TCP/IP e fuori da questo passo.
+
+### RAM misurata (host, 64 bit)
+
+| Oggetto | Byte |
+|---|---|
+| `ConnN<256>` (profilo GBA) | 1624 |
+| `ConnN<1024>` (host) | 3160 |
+| `Segment` | 172 |
+| `Packet` (IP) | 32 |
+
+**Correzione alla stima della sezione 13.** Dato misurato su ARM7 in sezione 16: 1592 byte. La stima di circa 600 byte per connessione valeva per allocazione dinamica. Con slot fissi ogni connessione occupa la sua dimensione massima, anche se inutilizzata: circa 1,6 KB con buffer da 256. Il budget `net-ethernet-generic` (8 KB) regge quindi al massimo quattro connessioni con buffer da 256, non una di più con buffer da 1 KB.
+
+### Misura su ARM7 (thumbv4t-none-eabi, nightly, build-std)
+
+- Compilati `ip.rs`, `tcp.rs`, `csum.rs` per `thumbv4t-none-eabi` con `cargo +nightly build --release -Zbuild-std=core,compiler_builtins`. Build riuscita.
+- Dimensioni lette dai simboli della build (`nm -S`):
+  - `ConnN<256>` (profilo GBA): **1592 byte** (0x638).
+  - `Segment`: **172 byte**.
+- Host 64 bit: `ConnN<256>` 1624 byte. Il target ARM7 scende di 32 byte per i `usize` a 4 byte.
+- Il profilo GBA occupa quindi circa 1,6 KB per connessione. Quattro connessioni stanno nel budget da 8 KB del manifest, non di più.
