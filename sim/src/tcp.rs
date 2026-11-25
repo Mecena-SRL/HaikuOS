@@ -1,12 +1,13 @@
 //! TCP essenziale nel simulatore: handshake a tre vie con ritrasmissione del SYN, dati in ordine,
 //! finestra, controllo di congestione (slow start, congestion avoidance, collasso a timeout),
 //! RTO adattivo (Jacobson/Karels, in tick) con backoff, FIN. Sta sopra `ip.rs`.
-//! Non ancora: buffer fuori ordine, SACK, Nagle, ritrasmissione veloce.
+//! Con buffer fuori ordine, SACK (fino a 3 blocchi) e ritrasmissione veloce a 3 ACK duplicati.
+//! Non ancora: Nagle, finestra scalata, SACK nel mittente oltre il primo blocco.
 //! Nessun hardware reale. Regole: docs/resource-microkernels.md, sezione 12.
 
 use crate::ip::PROTO_TCP;
 use crate::net::internet_checksum;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 
 pub const FLAG_FIN: u8 = 0x01;
 pub const FLAG_SYN: u8 = 0x02;
@@ -32,6 +33,8 @@ pub struct Segment {
     pub flags: u8,
     /// Finestra annunciata: byte che il mittente può ancora inviare.
     pub wnd: u16,
+    /// Blocchi SACK (inizio, fine) dei dati fuori ordine ricevuti. Al più 3.
+    pub sack: Vec<(u32, u32)>,
     pub payload: Vec<u8>,
 }
 
@@ -54,14 +57,26 @@ fn pseudo(src: [u8; 4], dst: [u8; 4], len: usize) -> Vec<u8> {
 impl Segment {
     /// Codifica con checksum su pseudo-intestazione (indirizzi IP di sorgente e destinazione).
     pub fn encode(&self, src_ip: [u8; 4], dst_ip: [u8; 4]) -> Vec<u8> {
-        let mut h = vec![0u8; HDR];
+        let blocks = &self.sack[..self.sack.len().min(3)];
+        let mut opt = vec![];
+        if !blocks.is_empty() {
+            // opzione SACK (kind 5): NOP NOP, kind, lunghezza, blocchi. Lunghezza multipla di 4.
+            opt.extend_from_slice(&[1, 1, 5, (2 + 8 * blocks.len()) as u8]);
+            for (l, r) in blocks {
+                opt.extend_from_slice(&l.to_be_bytes());
+                opt.extend_from_slice(&r.to_be_bytes());
+            }
+        }
+        let hlen = HDR + opt.len();
+        let mut h = vec![0u8; hlen];
         h[0..2].copy_from_slice(&self.src_port.to_be_bytes());
         h[2..4].copy_from_slice(&self.dst_port.to_be_bytes());
         h[4..8].copy_from_slice(&self.seq.to_be_bytes());
         h[8..12].copy_from_slice(&self.ack.to_be_bytes());
-        h[12] = 5 << 4; // offset dati 5 parole
+        h[12] = ((hlen / 4) as u8) << 4; // offset dati in parole di 32 bit
         h[13] = self.flags;
         h[14..16].copy_from_slice(&self.wnd.to_be_bytes());
+        h[HDR..].copy_from_slice(&opt);
         h.extend_from_slice(&self.payload);
         let mut all = pseudo(src_ip, dst_ip, h.len());
         all.extend_from_slice(&h);
@@ -79,6 +94,35 @@ impl Segment {
         if internet_checksum(&all) != 0 {
             return Err(TcpError::BadChecksum);
         }
+        let off = (raw[12] >> 4) as usize * 4;
+        if off < HDR || off > raw.len() {
+            return Err(TcpError::TooShort);
+        }
+        let mut sack = vec![];
+        let mut i = HDR;
+        while i < off {
+            match raw[i] {
+                0 => break,
+                1 => i += 1,
+                kind => {
+                    if i + 1 >= off {
+                        break;
+                    }
+                    let len = raw[i + 1] as usize;
+                    if len < 2 || i + len > off {
+                        break;
+                    }
+                    if kind == 5 {
+                        for b in raw[i + 2..i + len].chunks_exact(8) {
+                            let l = u32::from_be_bytes(b[0..4].try_into().unwrap());
+                            let r = u32::from_be_bytes(b[4..8].try_into().unwrap());
+                            sack.push((l, r));
+                        }
+                    }
+                    i += len;
+                }
+            }
+        }
         Ok(Segment {
             src_port: u16::from_be_bytes([raw[0], raw[1]]),
             dst_port: u16::from_be_bytes([raw[2], raw[3]]),
@@ -86,7 +130,8 @@ impl Segment {
             ack: u32::from_be_bytes(raw[8..12].try_into().unwrap()),
             flags: raw[13],
             wnd: u16::from_be_bytes([raw[14], raw[15]]),
-            payload: raw[HDR..].to_vec(),
+            sack,
+            payload: raw[off..].to_vec(),
         })
     }
 }
@@ -108,6 +153,8 @@ struct Out {
     sent_at: u32,
     /// Ritrasmesso: non serve per misurare il RTT (regola di Karn).
     rexmit: bool,
+    /// Confermato fuori ordine da un blocco SACK del peer.
+    sacked: bool,
 }
 
 /// Una connessione: stato, sequenze, finestre, timer, segmenti in attesa di ACK, dati ricevuti.
@@ -138,6 +185,12 @@ pub struct Conn {
     hs_idle: u32,
     hs_tries: u32,
     pub received: Vec<u8>,
+    /// Dati fuori ordine, per inizio di sequenza. Contano nella finestra.
+    ooo: BTreeMap<u32, Vec<u8>>,
+    /// ACK duplicati consecutivi.
+    dupacks: u32,
+    /// Ritrasmissione veloce pronta da inviare.
+    fast_rexmit: Option<Segment>,
 }
 
 impl Conn {
@@ -163,6 +216,9 @@ impl Conn {
             hs_idle: 0,
             hs_tries: 0,
             received: vec![],
+            ooo: BTreeMap::new(),
+            dupacks: 0,
+            fast_rexmit: None,
         }
     }
 
@@ -174,17 +230,45 @@ impl Conn {
     pub fn connect(local: u16, remote: u16, iss: u32) -> (Self, Segment) {
         let mut c = Self::blank(State::SynSent, local, remote, iss);
         c.snd_nxt = iss.wrapping_add(1); // il SYN occupa un numero di sequenza
-        let syn = Segment { src_port: local, dst_port: remote, seq: iss, ack: 0, flags: FLAG_SYN, wnd: c.window(), payload: vec![] };
+        let syn = Segment { src_port: local, dst_port: remote, seq: iss, ack: 0, flags: FLAG_SYN, wnd: c.window(), sack: vec![], payload: vec![] };
         c.hs = Some(syn.clone());
         (c, syn)
     }
 
+    fn ooo_bytes(&self) -> usize {
+        self.ooo.values().map(|v| v.len()).sum()
+    }
+
     fn window(&self) -> u16 {
-        (self.rcv_buf.saturating_sub(self.received.len())).min(u16::MAX as usize) as u16
+        let used = self.received.len() + self.ooo_bytes();
+        (self.rcv_buf.saturating_sub(used)).min(u16::MAX as usize) as u16
+    }
+
+    /// Blocchi SACK: intervalli contigui dei dati fuori ordine, al più 3.
+    fn sack_blocks(&self) -> Vec<(u32, u32)> {
+        let mut out: Vec<(u32, u32)> = vec![];
+        for (&k, v) in &self.ooo {
+            let end = k.wrapping_add(v.len() as u32);
+            match out.last_mut() {
+                Some(last) if last.1 == k => last.1 = end,
+                _ => out.push((k, end)),
+            }
+        }
+        out.truncate(3);
+        out
     }
 
     fn seg(&self, seq: u32, flags: u8, payload: Vec<u8>) -> Segment {
-        Segment { src_port: self.local, dst_port: self.remote, seq, ack: self.rcv_nxt, flags, wnd: self.window(), payload }
+        Segment {
+            src_port: self.local,
+            dst_port: self.remote,
+            seq,
+            ack: self.rcv_nxt,
+            flags,
+            wnd: self.window(),
+            sack: self.sack_blocks(),
+            payload,
+        }
     }
 
     /// Gestisce un segmento in arrivo. Ritorna la risposta da inviare, se c'è.
@@ -224,15 +308,11 @@ impl Conn {
                     return Some(self.seg(self.snd_nxt, FLAG_ACK, vec![]));
                 }
                 if s.flags & FLAG_ACK != 0 {
-                    self.on_ack(s.ack);
+                    self.on_ack_full(s);
                 }
                 let mut reply = None;
                 if !s.payload.is_empty() {
-                    // Solo in ordine e se entra nel buffer; il resto è scartato, con ACK di ciò che manca.
-                    if s.seq == self.rcv_nxt && s.payload.len() <= self.window() as usize {
-                        self.received.extend_from_slice(&s.payload);
-                        self.rcv_nxt = self.rcv_nxt.wrapping_add(s.payload.len() as u32);
-                    }
+                    self.on_data(s.seq, &s.payload);
                     reply = Some(self.seg(self.snd_nxt, FLAG_ACK, vec![]));
                 }
                 if s.flags & FLAG_FIN != 0 {
@@ -244,6 +324,72 @@ impl Conn {
             }
             _ => None,
         }
+    }
+
+    /// Riceve dati: in ordine vanno nel buffer e si svuota l'ooo; fuori ordine si tengono se entrano.
+    fn on_data(&mut self, seq: u32, payload: &[u8]) {
+        let d = seq.wrapping_sub(self.rcv_nxt) as i32;
+        let held = self.received.len() + self.ooo_bytes();
+        if d < 0 || payload.len() > self.rcv_buf.saturating_sub(held) {
+            return; // già ricevuto, o non entra nel buffer: si conferma ciò che manca
+        }
+        if d > 0 {
+            if (d as usize) < self.rcv_buf {
+                self.ooo.entry(seq).or_insert_with(|| payload.to_vec());
+            }
+            return;
+        }
+        self.received.extend_from_slice(payload);
+        self.rcv_nxt = self.rcv_nxt.wrapping_add(payload.len() as u32);
+        // svuota i segmenti fuori ordine che ora sono in sequenza
+        while let Some((&k, _)) = self.ooo.first_key_value() {
+            if k.wrapping_sub(self.rcv_nxt) as i32 > 0 {
+                break;
+            }
+            let v = self.ooo.remove(&k).unwrap();
+            let skip = self.rcv_nxt.wrapping_sub(k) as usize;
+            if skip < v.len() {
+                self.received.extend_from_slice(&v[skip..]);
+                self.rcv_nxt = self.rcv_nxt.wrapping_add((v.len() - skip) as u32);
+            }
+        }
+    }
+
+    /// Gestisce un ACK con eventuali blocchi SACK: conferma, rileva i duplicati e la ritrasmissione veloce.
+    fn on_ack_full(&mut self, s: &Segment) {
+        self.mark_sacked(&s.sack);
+        if s.ack == self.snd_una && s.payload.is_empty() && !self.outstanding.is_empty() {
+            self.dupacks += 1;
+            if self.dupacks == 3 {
+                // Ritrasmissione veloce: primo segmento non confermato e non SACKato. Niente timeout.
+                let inflight = self.in_flight();
+                self.ssthresh = (inflight / 2).max(2 * MSS);
+                self.cwnd = self.ssthresh;
+                if let Some(o) = self.outstanding.iter_mut().find(|o| !o.sacked) {
+                    o.rexmit = true;
+                    self.fast_rexmit = Some(o.seg.clone());
+                }
+            }
+        } else {
+            self.dupacks = 0;
+            self.on_ack(s.ack);
+        }
+    }
+
+    /// Segna come SACKati i segmenti interamente coperti da un blocco.
+    fn mark_sacked(&mut self, blocks: &[(u32, u32)]) {
+        for o in self.outstanding.iter_mut() {
+            let l = o.seg.seq;
+            let r = l.wrapping_add(o.seg.payload.len() as u32);
+            if blocks.iter().any(|&(bl, br)| (l.wrapping_sub(bl) as i32) >= 0 && (br.wrapping_sub(r) as i32) >= 0) {
+                o.sacked = true;
+            }
+        }
+    }
+
+    /// La ritrasmissione veloce pronta, se c'è. Va inviata subito.
+    pub fn take_fast_rexmit(&mut self) -> Option<Segment> {
+        self.fast_rexmit.take()
     }
 
     /// Conferma i segmenti fino ad `ack`: misura il RTT, fa crescere la finestra di congestione.
@@ -314,7 +460,7 @@ impl Conn {
             if self.outstanding.is_empty() {
                 self.idle = 0;
             }
-            self.outstanding.push_back(Out { seg: s.clone(), sent_at: self.now, rexmit: false });
+            self.outstanding.push_back(Out { seg: s.clone(), sent_at: self.now, rexmit: false, sacked: false });
         }
         Some(s)
     }
@@ -352,6 +498,7 @@ impl Conn {
         self.idle = 0;
         self.outstanding
             .iter_mut()
+            .filter(|o| !o.sacked)
             .map(|o| {
                 o.rexmit = true;
                 o.seg.clone()

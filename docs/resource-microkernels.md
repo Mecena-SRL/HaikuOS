@@ -196,3 +196,16 @@ Totale per connessione sull'host (struttura più buffer RX, senza segmenti in vo
 - **Profilo GBA:** buffer di ricezione da 256 byte (`rcv_buf = 256`). Test `sim/tests/tcp_avanzato.rs`: 600 byte trasferiti con segmenti da 128 e lettura a ogni passo.
 - Test: `sim/tests/tcp_avanzato.rs` (7 test: SYN perso, SYN-ACK perso, handshake che si chiude, congestione, RTO adattivo con backoff, profilo GBA).
 - **Limiti ancora aperti:** niente SACK, niente ritrasmissione veloce (solo timeout), niente Nagle, niente buffer fuori ordine. RAM stimata sulla GBA: vedi sezione 13, da verificare sull'emulatore.
+
+## 15. SACK, ritrasmissione veloce, buffer fuori ordine
+
+- **Buffer fuori ordine:** il ricevitore tiene i segmenti fuori sequenza, per inizio, se entrano nel buffer. Quando arriva il buco, svuota in ordine. Il buffer libero (buffer meno dati tenuti) è la finestra annunciata.
+- **SACK:** l'ACK porta fino a 3 blocchi (inizio, fine) dei dati già ricevuti oltre il buco, come opzione TCP (kind 5). Il mittente marca come confermati i segmenti coperti da un blocco e non li rimanda.
+- **Ritrasmissione veloce:** a 3 ACK duplicati si rimanda subito il primo segmento non SACKato, senza aspettare il timer. La finestra di congestione scende a metà del volume in volo. Il segmento esce da `take_fast_rexmit()`.
+- Il timeout non rimanda i segmenti già SACKati.
+- **Limiti:** un solo segmento fast-retransmit per ACK duplicato a 3; niente recovery multi-buco (NewReno), niente Nagle, niente finestra scalata.
+- **Test:** `sim/tests/tcp_sack.rs` (5 test: buffer fuori ordine, blocchi SACK fusi, codifica/decodifica con opzioni, ritrasmissione veloce senza timeout, SACK che evita di rimandare i dati ricevuti). Suite `sim/` verde (170 test).
+
+### Misura RAM sull'emulatore: non fatta
+
+Lo stack non è nella ROM GBA: `gba/` non include `sim/`, e il codice di `sim/` usa `std` (Vec, BTreeMap, VecDeque). Misurare sull'emulatore richiede prima un porting `no_std` dello stack e un harness che lo compili per ARM7. Il dato resta la stima della sezione 13 (circa 600 byte per connessione con buffer da 256), da verificare.
