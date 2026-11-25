@@ -261,6 +261,7 @@ const KEY_L: u16 = 1 << 9;
 
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
 /// Superficie propria della calcolatrice (in EWRAM, non nello stack).
+static mut MEDIA_SURF: [u16; media_ui::W * media_ui::H] = [0; media_ui::W * media_ui::H];
 static mut CALC_SURF: [u16; calc_ui::SW * calc_ui::SH] = [0; calc_ui::SW * calc_ui::SH];
 
 impl surfaces::Quota for Monolith {
@@ -382,14 +383,17 @@ pub extern "C" fn rust_main() -> ! {
     let mut dk = desktop::Desktop::new();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
+    let media = unsafe { &mut *core::ptr::addr_of_mut!(MEDIA_SURF) };
     loop {
     dk.draw_calc(surf);
-    desktop::paint(fb, &dk, surf, sp.usr.fs());
+    dk.draw_media(media);
+    desktop::paint(fb, &dk, surf, media, sp.usr.fs());
     while keys() & workspace::KEY_START == 0 && !dk.run_requested() {
         sram::vblank();
         if dk.step(keys(), sp.usr.fs()) {
             dk.draw_calc(surf);
-            desktop::paint(fb, &dk, surf, sp.usr.fs());
+            dk.draw_media(media);
+            desktop::paint(fb, &dk, surf, media, sp.usr.fs());
         }
     }
     while keys() & workspace::KEY_START != 0 {
