@@ -404,7 +404,8 @@ pub extern "C" fn rust_main() -> ! {
         continue;
     }
     // Spazio di lavoro sullo spazio utente: tasti per navigare, Start crea un file, L torna al desktop.
-    let mut ws = Workspace::new();
+    // Stessa cartella del terminale: il file manager non ha stato proprio all'avvio.
+    let mut ws = Workspace::new_at(sp.usr.fs(), dk.term.cwd());
     loop {
         if keys() & workspace::KEY_L != 0 {
             while keys() & workspace::KEY_L != 0 {
