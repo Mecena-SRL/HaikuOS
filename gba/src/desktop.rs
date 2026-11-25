@@ -1,25 +1,27 @@
 //! Schermata del desktop dal concept (docs/desktop-concept.md, sezioni 2 e 3).
-//! Tema scuro e freddo. Disegna in un framebuffer 240x160, senza dipendenze da hardware.
+//! Quattro tinte retro (docs/desktop-concept.md). Disegna in un framebuffer 240x160, senza dipendenze da hardware.
 #![allow(dead_code)]
 
 pub const W: usize = 240;
 pub const H: usize = 160;
 
-const fn rgb(r: u16, g: u16, b: u16) -> u16 {
-    r | (g << 5) | (b << 10)
-}
+// Quattro tinte (docs/desktop-concept.md, scelta di Ivan).
+pub const T0: u16 = 1 | (2 << 5) | (6 << 10); // sfondo
+pub const T1: u16 = 31 | (31 << 5) | (31 << 10); // corpo finestra, icona selezionata
+pub const T2: u16 = 31 | (16 << 5); // titolo finestra, icone
+pub const T3: u16 = 20 << 5 | (31 << 10); // barra superiore
 
-pub const BG: u16 = rgb(2, 4, 8);
-pub const BAR: u16 = rgb(4, 8, 16);
-pub const BAR_SLOT: u16 = rgb(8, 16, 26);
-pub const CLOCK: u16 = rgb(12, 22, 31);
-pub const ICON: u16 = rgb(8, 16, 26);
-pub const ICON_HI: u16 = rgb(10, 22, 31);
-pub const WIN_TITLE: u16 = rgb(6, 14, 24);
-pub const WIN_BODY: u16 = rgb(3, 6, 12);
-pub const WIN_BORDER: u16 = rgb(12, 22, 31);
-pub const CLOSE: u16 = rgb(16, 18, 22);
-pub const TEXT: u16 = rgb(20, 26, 31);
+pub const BG: u16 = T0;
+pub const BAR: u16 = T3;
+pub const BAR_SLOT: u16 = T2;
+pub const CLOCK: u16 = T1;
+pub const ICON: u16 = T2;
+pub const ICON_HI: u16 = T1;
+pub const WIN_TITLE: u16 = T2;
+pub const WIN_BODY: u16 = T1;
+pub const WIN_BORDER: u16 = T3;
+pub const CLOSE: u16 = T1;
+pub const TEXT: u16 = T0;
 
 /// Barra superiore, in unità GBA (1 unità = 1 px).
 pub const BAR_H: usize = 12;
@@ -205,6 +207,18 @@ mod tests {
         assert_eq!(fb[(WIN_Y + 3) * W + WIN_X + WIN_W - 5], CLOSE);
         assert_eq!(fb[(WIN_Y + TITLE_H + 3) * W + WIN_X + 3], WIN_BODY);
         assert_eq!(fb[WIN_Y * W + WIN_X], WIN_BORDER);
+    }
+
+    #[test]
+    fn only_the_four_tints_are_used() {
+        let mut d = Desktop::new();
+        d.step(KEY_RIGHT);
+        d.step(0);
+        d.step(KEY_A);
+        let fb = screen(&d);
+        for px in fb.iter() {
+            assert!([T0, T1, T2, T3].contains(px), "colore fuori tavolozza: {px:#06x}");
+        }
     }
 
     #[test]
