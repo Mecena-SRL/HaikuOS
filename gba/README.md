@@ -71,3 +71,26 @@ cargo build --release
 
 - Profilo macchina potente: valori scelti a tavolino, non misurati.
 - Allocatore: costo in cicli su ARM7TDMI non misurato.
+
+## Spazio di lavoro e misure
+
+- Keypad: su/giù scelgono, A apre (directory o file), B torna alla directory superiore, Start crea un file `f<n>` nella directory corrente. Logica in `src/workspace.rs`, con 4 test host.
+- Schermo: barra in alto = directory corrente (lunghezza del percorso). Quadretti blu = directory, arancio = file, bordo bianco = selezione. Barra verde in basso = lunghezza del file aperto.
+- Schermata misure (premi A per continuare): due righe di 32 bit, alto a sinistra = bit più significativo. Sono cicli del timer (16,78 MHz) misurati in mGBA.
+
+### Misure (mGBA, media)
+
+| Operazione | Cicli | Tempo a 16,78 MHz |
+|---|---|---|
+| alloc 4 KB + free (64 blocchi) | 35 414 | circa 2,1 ms |
+| sync di un file da 100 byte | 165 122 | circa 9,8 ms |
+
+Note sulle misure:
+- Sono cicli di emulazione. Le attese della SRAM e della ROM sono modellate da mGBA, non dal hardware reale.
+- Il sync include, a ogni chiamata, l'azzeramento di un buffer da 8 KB: è probabilmente la parte più costosa. Da ottimizzare prima di aumentare la frequenza di salvataggio.
+- La media sul sync include le compattazioni occasionali.
+
+## Da verificare (aggiunte)
+
+- Costo reale su hardware: non misurato.
+- Il buffer da 8 KB nel sync: da spostare fuori dal percorso caldo.

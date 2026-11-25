@@ -56,7 +56,7 @@ fn valid(name: &[u8]) -> bool {
 }
 
 /// Directory che contiene il percorso. `None` = radice. "a/b" -> Some("a"), "a" -> None.
-fn parent_of(name: &[u8]) -> Option<&[u8]> {
+pub fn parent_of(name: &[u8]) -> Option<&[u8]> {
     name.iter().rposition(|&c| c == b'/').map(|i| &name[..i])
 }
 
