@@ -86,6 +86,9 @@ pub struct Store {
     mirror: Vec<[u8; SNAP_BLOCK_BYTES]>,
     /// Byte cifrati occupati in ogni blocco.
     stored_len: Vec<usize>,
+    /// Impronta del contenuto in chiaro di ogni blocco (per la deduplica).
+    digest: Vec<Option<u32>>,
+    dedup_hits: u32,
     /// Riferimenti per blocco: 0 = libero.
     refs: Vec<u32>,
     files: Table,
@@ -106,6 +109,8 @@ impl Store {
             blocks: vec![[0; SNAP_BLOCK_BYTES]; SNAP_BLOCKS],
             mirror: vec![[0; SNAP_BLOCK_BYTES]; SNAP_BLOCKS],
             stored_len: vec![0; SNAP_BLOCKS],
+            digest: vec![None; SNAP_BLOCKS],
+            dedup_hits: 0,
             refs: vec![0; SNAP_BLOCKS],
             files: Table::new(),
             snaps: Vec::new(),
@@ -140,10 +145,34 @@ impl Store {
         self.refs[b] -= 1;
     }
 
-    /// Scrive `data` in `name` su un blocco nuovo, comprimendo e cifrando.
+    /// Quante scritture sono state evitate riusando un blocco con lo stesso contenuto.
+    pub fn dedup_hits(&self) -> u32 {
+        self.dedup_hits
+    }
+
+    /// Blocco in uso che contiene già esattamente `data` (verificato, non solo l'impronta).
+    fn find_dup(&self, h: u32, data: &[u8]) -> Option<usize> {
+        (0..SNAP_BLOCKS).find(|&b| {
+            self.refs[b] > 0
+                && self.digest[b] == Some(h)
+                && self.open_copy(b, &self.blocks[b], self.stored_len[b]).as_deref() == Some(data)
+        })
+    }
+
+    /// Scrive `data` in `name`. Se un blocco contiene già lo stesso contenuto, lo condivide (deduplica).
     pub fn write(&mut self, name: &str, data: &[u8]) -> Result<(), SnapError> {
         if data.len() > SNAP_MAX_FILE {
             return Err(SnapError::TooLarge);
+        }
+        let h = fnv_with(0x811c_9dc5, data);
+        if let Some(b) = self.find_dup(h, data) {
+            self.refs[b] += 1;
+            self.dedup_hits += 1;
+            let m = seal_meta(name, Meta { blk: b, stored: self.stored_len[b], len: data.len(), sum: 0 });
+            if let Some(old) = self.files.insert(name.to_string(), m) {
+                self.release(old.blk);
+            }
+            return Ok(());
         }
         let b = self.alloc()?;
         let mut nonce = [0u8; 16];
@@ -159,6 +188,7 @@ impl Store {
         self.blocks[b][..sealed.len()].copy_from_slice(&sealed);
         self.mirror[b][..sealed.len()].copy_from_slice(&sealed);
         self.stored_len[b] = sealed.len();
+        self.digest[b] = Some(h);
         let m = seal_meta(name, Meta { blk: b, stored: sealed.len(), len: data.len(), sum: 0 });
         if let Some(old) = self.files.insert(name.to_string(), m) {
             self.release(old.blk);

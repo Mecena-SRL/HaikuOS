@@ -75,7 +75,7 @@ fn rollback_keeps_snapshot_usable() {
 fn no_space_when_all_blocks_used() {
     let mut s = Store::new(KEY);
     for i in 0..SNAP_BLOCKS {
-        s.write(&format!("f{i}"), b"x").unwrap();
+        s.write(&format!("f{i}"), format!("c{i}").as_bytes()).unwrap();
     }
     assert_eq!(s.write("extra", b"x"), Err(SnapError::NoSpace));
 }
@@ -84,13 +84,13 @@ fn no_space_when_all_blocks_used() {
 fn snapshots_hold_blocks_until_dropped() {
     let mut s = Store::new(KEY);
     for i in 0..SNAP_BLOCKS - 1 {
-        s.write(&format!("f{i}"), b"x").unwrap();
+        s.write(&format!("f{i}"), format!("c{i}").as_bytes()).unwrap();
     }
     s.snapshot("s").unwrap();
     // Un solo blocco libero: l'overwrite di f0 lo usa, il vecchio resta allo snapshot.
     s.write("f0", b"y").unwrap();
     assert_eq!(s.read("f0").unwrap(), b"y");
-    assert_eq!(s.write("f1", b"y"), Err(SnapError::NoSpace));
+    assert_eq!(s.write("f1", b"w"), Err(SnapError::NoSpace));
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn writes_spread_over_blocks_by_wear() {
 fn worn_out_blocks_are_not_reused() {
     let mut s = Store::with_endurance(KEY, 1);
     for i in 0..SNAP_BLOCKS {
-        s.write(&format!("f{i}"), b"x").unwrap();
+        s.write(&format!("f{i}"), format!("c{i}").as_bytes()).unwrap();
     }
     s.delete("f0");
     assert_eq!(s.write("n", b"x"), Err(SnapError::Worn));
@@ -241,4 +241,39 @@ fn shared_block_freed_only_after_last_name() {
 fn clone_of_missing_file_is_refused() {
     let mut s = Store::new(KEY);
     assert_eq!(s.clone_file("nessuno", "b"), Err(SnapError::NoSuchFile));
+}
+
+#[test]
+fn identical_content_shares_one_block() {
+    let mut s = Store::new(KEY);
+    s.write("a", b"stesso").unwrap();
+    let before = s.free_blocks();
+    s.write("b", b"stesso").unwrap();
+    assert_eq!(s.free_blocks(), before);
+    assert_eq!(s.dedup_hits(), 1);
+    assert_eq!(s.read("b").unwrap(), b"stesso");
+    assert_eq!(s.wear(s.files_block("a")), 1);
+}
+
+#[test]
+fn different_content_is_not_shared() {
+    let mut s = Store::new(KEY);
+    s.write("a", b"uno").unwrap();
+    let before = s.free_blocks();
+    s.write("b", b"due").unwrap();
+    assert_eq!(s.free_blocks(), before - 1);
+    assert_eq!(s.dedup_hits(), 0);
+}
+
+#[test]
+fn shared_content_freed_only_after_last_copy() {
+    let mut s = Store::new(KEY);
+    s.write("a", b"x").unwrap();
+    let before = s.free_blocks();
+    s.write("b", b"x").unwrap();
+    s.delete("a");
+    assert_eq!(s.free_blocks(), before);
+    assert_eq!(s.read("b").unwrap(), b"x");
+    s.delete("b");
+    assert_eq!(s.free_blocks(), before + 1);
 }
