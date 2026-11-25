@@ -411,6 +411,7 @@ pub extern "C" fn rust_main() -> ! {
             while keys() & workspace::KEY_L != 0 {
                 sram::vblank();
             }
+            dk.term.set_cwd(ws.cwd());
             break;
         }
         sram::vblank();
@@ -425,6 +426,11 @@ pub extern "C" fn rust_main() -> ! {
                     let _ = sp.usr.write(&nm[..nl], 0, 64, &[n; 8]);
                 }
                 ws.dirty = true;
+            }
+            Action::Back => {
+                // B nella radice: torna al desktop; il terminale riprende la cartella mostrata.
+                dk.term.set_cwd(ws.cwd());
+                break;
             }
             Action::FormatSys => {
                 // Il workspace agisce con la capacità di sistema: formatta solo lo spazio di sistema.
