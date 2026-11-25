@@ -478,6 +478,10 @@ fn glifo(label: &[u8]) -> &'static str {
         b"CALC" => "CALC",
         b"CLOCK" => "CLOCK",
         b"READ" => "READ",
+        b"REMIND" => "REMIND",
+        b"PASSWORDS" => "PASSWORDS",
+        b"DICTIONARY" => "DICTIONARY",
+        b"CALENDAR" => "CALENDAR",
         _ => "",
     }
 }
