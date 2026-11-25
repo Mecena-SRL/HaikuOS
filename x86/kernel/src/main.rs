@@ -5,12 +5,14 @@
 mod console;
 mod ata;
 mod fb;
+mod input;
 mod boot;
 mod fs;
 mod io;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
+use haiku_gui::render::Canvas;
 
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
@@ -33,11 +35,42 @@ pub extern "C" fn kmain() -> ! {
 
     match fb::init() {
         Some(f) => {
-            let mut c = f.canvas();
-            let (lw, lh) = c.size();
-            let shell = haiku_gui::Shell::new(&ICONS, lw, lh);
-            haiku_gui::render::draw(&mut c, &shell);
             kprintln!("[ok] framebuffer VBE 640x480 con desktop");
+            let mut ps2 = input::Ps2::init();
+            let (lw, lh) = (f.w / fb::SCALE, f.h / fb::SCALE);
+            let mut shell = haiku_gui::Shell::new(&ICONS, lw, lh);
+            let (mut cx, mut cy) = (lw / 2, lh / 2); // cursore in unità logiche
+            let mut left_prev = false;
+            let mut acc = (0i32, 0i32);
+            let mut draw_now = true;
+            loop {
+                let mut dirty = draw_now;
+                draw_now = false;
+                match ps2.poll() {
+                    Some(input::Input::Key(k)) => {
+                        shell.key(k);
+                        dirty = true;
+                    }
+                    Some(input::Input::Mouse { dx, dy, left }) => {
+                        acc.0 += dx;
+                        acc.1 -= dy;
+                        cx = (cx + acc.0 / 2).clamp(0, lw - 1);
+                        cy = (cy + acc.1 / 2).clamp(0, lh - 1);
+                        acc = (acc.0 % 2, acc.1 % 2);
+                        if left && !left_prev {
+                            shell.click(cx, cy);
+                        }
+                        left_prev = left;
+                        dirty = true;
+                    }
+                    None => {}
+                }
+                if dirty {
+                    let mut c = f.canvas();
+                    haiku_gui::render::draw(&mut c, &shell);
+                    c.fill(haiku_gui::layout::Rect::new(cx, cy, 2, 2), haiku_gui::Tok::T1);
+                }
+            }
         }
         None => kprintln!("[avviso] nessun framebuffer VBE, resto a testo"),
     }
