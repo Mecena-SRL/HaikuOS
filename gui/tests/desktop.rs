@@ -155,3 +155,31 @@ fn wallpaper_is_wordmark_bottom_right_in_t3() {
     assert_eq!(b.at(0, 239), Tok::T0, "sfondo piatto");
     assert!(b.texts.iter().any(|t| t == "HAIKUOS"));
 }
+
+#[test]
+fn browser_follows_link_and_goes_back() {
+    static WEB: [Icon; 1] = [Icon { label: "WEB", app: 4, title: "BROWSER", w: 120, h: 80 }];
+    let mut b = Shell::new(&WEB, 320, 240);
+    b.key(Key::A);
+    assert_eq!(b.link_count(), 2);
+    b.key(Key::Down);
+    b.text(0x0D); // segue "script.txt"
+    assert_eq!(b.browser.current().unwrap().lines().next(), Some("echo ciao"));
+    b.text(0x08); // indietro
+    assert_eq!(b.browser.current().unwrap().lines().next(), Some("# HAIKUOS"));
+}
+
+#[test]
+fn editor_types_and_f5_runs_into_terminal() {
+    static ED: [Icon; 1] = [Icon { label: "EDIT", app: 5, title: "EDITOR", w: 120, h: 80 }];
+    let mut s = Shell::new(&ED, 320, 240);
+    s.key(Key::A);
+    s.text(0x0D); // nuova riga
+    for b in b"echo ok" {
+        s.text(*b);
+    }
+    s.text(0x05); // F5
+    let t = &s.term;
+    // Il cursore parte in cima: "echo ok" finisce davanti a "echo ciao", e lo script gira riga per riga.
+    assert!((0..t.hn).any(|i| &t.hist[i][..t.hl[i]] == b"okecho ciao"), "uscita dello script nel terminale");
+}

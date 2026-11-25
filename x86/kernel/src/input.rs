@@ -135,6 +135,7 @@ fn ascii(sc: u8, shift: bool) -> u8 {
         0x0C => b'-',
         0x0D if shift => b'+',
         0x0D => b'=',
+        0x3F => 0x05,                             // F5: esegue lo script nell'editor
         0x35 => b'/',
         0x0E => 0x08,                             // Backspace
         0x1C => 0x0D,                             // Invio
