@@ -6,9 +6,9 @@ use haiku_alloc_sim::swap::*;
 #[test]
 fn input_coda_piena_scarta_e_conta() {
     let mut i = Input::new(2);
-    assert!(i.push(Event::Press(Button::A)));
-    assert!(i.push(Event::Release(Button::A)));
-    assert!(!i.push(Event::Press(Button::B)));
+    assert!(i.push(Event::Press(Button::A)).is_ok());
+    assert!(i.push(Event::Release(Button::A)).is_ok());
+    assert_eq!(i.push(Event::Press(Button::B)), Err(haiku_alloc_sim::resource::Error::Full));
     assert_eq!(i.dropped(), 1);
     assert_eq!(i.poll(), Some(Event::Press(Button::A)));
     assert_eq!(i.poll(), Some(Event::Release(Button::A)));
