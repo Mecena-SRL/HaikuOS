@@ -9,17 +9,23 @@ const fn rgb(r: u16, g: u16, b: u16) -> u16 {
     r | (g << 5) | (b << 10)
 }
 
-pub const BG: u16 = rgb(2, 4, 8);
-pub const BAR: u16 = rgb(4, 8, 16);
-pub const BAR_SLOT: u16 = rgb(8, 16, 26);
-pub const CLOCK: u16 = rgb(12, 22, 31);
-pub const ICON: u16 = rgb(8, 16, 26);
-pub const ICON_HI: u16 = rgb(10, 22, 31);
-pub const WIN_TITLE: u16 = rgb(6, 14, 24);
-pub const WIN_BODY: u16 = rgb(3, 6, 12);
-pub const WIN_BORDER: u16 = rgb(12, 22, 31);
-pub const CLOSE: u16 = rgb(16, 18, 22);
-pub const TEXT: u16 = rgb(20, 26, 31);
+// Quattro tinte (docs/desktop-concept.md, sezione 1): T0 sfondo, T1 bianco, T2 arancio, T3 blu.
+pub const T0: u16 = rgb(1, 2, 6);
+pub const T1: u16 = rgb(31, 31, 31);
+pub const T2: u16 = rgb(31, 16, 0);
+pub const T3: u16 = rgb(0, 20, 31);
+
+pub const BG: u16 = T0;
+pub const BAR: u16 = T3;
+pub const BAR_SLOT: u16 = T2;
+pub const CLOCK: u16 = T1;
+pub const ICON: u16 = T2;
+pub const ICON_HI: u16 = T1;
+pub const WIN_TITLE: u16 = T2;
+pub const WIN_BODY: u16 = T1;
+pub const WIN_BORDER: u16 = T0;
+pub const CLOSE: u16 = T1;
+pub const TEXT: u16 = T0;
 
 /// Barra superiore, in unità GBA (1 unità = 1 px).
 pub const BAR_H: usize = 12;
