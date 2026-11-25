@@ -2,7 +2,7 @@
 //! Usa `slot.rs` (LZSS + Ascon-AEAD128). Nessun hardware reale.
 //! Regole: docs/memory-security.md, docs/resource-microkernels.md.
 
-use crate::resource::{Arch, Kind, Manifest};
+use crate::resource::{Arch, Kind, Manifest, Microkernel, Status};
 use crate::slot::{self, SlotError};
 
 /// Manifest generico: Ascon ovunque, come da decisione in docs/memory-security.md.
@@ -19,9 +19,12 @@ pub const CRYPTO_MANIFEST: Manifest = Manifest {
 pub enum CryptoError {
     Slot(SlotError),
     UnknownSlot,
+    /// Microkernel fermo: niente cifratura. L'apertura resta.
+    Halted,
 }
 
 pub struct Vault {
+    running: bool,
     key: [u8; 16],
     /// Un contatore per slot: il nonce non si riusa mai con la stessa chiave.
     counters: Vec<u64>,
@@ -30,7 +33,7 @@ pub struct Vault {
 
 impl Vault {
     pub fn new(key: [u8; 16], slots: usize, slot_bytes: usize) -> Self {
-        Self { key, counters: vec![0; slots], slot_bytes }
+        Self { running: true, key, counters: vec![0; slots], slot_bytes }
     }
 
     fn nonce(slot: u8, counter: u64) -> [u8; 16] {
@@ -41,7 +44,15 @@ impl Vault {
     }
 
     /// Cifra per uno slot e incrementa il contatore. Il nonce dipende da slot e contatore.
+    /// Ferma la cifratura. L'apertura resta per leggere i dati già scritti.
+    pub fn halt(&mut self) {
+        self.running = false;
+    }
+
     pub fn seal(&mut self, slot_id: u8, plain: &[u8]) -> Result<Vec<u8>, CryptoError> {
+        if !self.running {
+            return Err(CryptoError::Halted);
+        }
         let c = self.counters.get_mut(slot_id as usize).ok_or(CryptoError::UnknownSlot)?;
         let nonce = Self::nonce(slot_id, *c);
         *c += 1;
@@ -57,10 +68,11 @@ impl Vault {
     }
 }
 
-use crate::resource::Microkernel;
-
 impl Microkernel for Vault {
-    fn manifest(&self) -> crate::resource::Manifest {
-        CRYPTO_MANIFEST.clone()
+    fn manifest(&self) -> Manifest {
+        CRYPTO_MANIFEST
+    }
+    fn status(&self) -> Status {
+        if self.running { Status::Ready } else { Status::Stopped }
     }
 }

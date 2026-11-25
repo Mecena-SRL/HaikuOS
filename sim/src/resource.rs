@@ -253,3 +253,10 @@ pub fn activate(
 pub fn tick(drivers: &mut [Driver]) -> usize {
     drivers.iter_mut().map(|d| d.step() as usize).sum()
 }
+
+/// Il monolite legge lo stato e sceglie: primo microkernel `Ready` del tipo richiesto.
+/// Con più GPU, se una è ferma il lavoro va alla successiva.
+pub fn pick_ready(ks: &[&dyn Microkernel], kind: Kind) -> Option<usize> {
+    ks.iter()
+        .position(|k| k.status() == Status::Ready && k.manifest().kind == kind)
+}
