@@ -16,3 +16,5 @@ mod space;
 mod desktop;
 #[path = "../src/font.rs"]
 mod font;
+#[path = "../src/calc.rs"]
+mod calc;

@@ -4,6 +4,7 @@
 #![no_main]
 
 mod alloc;
+mod calc;
 mod compositor;
 mod desktop;
 mod font;
@@ -248,6 +249,8 @@ fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save
 }
 
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
+/// Superficie propria della calcolatrice (in EWRAM, non nello stack).
+static mut CALC_SURF: [u16; calc::SW * calc::SH] = [0; calc::SW * calc::SH];
 
 impl surfaces::Quota for Monolith {
     fn take(&mut self, p: usize, bytes: usize) -> Option<usize> {
@@ -367,11 +370,14 @@ pub extern "C" fn rust_main() -> ! {
     // Start passa allo spazio di lavoro.
     let mut dk = desktop::Desktop::new();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
-    desktop::paint(fb, &dk);
+    let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
+    dk.draw_calc(surf);
+    desktop::paint(fb, &dk, surf);
     while keys() & workspace::KEY_START == 0 {
         sram::vblank();
         if dk.step(keys()) {
-            desktop::paint(fb, &dk);
+            dk.draw_calc(surf);
+            desktop::paint(fb, &dk, surf);
         }
     }
     while keys() & workspace::KEY_START != 0 {
