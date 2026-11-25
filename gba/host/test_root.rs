@@ -28,3 +28,7 @@ mod glyph;
 mod editor;
 #[path = "../src/apps/mod.rs"]
 mod apps;
+#[path = "../src/chess.rs"]
+mod chess;
+#[path = "../src/media_ui.rs"]
+mod media_ui;
