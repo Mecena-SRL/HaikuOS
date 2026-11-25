@@ -44,6 +44,25 @@ pub const TERM_ICON: usize = 1;
 /// Icona che apre la calcolatrice.
 pub const CALC_ICON: usize = 2;
 
+/// Programmi che il desktop sa lanciare. `None` = icona senza programma (ancora da fare).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum App {
+    None,
+    Term,
+    Calc,
+}
+
+/// Tabella del lanciatore: programma dietro a ogni icona.
+pub const APPS: [App; ICONS] = [App::None, App::Term, App::Calc, App::None];
+
+/// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
+pub fn launchable(i: usize) -> Option<App> {
+    match APPS.get(i).copied().unwrap_or(App::None) {
+        App::None => None,
+        a => Some(a),
+    }
+}
+
 use crate::calc_ui::{self, CalcUi};
 
 pub const KEY_A: u16 = 1 << 0;
@@ -56,7 +75,7 @@ pub const KEY_DOWN: u16 = 1 << 7;
 /// Stato del desktop: icona selezionata, programma in finestra (indice icona), calcolatrice.
 pub struct Desktop {
     sel: usize,
-    win: Option<usize>,
+    win: Option<App>,
     prev: u16,
     calc: CalcUi,
 }
@@ -89,7 +108,7 @@ impl Desktop {
         let pressed = keys & !self.prev;
         self.prev = keys;
         let before = (self.sel, self.win, self.calc.cursor(), self.calc.calc().shown(), self.calc.calc().err.is_some());
-        if self.win == Some(CALC_ICON) {
+        if self.win == Some(App::Calc) {
             self.calc.step(keys);
             if pressed & KEY_B != 0 {
                 self.win = None;
@@ -101,8 +120,10 @@ impl Desktop {
             if pressed & (KEY_LEFT | KEY_UP) != 0 {
                 self.sel = (self.sel + ICONS - 1) % ICONS;
             }
-            if pressed & KEY_A != 0 && (self.sel == TERM_ICON || self.sel == CALC_ICON) {
-                self.win = Some(self.sel);
+            if pressed & KEY_A != 0 {
+                if let Some(app) = launchable(self.sel) {
+                    self.win = Some(app);
+                }
             }
             if pressed & KEY_B != 0 {
                 self.win = None;
@@ -162,7 +183,7 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16]) {
     rect(fb, WIN_X + 1, WIN_Y + TITLE_H + 1, WIN_W - 2, WIN_H - TITLE_H - 2, WIN_BODY);
     let bx = WIN_X + 1;
     let by = WIN_Y + TITLE_H + 1;
-    if app == CALC_ICON {
+    if app == App::Calc {
         crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"CALC", TEXT);
         // Superficie propria della calcolatrice, copiata nel corpo della finestra.
         for y in 0..calc_ui::SH {
@@ -205,7 +226,7 @@ mod tests {
         assert_eq!(d.sel(), 2);
         d.step(0);
         assert!(d.step(KEY_A)); // sel 2 = CALC: apre la calcolatrice
-        assert_eq!(d.win, Some(CALC_ICON));
+        assert_eq!(d.win, Some(App::Calc));
         d.step(0);
         assert!(d.step(KEY_B));
         assert!(!d.win_open());
@@ -242,6 +263,22 @@ mod tests {
         d.step(0);
         assert!(d.step(KEY_RIGHT));
         assert_eq!(d.calc().cursor(), 1);
+    }
+
+    #[test]
+    fn launcher_table_maps_icons_to_apps() {
+        assert_eq!(launchable(0), None); // FILES: ancora senza programma
+        assert_eq!(launchable(TERM_ICON), Some(App::Term));
+        assert_eq!(launchable(CALC_ICON), Some(App::Calc));
+        assert_eq!(launchable(ICONS - 1), None); // NOTES
+        assert_eq!(launchable(ICONS + 5), None);
+    }
+
+    #[test]
+    fn a_on_icon_without_program_opens_nothing() {
+        let mut d = Desktop::new();
+        assert!(!d.step(KEY_A)); // icona 0 = FILES
+        assert!(!d.win_open());
     }
 
     #[test]
