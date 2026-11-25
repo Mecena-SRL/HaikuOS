@@ -37,6 +37,8 @@ pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
 /// Numero di icone sulla riga (4 colonne, una sola riga nel primo schizzo).
 pub const ICONS: usize = 4;
+/// Etichette sotto le icone (files, term, giochi, notes).
+pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"GIOCHI", b"NOTES"];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
 
@@ -114,9 +116,9 @@ pub fn paint(fb: &mut [u16], d: &Desktop) {
 
     // Barra: nome a sinistra, due slot programma al centro, orologio a destra.
     rect(fb, 0, 0, W, BAR_H, BAR);
-    rect(fb, 4, 3, 40, 6, CLOCK); // nome del sistema
-    rect(fb, 92, 3, 24, 6, BAR_SLOT); // [term]
-    rect(fb, 120, 3, 24, 6, BAR_SLOT); // [files]
+    crate::font::draw(fb, W, H, 4, 3, b"HAIKUOS", TEXT); // nome del sistema
+    crate::font::draw(fb, W, H, 92, 3, b"TERM", TEXT);
+    crate::font::draw(fb, W, H, 120, 3, b"FILES", TEXT);
     rect(fb, W - 30, 3, 26, 6, CLOCK); // orologio (da verificare: serve il timer)
 
     // Icone: files, term, giochi, notes. Riquadro chiaro = icona da aprire.
@@ -124,6 +126,7 @@ pub fn paint(fb: &mut [u16], d: &Desktop) {
         let (x, y) = icon_pos(i);
         let c = if i == d.sel() { ICON_HI } else { ICON };
         rect(fb, x, y, ICON_SIZE, ICON_SIZE, c);
+        crate::font::draw(fb, W, H, x, y + ICON_SIZE + 2, ICON_LABELS[i], T1);
     }
     if !d.win_open() {
         return;
@@ -135,6 +138,7 @@ pub fn paint(fb: &mut [u16], d: &Desktop) {
     rect(fb, WIN_X + WIN_W - 9, WIN_Y + 1, 8, 8, CLOSE);
     rect(fb, WIN_X + 1, WIN_Y + TITLE_H + 1, WIN_W - 2, WIN_H - TITLE_H - 2, WIN_BODY);
     // Prima riga del prompt, come nel concept ("$ ls").
+    crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"TERMINALE", TEXT);
     rect(fb, WIN_X + 4, WIN_Y + TITLE_H + 5, 10, 2, TEXT);
     put(fb, WIN_X + 1, WIN_Y + 1, WIN_BORDER);
 }

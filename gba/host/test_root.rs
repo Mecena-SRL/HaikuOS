@@ -14,3 +14,5 @@ mod workspace;
 mod space;
 #[path = "../src/desktop.rs"]
 mod desktop;
+#[path = "../src/font.rs"]
+mod font;
