@@ -1,25 +1,27 @@
 //! Schermata del desktop dal concept (docs/desktop-concept.md, sezioni 2 e 3).
-//! Tema scuro e freddo. Disegna in un framebuffer 240x160, senza dipendenze da hardware.
+//! Quattro tinte retro (docs/desktop-concept.md). Disegna in un framebuffer 240x160, senza dipendenze da hardware.
 #![allow(dead_code)]
 
 pub const W: usize = 240;
 pub const H: usize = 160;
 
-const fn rgb(r: u16, g: u16, b: u16) -> u16 {
-    r | (g << 5) | (b << 10)
-}
+// Quattro tinte (docs/desktop-concept.md, scelta di Ivan).
+pub const T0: u16 = 1 | (2 << 5) | (6 << 10); // sfondo
+pub const T1: u16 = 31 | (31 << 5) | (31 << 10); // corpo finestra, icona selezionata
+pub const T2: u16 = 31 | (16 << 5); // titolo finestra, icone
+pub const T3: u16 = 20 << 5 | (31 << 10); // barra superiore
 
-pub const BG: u16 = rgb(2, 4, 8);
-pub const BAR: u16 = rgb(4, 8, 16);
-pub const BAR_SLOT: u16 = rgb(8, 16, 26);
-pub const CLOCK: u16 = rgb(12, 22, 31);
-pub const ICON: u16 = rgb(8, 16, 26);
-pub const ICON_HI: u16 = rgb(10, 22, 31);
-pub const WIN_TITLE: u16 = rgb(6, 14, 24);
-pub const WIN_BODY: u16 = rgb(3, 6, 12);
-pub const WIN_BORDER: u16 = rgb(12, 22, 31);
-pub const CLOSE: u16 = rgb(16, 18, 22);
-pub const TEXT: u16 = rgb(20, 26, 31);
+pub const BG: u16 = T0;
+pub const BAR: u16 = T3;
+pub const BAR_SLOT: u16 = T2;
+pub const CLOCK: u16 = T1;
+pub const ICON: u16 = T2;
+pub const ICON_HI: u16 = T1;
+pub const WIN_TITLE: u16 = T2;
+pub const WIN_BODY: u16 = T1;
+pub const WIN_BORDER: u16 = T3;
+pub const CLOSE: u16 = T1;
+pub const TEXT: u16 = T0;
 
 /// Barra superiore, in unità GBA (1 unità = 1 px).
 pub const BAR_H: usize = 12;
@@ -33,6 +35,58 @@ pub const WIN_Y: usize = 30;
 pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
+/// Numero di icone sulla riga (4 colonne, una sola riga nel primo schizzo).
+pub const ICONS: usize = 4;
+/// Icona che apre la finestra del terminale.
+pub const TERM_ICON: usize = 1;
+
+pub const KEY_A: u16 = 1 << 0;
+pub const KEY_B: u16 = 1 << 1;
+pub const KEY_RIGHT: u16 = 1 << 4;
+pub const KEY_LEFT: u16 = 1 << 5;
+pub const KEY_UP: u16 = 1 << 6;
+pub const KEY_DOWN: u16 = 1 << 7;
+
+/// Stato del desktop: icona selezionata e finestra del terminale aperta o no.
+pub struct Desktop {
+    sel: usize,
+    win_open: bool,
+    prev: u16,
+}
+
+impl Desktop {
+    pub const fn new() -> Self {
+        Self { sel: 0, win_open: false, prev: 0 }
+    }
+
+    pub fn sel(&self) -> usize {
+        self.sel
+    }
+
+    pub fn win_open(&self) -> bool {
+        self.win_open
+    }
+
+    /// Un passo di input (tasti premuti in questo frame). Ritorna true se il desktop va ridisegnato.
+    pub fn step(&mut self, keys: u16) -> bool {
+        let pressed = keys & !self.prev;
+        self.prev = keys;
+        let before = (self.sel, self.win_open);
+        if pressed & (KEY_RIGHT | KEY_DOWN) != 0 {
+            self.sel = (self.sel + 1) % ICONS;
+        }
+        if pressed & (KEY_LEFT | KEY_UP) != 0 {
+            self.sel = (self.sel + ICONS - 1) % ICONS;
+        }
+        if pressed & KEY_A != 0 && self.sel == TERM_ICON {
+            self.win_open = true;
+        }
+        if pressed & KEY_B != 0 {
+            self.win_open = false;
+        }
+        before != (self.sel, self.win_open)
+    }
+}
 
 /// Posizione (x, y) dell'icona `i` nella griglia: 4 colonne.
 pub fn icon_pos(i: usize) -> (usize, usize) {
@@ -54,7 +108,7 @@ fn rect(fb: &mut [u16], x: usize, y: usize, w: usize, h: usize, c: u16) {
 }
 
 /// Disegna il desktop completo in `fb` (W * H pixel).
-pub fn paint(fb: &mut [u16]) {
+pub fn paint(fb: &mut [u16], d: &Desktop) {
     assert!(fb.len() >= W * H);
     rect(fb, 0, 0, W, H, BG);
 
@@ -66,10 +120,13 @@ pub fn paint(fb: &mut [u16]) {
     rect(fb, W - 30, 3, 26, 6, CLOCK); // orologio (da verificare: serve il timer)
 
     // Icone: files, term, giochi, notes. Riquadro chiaro = icona da aprire.
-    for i in 0..4 {
+    for i in 0..ICONS {
         let (x, y) = icon_pos(i);
-        let c = if i == 0 { ICON_HI } else { ICON };
+        let c = if i == d.sel() { ICON_HI } else { ICON };
         rect(fb, x, y, ICON_SIZE, ICON_SIZE, c);
+    }
+    if !d.win_open() {
+        return;
     }
 
     // Finestra del terminale: titolo, corpo con bordo di 1 px, pulsante chiudi 8x8.
@@ -86,15 +143,44 @@ pub fn paint(fb: &mut [u16]) {
 mod tests {
     use super::*;
 
-    fn screen() -> [u16; W * H] {
+    fn screen(d: &Desktop) -> [u16; W * H] {
         let mut fb = [0u16; W * H];
-        paint(&mut fb);
+        paint(&mut fb, d);
         fb
     }
 
     #[test]
+    fn navigation_wraps_and_terminal_opens_and_closes() {
+        let mut d = Desktop::new();
+        assert!(d.step(KEY_RIGHT));
+        assert_eq!(d.sel(), 1);
+        assert!(!d.step(KEY_RIGHT)); // tasto ancora premuto: nessun passo in più
+        d.step(0);
+        assert!(d.step(KEY_RIGHT));
+        assert_eq!(d.sel(), 2);
+        d.step(0);
+        assert!(!d.step(KEY_A)); // icona 2 non apre nulla
+        assert!(!d.win_open());
+        d.step(0);
+        d.step(KEY_LEFT);
+        assert_eq!(d.sel(), TERM_ICON);
+        d.step(0);
+        assert!(d.step(KEY_A));
+        assert!(d.win_open());
+        d.step(0);
+        assert!(d.step(KEY_B));
+        assert!(!d.win_open());
+        d.step(0);
+        d.step(KEY_UP);
+        assert_eq!(d.sel(), 0);
+        d.step(0);
+        d.step(KEY_LEFT);
+        assert_eq!(d.sel(), ICONS - 1);
+    }
+
+    #[test]
     fn bar_is_on_top_and_background_below() {
-        let fb = screen();
+        let fb = screen(&Desktop::new());
         assert_eq!(fb[0], BAR);
         assert_eq!(fb[(BAR_H - 1) * W + 100], BAR);
         assert_eq!(fb[(BAR_H + 2) * W + 1], BG);
@@ -102,7 +188,7 @@ mod tests {
 
     #[test]
     fn icons_sit_on_the_grid() {
-        let fb = screen();
+        let fb = screen(&Desktop::new());
         let (x, y) = icon_pos(0);
         assert_eq!(fb[(y + 1) * W + x + 1], ICON_HI);
         let (x, y) = icon_pos(1);
@@ -112,11 +198,27 @@ mod tests {
 
     #[test]
     fn window_has_title_body_and_close_button() {
-        let fb = screen();
+        let mut d = Desktop::new();
+        d.step(KEY_RIGHT); // icona del terminale
+        d.step(0);
+        d.step(KEY_A);
+        let fb = screen(&d);
         assert_eq!(fb[(WIN_Y + 2) * W + WIN_X + 3], WIN_TITLE);
         assert_eq!(fb[(WIN_Y + 3) * W + WIN_X + WIN_W - 5], CLOSE);
         assert_eq!(fb[(WIN_Y + TITLE_H + 3) * W + WIN_X + 3], WIN_BODY);
         assert_eq!(fb[WIN_Y * W + WIN_X], WIN_BORDER);
+    }
+
+    #[test]
+    fn only_the_four_tints_are_used() {
+        let mut d = Desktop::new();
+        d.step(KEY_RIGHT);
+        d.step(0);
+        d.step(KEY_A);
+        let fb = screen(&d);
+        for px in fb.iter() {
+            assert!([T0, T1, T2, T3].contains(px), "colore fuori tavolozza: {px:#06x}");
+        }
     }
 
     #[test]

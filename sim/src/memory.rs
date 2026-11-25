@@ -2,7 +2,7 @@
 //! revoca che azzera prima del riuso. Nessun hardware reale.
 //! Regole: docs/resource-microkernels.md, docs/process-management.md (sezione 3.5).
 
-use crate::resource::{Kind, Manifest, Arch};
+use crate::resource::{Arch, Kind, Manifest, Microkernel, Status};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pool {
@@ -24,6 +24,8 @@ pub enum MemError {
     BadHandle,
     /// Il proprietario non possiede il blocco.
     NotOwner,
+    /// Microkernel fermo: niente nuove allocazioni né scritture.
+    Halted,
 }
 
 /// Manifest del microkernel memoria. VRAM è un pool separato, non un'altra RAM.
@@ -41,6 +43,7 @@ struct Block {
 }
 
 pub struct MemoryKernel {
+    running: bool,
     ram: Vec<Option<Block>>,
     vram: Vec<Option<Block>>,
     block_bytes: usize,
@@ -53,6 +56,7 @@ impl MemoryKernel {
     /// `ram_blocks` e `vram_blocks`: numero di blocchi fissi per pool. Nessuna allocazione dopo `new`.
     pub fn new(ram_blocks: usize, vram_blocks: usize, block_bytes: usize, owners: usize) -> Self {
         Self {
+            running: true,
             ram: (0..ram_blocks).map(|_| None).collect(),
             vram: (0..vram_blocks).map(|_| None).collect(),
             block_bytes,
@@ -73,7 +77,15 @@ impl MemoryKernel {
         }
     }
 
+    /// Ferma il microkernel: niente nuove allocazioni né scritture. Letture e revoche restano.
+    pub fn halt(&mut self) {
+        self.running = false;
+    }
+
     pub fn alloc(&mut self, owner: u8, pool: Pool) -> Result<Handle, MemError> {
+        if !self.running {
+            return Err(MemError::Halted);
+        }
         let o = owner as usize;
         if self.used[o] >= self.quota[o] {
             return Err(MemError::OverQuota);
@@ -95,6 +107,9 @@ impl MemoryKernel {
     }
 
     pub fn write(&mut self, h: Handle, caller: u8, at: usize, bytes: &[u8]) -> Result<(), MemError> {
+        if !self.running {
+            return Err(MemError::Halted);
+        }
         let b = self.block_mut(h, caller)?;
         let end = at.checked_add(bytes.len()).filter(|&e| e <= b.data.len());
         let end = end.ok_or(MemError::BadHandle)?;
@@ -118,10 +133,11 @@ impl MemoryKernel {
     }
 }
 
-use crate::resource::Microkernel;
-
 impl Microkernel for MemoryKernel {
-    fn manifest(&self) -> crate::resource::Manifest {
-        MEMORY_MANIFEST.clone()
+    fn manifest(&self) -> Manifest {
+        MEMORY_MANIFEST
+    }
+    fn status(&self) -> Status {
+        if self.running { Status::Ready } else { Status::Stopped }
     }
 }
