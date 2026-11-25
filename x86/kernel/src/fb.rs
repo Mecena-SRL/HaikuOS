@@ -102,7 +102,7 @@ impl<'a> Canvas for Scaled<'a> {
             let g = font::glyph(ch);
             for (row, bits) in g.iter().enumerate() {
                 for col in 0..font::GLYPH_W {
-                    if bits & (0b100 >> col) != 0 {
+                    if bits & (1 << (font::GLYPH_W - 1 - col)) != 0 {
                         let px = x + (i * font::ADVANCE + col) as i32;
                         let py = y + row as i32;
                         if px >= 0 && py >= 0 && px < self.lw && py < self.lh {
