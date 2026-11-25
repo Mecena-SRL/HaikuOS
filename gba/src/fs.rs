@@ -37,13 +37,22 @@ struct Entry {
 
 const EMPTY: Entry = Entry { used: false, dir: false, name: [0; NAME_MAX], name_len: 0, owner: 0, head: NONE, len: 0 };
 
-fn fnv(b: &[u8]) -> u32 {
-    let mut h: u32 = 0x811c_9dc5;
+fn fnv_with(mut h: u32, b: &[u8]) -> u32 {
     for &x in b {
         h ^= x as u32;
         h = h.wrapping_mul(0x0100_0193);
     }
     h
+}
+
+fn fnv(b: &[u8]) -> u32 {
+    fnv_with(0x811c_9dc5, b)
+}
+
+/// Checksum dei metadati di una voce: nome, flag, owner, testa, lunghezza. Da verificare su ARM7.
+fn meta_sum(e: &Entry) -> u32 {
+    let h = fnv_with(0x811c_9dc5, &e.name[..e.name_len as usize]);
+    fnv_with(h, &[e.used as u8, e.dir as u8, e.owner, e.head, e.name_len, e.len as u8, (e.len >> 8) as u8])
 }
 
 /// Percorso valido: niente componenti vuoti, niente '/' iniziale o finale.
@@ -68,6 +77,8 @@ pub struct Fs {
     files: [Entry; FILES],
     /// Prossimo blocco da provare (next-fit): le scritture girano su tutto lo store.
     cursor: usize,
+    /// Checksum dei metadati per ogni voce (vedi `meta_sum`).
+    msum: [u32; FILES],
 }
 
 impl Fs {
@@ -79,6 +90,7 @@ impl Fs {
             used: [false; BLOCKS],
             files: [EMPTY; FILES],
             cursor: 0,
+            msum: [0; FILES],
         }
     }
 
@@ -91,7 +103,8 @@ impl Fs {
 
     fn entry(&self, id: usize) -> Result<Entry, FsError> {
         match self.files.get(id) {
-            Some(e) if e.used => Ok(*e),
+            Some(e) if e.used && meta_sum(e) == self.msum[id] => Ok(*e),
+            Some(e) if e.used => Err(FsError::Corrupt),
             _ => Err(FsError::NotFound),
         }
     }
@@ -117,6 +130,7 @@ impl Fs {
         e.name_len = name.len() as u8;
         e.name[..name.len()].copy_from_slice(name);
         self.files[id] = e;
+        self.msum[id] = meta_sum(&e);
         Ok(id)
     }
 
@@ -205,6 +219,8 @@ impl Fs {
         let old = f.head;
         f.head = if need > 0 { staged[0] } else { NONE };
         f.len = bytes.len() as u16;
+        let snap = *f;
+        self.msum[id] = meta_sum(&snap);
         self.free_chain(old);
         Ok(())
     }
@@ -269,6 +285,11 @@ impl Fs {
 
     pub fn free_blocks(&self) -> usize {
         self.used.iter().filter(|&&u| !u).count()
+    }
+
+    #[cfg(test)]
+    fn tamper_meta(&mut self, id: usize) {
+        self.files[id].owner ^= 1;
     }
 
     #[cfg(test)]
@@ -340,6 +361,17 @@ mod tests {
             *h = fs.files[id].head;
         }
         assert!(heads.windows(2).all(|p| p[0] != p[1]));
+    }
+
+    #[test]
+    fn metadata_corruption_detected() {
+        let mut fs = Fs::new();
+        let id = fs.create(b"m", 0).unwrap();
+        fs.write(id, 0, 1024, b"data").unwrap();
+        fs.tamper_meta(id);
+        let mut out = [0u8; 4];
+        assert_eq!(fs.read(id, 0, &mut out), Err(FsError::Corrupt));
+        assert_eq!(fs.remove(id, 0), Err(FsError::Corrupt));
     }
 
     #[test]

@@ -35,7 +35,7 @@ Non raggiungibili dal sandbox: docs.kernel.org e support.apple.com (rete bloccat
 |---|---|---|
 | Copy-on-write (mai sovrascrivere) | ZFS, Btrfs, APFS, WAFL, LittleFS | Base dell'atomicità. Abbiamo già la forma minima in `fs.rs`. |
 | Snapshot istantanei | ZFS: "creati rapidamente, inizialmente nessuno spazio extra" (zfsconcepts). Btrfs: OK (Status.rst). | Costo = copia della tabella, non dei dati. Prototipo fatto (vedi §6). |
-| Checksum su dati **e** metadati | ZFS (checksum end-to-end), Btrfs: checksum OK (Status.rst), ReFS integrity streams | Oggi copriamo solo i dati. I metadati sono scoperti. |
+| Checksum su dati **e** metadati | ZFS (checksum end-to-end), Btrfs: checksum OK (Status.rst), ReFS integrity streams | Oggi copriamo dati e metadati delle voci (`fs.rs`); puntatori `next` ancora scoperti. |
 | Auto-riparazione da copia valida | Btrfs: OK su DUP, RAID1, RAID10, RAID56 | Richiede ridondanza. |
 | Scrub (verifica periodica) | Btrfs: OK; Scrub + RAID56: "mostly OK" | RAID5/6 non è maturo ovunque: evitare in v1. |
 | Compressione | Btrfs OK (Status.rst), ZFS (feature in pool) | Riusare LZSS già in `sim/src/lzss.rs`. **Da verificare** rapporto e CPU su ARM7. |
@@ -81,7 +81,7 @@ Non raggiungibili dal sandbox: docs.kernel.org e support.apple.com (rete bloccat
 - `sim/src/snapshot.rs`: store a blocchi con riferimenti. Snapshot = copia della tabella file -> blocco. Scrittura = blocco nuovo. Rollback e drop con conteggio dei riferimenti.
 - `sim/tests/snapshot.rs`: 9 test. Costo zero in blocchi allo snapshot; un blocco per overwrite; drop libera i blocchi; rollback recupera file cancellati; limiti (64 blocchi, 4 snapshot, 64 byte per file) **da verificare**.
 - Checksum sui metadati (nome, blocco, lunghezza) per ogni voce, verificato in `read_checked`; test di manomissione. È il passo 1 della priorità, portato nel sim.
-- Il file system in `gba/src/fs.rs` non è stato toccato.
+- `gba/src/fs.rs`: checksum dei metadati per ogni voce (nome, flag, owner, testa, lunghezza), verificato in `entry()`; test di manomissione. 32 test host verdi, build GBA release ok.
 
 Limiti dichiarati: un file occupa un solo blocco (64 byte). Overwrite richiede un blocco libero, anche se il file è piccolo. Non c'è persistenza su disco.
 
