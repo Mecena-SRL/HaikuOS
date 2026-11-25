@@ -47,3 +47,8 @@ cargo test
 
 - Lettura in sola lettura di MBR e GPT da un'immagine in memoria. Verifica i CRC32 e i limiti del disco.
 - Scelte e limiti: `docs/compatibility.md`. Non legge l'intestazione di backup GPT. **Da verificare**.
+
+## Gestore dei font (`src/fonts.rs`, `tests/fonts.rs`)
+
+- Registro, attivazione (max 4), font di sistema non disattivabile, collezioni (max 8, 8 membri ciascuna), anteprima.
+- Solo host, nessun parser TTF/OTF. Design e limiti: `docs/font-manager.md`. **Da verificare** su GBA.

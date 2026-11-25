@@ -8,6 +8,7 @@ pub mod fat32;
 #[cfg(feature = "fat32-write")]
 pub mod fat32_write;
 pub mod exfat;
+pub mod fonts;
 pub mod gpu;
 pub mod input;
 pub mod ip;
