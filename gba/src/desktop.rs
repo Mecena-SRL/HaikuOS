@@ -48,12 +48,16 @@ pub const CALC_ICON: usize = 2;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum App {
     None,
+    /// Spazio di lavoro (file manager): schermo intero, si esce con L.
+    Files,
+    /// Visualizzatore/editor di testo: schermo intero, si esce con Start.
+    Notes,
     Term,
     Calc,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
-pub const APPS: [App; ICONS] = [App::None, App::Term, App::Calc, App::None];
+pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
 pub fn launchable(i: usize) -> Option<App> {
@@ -73,19 +77,32 @@ pub const KEY_RIGHT: u16 = 1 << 4;
 pub const KEY_LEFT: u16 = 1 << 5;
 pub const KEY_UP: u16 = 1 << 6;
 pub const KEY_DOWN: u16 = 1 << 7;
+pub const KEY_SELECT: u16 = 1 << 2;
 
 /// Stato del desktop: icona selezionata, programma in finestra (indice icona), calcolatrice.
 pub struct Desktop {
     sel: usize,
     win: Option<App>,
     pub term: Terminal,
+    /// Programma a schermo intero da avviare (lo gestisce il chiamante).
+    run: Option<App>,
     prev: u16,
     calc: CalcUi,
 }
 
 impl Desktop {
     pub const fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new() }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None }
+    }
+
+    /// Vero se c'è un programma a schermo intero da avviare.
+    pub fn run_requested(&self) -> bool {
+        self.run.is_some()
+    }
+
+    /// Prende il programma a schermo intero richiesto.
+    pub fn take_run(&mut self) -> Option<App> {
+        self.run.take()
     }
 
     pub fn sel(&self) -> usize {
@@ -118,6 +135,9 @@ impl Desktop {
             self.calc.calc().err.is_some(),
             self.term.sel,
             self.term.lines(),
+            self.term.typing,
+            self.term.pick,
+            self.term.input().len(),
         );
         match self.win {
             Some(App::Calc) => {
@@ -127,17 +147,39 @@ impl Desktop {
                 }
             }
             Some(App::Term) => {
-                if pressed & KEY_UP != 0 {
-                    self.term.step_sel(fs, -1);
+                if pressed & KEY_SELECT != 0 {
+                    self.term.toggle_typing();
                 }
-                if pressed & KEY_DOWN != 0 {
-                    self.term.step_sel(fs, 1);
-                }
-                if pressed & KEY_A != 0 {
-                    self.term.run(fs, self.term.sel);
-                }
-                if pressed & KEY_B != 0 {
-                    self.win = None;
+                if self.term.typing {
+                    // Digitazione: su/giù scelgono il carattere, A lo aggiunge, B cancella, sinistra esegue.
+                    if pressed & KEY_UP != 0 {
+                        self.term.pick_step(-1);
+                    }
+                    if pressed & KEY_DOWN != 0 {
+                        self.term.pick_step(1);
+                    }
+                    if pressed & KEY_A != 0 {
+                        self.term.type_pick();
+                    }
+                    if pressed & KEY_B != 0 {
+                        self.term.backspace();
+                    }
+                    if pressed & KEY_LEFT != 0 {
+                        self.term.run_input(fs);
+                    }
+                } else {
+                    if pressed & KEY_UP != 0 {
+                        self.term.step_sel(fs, -1);
+                    }
+                    if pressed & KEY_DOWN != 0 {
+                        self.term.step_sel(fs, 1);
+                    }
+                    if pressed & KEY_A != 0 {
+                        self.term.run(fs, self.term.sel);
+                    }
+                    if pressed & KEY_B != 0 {
+                        self.win = None;
+                    }
                 }
             }
             _ => {
@@ -148,8 +190,10 @@ impl Desktop {
                     self.sel = (self.sel + ICONS - 1) % ICONS;
                 }
                 if pressed & KEY_A != 0 {
-                    if let Some(app) = launchable(self.sel) {
-                        self.win = Some(app);
+                    match launchable(self.sel) {
+                        Some(App::Files) | Some(App::Notes) => self.run = launchable(self.sel),
+                        Some(app) => self.win = Some(app),
+                        None => {}
                     }
                 }
                 if pressed & KEY_B != 0 {
@@ -166,6 +210,9 @@ impl Desktop {
                 self.calc.calc().err.is_some(),
                 self.term.sel,
                 self.term.lines(),
+                self.term.typing,
+                self.term.pick,
+                self.term.input().len(),
             )
     }
 }
@@ -245,12 +292,22 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
     }
     crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"TERMINALE", TEXT);
     // Prompt: "$ " e la voce del menu scelta con su/giù. A la esegue.
-    let mut lab = [0u8; terminal::LABEL_MAX];
-    let ln = d.term.label(fs, d.term.sel, &mut lab);
-    let mut prompt = [0u8; terminal::LABEL_MAX + 2];
+    let mut prompt = [0u8; terminal::INPUT_MAX + terminal::LABEL_MAX + 4];
     prompt[0] = b'$';
     prompt[1] = b' ';
-    let n = upper_into(&mut prompt[2..], &lab[..ln]);
+    let n = if d.term.typing {
+        // Digitazione: testo scritto e carattere scelto (lo spazio si vede come _).
+        let inp = d.term.input();
+        let mut n = upper_into(&mut prompt[2..], inp);
+        let c = terminal::ALPHA[d.term.pick];
+        prompt[2 + n] = if c == b' ' { b'_' } else { c };
+        n += 1;
+        n
+    } else {
+        let mut lab = [0u8; terminal::LABEL_MAX];
+        let ln = d.term.label(fs, d.term.sel, &mut lab);
+        upper_into(&mut prompt[2..], &lab[..ln])
+    };
     crate::font::draw(fb, W, H, WIN_X + 4, by + 2, &prompt[..2 + n], TEXT);
     // Output: sotto il prompt, una riga per voce.
     for k in 0..d.term.lines() {
@@ -325,18 +382,33 @@ mod tests {
 
     #[test]
     fn launcher_table_maps_icons_to_apps() {
-        assert_eq!(launchable(0), None); // FILES: ancora senza programma
+        assert_eq!(launchable(0), Some(App::Files));
         assert_eq!(launchable(TERM_ICON), Some(App::Term));
         assert_eq!(launchable(CALC_ICON), Some(App::Calc));
-        assert_eq!(launchable(ICONS - 1), None); // NOTES
+        assert_eq!(launchable(ICONS - 1), Some(App::Notes));
         assert_eq!(launchable(ICONS + 5), None);
     }
 
     #[test]
-    fn a_on_icon_without_program_opens_nothing() {
+    fn a_on_files_requests_fullscreen_run_not_window() {
         let mut d = Desktop::new();
-        assert!(!d.step(KEY_A, &Fs::new())); // icona 0 = FILES
+        d.step(KEY_A, &Fs::new()); // icona 0 = FILES
+        assert!(d.run_requested());
         assert!(!d.win_open());
+        assert_eq!(d.take_run(), Some(App::Files));
+        assert!(!d.run_requested());
+    }
+
+    #[test]
+    fn notes_icon_requests_editor_run() {
+        let mut d = Desktop::new();
+        for _ in 0..ICONS - 1 {
+            d.step(KEY_RIGHT, &Fs::new());
+            d.step(0, &Fs::new());
+        }
+        assert_eq!(d.sel(), ICONS - 1);
+        d.step(KEY_A, &Fs::new());
+        assert_eq!(d.take_run(), Some(App::Notes));
     }
 
     #[test]

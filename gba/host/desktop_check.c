@@ -1,7 +1,7 @@
 /* Harness headless (libmgba): controlla i colori di desktop::paint in VRAM (mode 3).
  * Build: gcc -O1 -o desktop_check host/desktop_check.c -lmgba
  * Uso:   ./desktop_check haiku-gba.gba
- * Sequenza: A a 300 (fine misure), Start a 500 (fine editor), Destra a 600, A a 610 (apre il terminale), A a 620 (esegue LS); controllo a 650.
+ * Sequenza: vedi keys_at(). Controllo a 1000.
  * Verifica: ogni pixel è una delle 4 tinte, e alcuni punti chiave hanno la tinta attesa.
  */
 #include <stdio.h>
@@ -14,6 +14,11 @@
 #define KEY_A 1
 #define KEY_START 8
 #define KEY_RIGHT 16
+#define KEY_LEFT 32
+#define KEY_DOWN 128
+#define KEY_SELECT 4
+#define HOLD 4
+#define PERIOD 10
 
 static uint16_t vram[W * H];
 
@@ -27,6 +32,25 @@ static const uint16_t T[4] = {
 
 typedef struct { int x, y, tint; const char *nome; } punto;
 
+
+/* Tasti per frame. A a 300 (fine misure), Start a 500 (fine editor), Destra a 600, A a 610 (apre il terminale).
+ * Poi SELECT (digitazione), 11 giù + A = 'L', 5 giù + A = 'S', sinistra esegue LS. Controllo a 800. */
+static int keys_at(int f) {
+    if (f >= 300 && f < 304) return KEY_A;
+    if (f >= 500 && f < 504) return KEY_START;
+    if (f >= 600 && f < 604) return KEY_RIGHT;
+    if (f >= 610 && f < 614) return KEY_A;
+    if (f >= 620 && f < 624) return KEY_SELECT;
+    if (f >= 630 && f < 630 + 11 * PERIOD && (f - 630) % PERIOD < HOLD) return KEY_DOWN;
+    if (f >= 630 + 11 * PERIOD && f < 630 + 11 * PERIOD + HOLD) return KEY_A;
+    int g = 630 + 11 * PERIOD + PERIOD;
+    if (f >= g && f < g + 5 * PERIOD && (f - g) % PERIOD < HOLD) return KEY_DOWN;
+    if (f >= g + 5 * PERIOD && f < g + 5 * PERIOD + HOLD) return KEY_A;
+    int h = g + 5 * PERIOD + PERIOD;
+    if (f >= h && f < h + HOLD) return KEY_LEFT;
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
     struct mCore *c = mCoreCreate(mPLATFORM_GBA);
@@ -34,10 +58,8 @@ int main(int argc, char **argv) {
     mCoreInitConfig(c, NULL);
     if (!mCoreLoadFile(c, argv[1])) { puts("load fail"); return 1; }
     c->reset(c);
-    for (int f = 0; f <= 650; f++) {
-        c->setKeys(c, (f >= 300 && f < 302) ? KEY_A : (f >= 500 && f < 502) ? KEY_START
-                      : (f >= 600 && f < 602) ? KEY_RIGHT : (f >= 610 && f < 612) ? KEY_A
-                      : (f >= 620 && f < 622) ? KEY_A : 0);
+    for (int f = 0; f <= 1000; f++) {
+        c->setKeys(c, keys_at(f));
         c->runFrame(c);
     }
     for (int i = 0; i < W * H; i++) vram[i] = c->rawRead16(c, 0x06000000 + 2 * i, -1);

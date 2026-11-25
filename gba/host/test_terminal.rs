@@ -88,3 +88,62 @@ fn out_of_range_command_does_nothing() {
     assert_eq!(t.cwd(), b"");
     assert_eq!(t.lines(), 0);
 }
+
+fn type_str(t: &mut Terminal, s: &[u8]) {
+    for &c in s {
+        t.type_byte(c);
+    }
+}
+
+#[test]
+fn typed_ls_lists_root() {
+    let f = sample();
+    let mut t = Terminal::new();
+    type_str(&mut t, b"LS");
+    t.run_input(&f);
+    assert_eq!(t.lines(), 2);
+    assert_eq!(text(&t, 0), b"docs");
+    assert_eq!(t.input(), b"");
+}
+
+#[test]
+fn typed_cd_ignores_case_and_up_returns() {
+    let f = sample();
+    let mut t = Terminal::new();
+    type_str(&mut t, b"CD DOCS");
+    t.run_input(&f);
+    assert_eq!(t.cwd(), b"docs");
+    type_str(&mut t, b"up");
+    t.run_input(&f);
+    assert_eq!(t.cwd(), b"");
+}
+
+#[test]
+fn typed_errors_are_shown() {
+    let f = sample();
+    let mut t = Terminal::new();
+    type_str(&mut t, b"XYZ");
+    t.run_input(&f);
+    assert_eq!(text(&t, 0), b"ERRORE");
+    type_str(&mut t, b"CD NOPE");
+    t.run_input(&f);
+    assert_eq!(text(&t, 0), b"NON TROVATO");
+    assert_eq!(t.cwd(), b"");
+}
+
+#[test]
+fn input_editing_pick_and_backspace() {
+    let mut t = Terminal::new();
+    t.toggle_typing();
+    t.pick_step(-1); // dal primo carattere (spazio) all'ultimo di ALPHA
+    t.type_pick();
+    assert_eq!(t.input(), &terminal::ALPHA[terminal::ALPHA.len() - 1..]);
+    t.type_byte(b'A');
+    t.backspace();
+    t.backspace();
+    assert_eq!(t.input(), b"");
+    for _ in 0..(terminal::INPUT_MAX + 4) {
+        t.type_byte(b'A');
+    }
+    assert_eq!(t.input().len(), terminal::INPUT_MAX);
+}
