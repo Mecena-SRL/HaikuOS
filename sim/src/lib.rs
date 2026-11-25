@@ -3,14 +3,17 @@
 //! Scelta: `std` (Vec) solo per la simulazione; la logica è piccola e portabile a `no_std` + `alloc`.
 
 pub mod agent;
+pub mod gpu;
 pub mod cpu;
 pub mod install;
 pub mod lzss;
+pub mod net;
 pub mod memory;
 pub mod process;
 pub mod resource;
 pub mod slot;
 pub mod snapshot;
+pub mod storage;
 pub use agent::{Agent, GreedyAgent, Proposal, QuotaRequest};
 
 // Limiti di partenza: docs/architecture.md, sezione 6. Tutti da verificare.

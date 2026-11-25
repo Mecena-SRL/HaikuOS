@@ -22,6 +22,7 @@ pub enum Kind {
     Memory,
     Storage,
     Swap,
+    Network,
     Audio,
     Input,
     Power,
