@@ -5,6 +5,7 @@ use crate::fs::{parent_of, Fs, FILES, NAME_MAX};
 
 pub const KEY_A: u16 = 1 << 0;
 pub const KEY_B: u16 = 1 << 1;
+pub const KEY_SELECT: u16 = 1 << 2;
 pub const KEY_START: u16 = 1 << 3;
 pub const KEY_UP: u16 = 1 << 6;
 pub const KEY_DOWN: u16 = 1 << 7;
@@ -15,6 +16,8 @@ pub enum Action {
     Dir,
     File,
     Create,
+    /// Formattazione dello spazio di sistema (Select+B insieme). Non tocca lo spazio utente.
+    FormatSys,
 }
 
 pub struct Workspace {
@@ -82,6 +85,10 @@ impl Workspace {
             self.open = Some(id);
             self.dirty = true;
             return Action::File;
+        }
+        let combo = KEY_SELECT | KEY_B;
+        if keys & combo == combo && pressed & combo != 0 {
+            return Action::FormatSys;
         }
         if pressed & KEY_B != 0 {
             let mut path = [0u8; NAME_MAX];
@@ -156,6 +163,17 @@ mod tests {
         ws.step(&fs, KEY_DOWN);
         ws.step(&fs, KEY_DOWN);
         assert_eq!(ws.sel(), 1);
+    }
+
+    #[test]
+    fn select_and_b_together_formats_system() {
+        let fs = tree();
+        let mut ws = Workspace::new();
+        assert_eq!(ws.step(&fs, KEY_SELECT), Action::None);
+        assert_eq!(ws.step(&fs, KEY_SELECT | KEY_B), Action::FormatSys);
+        // Solo B da solo torna su, come prima.
+        assert_eq!(ws.step(&fs, 0), Action::None);
+        assert_eq!(ws.step(&fs, KEY_B), Action::Dir);
     }
 
     #[test]
