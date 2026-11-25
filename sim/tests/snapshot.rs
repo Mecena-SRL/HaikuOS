@@ -334,3 +334,18 @@ fn wrong_state_root_is_refused_after_apply() {
     let mut b = Store::new(KEY);
     assert_eq!(b.apply(&d), Err(SnapError::Corrupt));
 }
+
+#[test]
+fn failed_apply_leaves_replica_untouched() {
+    let mut a = Store::new(KEY);
+    a.write("x", b"nuovo").unwrap();
+    a.snapshot("s1").unwrap();
+    let mut d = a.diff(None, "s1").unwrap();
+    d.root ^= 1;
+    let mut b = Store::new(KEY);
+    b.write("keep", b"mio").unwrap();
+    assert_eq!(b.apply(&d), Err(SnapError::Corrupt));
+    assert_eq!(b.read("keep").unwrap(), b"mio");
+    assert!(b.read("x").is_none());
+    assert!(b.verify().is_ok());
+}
