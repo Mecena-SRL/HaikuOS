@@ -2,8 +2,7 @@
 //! con la RAM della CPU. Una GPU è un dispositivo separato, non una modalità della CPU.
 //! Nessun hardware reale. Regole: docs/resource-microkernels.md, sezione 8.
 
-use crate::resource::{Arch, Kind, Manifest};
-use std::collections::VecDeque;
+use crate::resource::{Arch, Error, Kind, Manifest, Microkernel, Queue};
 
 /// Manifest del driver video generico: framebuffer e VRAM, su tutte le architetture.
 pub const GPU_GENERIC: Manifest = Manifest {
@@ -37,30 +36,32 @@ pub enum GpuError {
     OutOfVram,
 }
 
+impl From<Error> for GpuError {
+    fn from(_: Error) -> Self {
+        GpuError::Full
+    }
+}
+
 pub struct Gpu {
     vram: Vec<u8>,
-    queue: VecDeque<Cmd>,
-    depth: usize,
+    queue: Queue<Cmd>,
 }
 
 impl Gpu {
     pub fn new(vram_bytes: usize, depth: usize) -> Self {
-        Self { vram: vec![0; vram_bytes], queue: VecDeque::new(), depth }
+        Self { vram: vec![0; vram_bytes], queue: Queue::new(depth) }
     }
 
     /// Asincrono: il comando entra in coda, si esegue con `run`.
     pub fn submit(&mut self, cmd: Cmd) -> Result<(), GpuError> {
-        if self.queue.len() >= self.depth {
-            return Err(GpuError::Full);
-        }
-        self.queue.push_back(cmd);
+        self.queue.push(cmd)?;
         Ok(())
     }
 
     /// Esegue tutti i comandi in coda. Un comando fuori VRAM si rifiuta senza effetti.
     pub fn run(&mut self) -> Result<usize, GpuError> {
         let mut done = 0;
-        while let Some(cmd) = self.queue.pop_front() {
+        while let Some(cmd) = self.queue.pop() {
             match cmd {
                 Cmd::Fill { offset, len, value } => {
                     let end = offset.checked_add(len).filter(|&e| e <= self.vram.len());
@@ -75,5 +76,11 @@ impl Gpu {
 
     pub fn vram(&self) -> &[u8] {
         &self.vram
+    }
+}
+
+impl Microkernel for Gpu {
+    fn manifest(&self) -> Manifest {
+        GPU_GENERIC
     }
 }

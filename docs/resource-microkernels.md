@@ -139,8 +139,13 @@ Verificata per ogni microkernel nel simulatore. Test di coerenza in `sim/tests/a
 | Swap (`swap.rs`) | sì | pagina fissa | no | no | `SwapError` | conforme |
 | Audio (`audio.rs`) | sì | canali (max 4) | underrun contati | sì (`push`/`mix`) | `AudioError` | conforme |
 
+Aggiornamento (trait comune):
+- `resource::Microkernel` (trait con `manifest()`) è implementato da tutti i moduli con stato: memoria, storage, GPU, input, alimentazione, crittografia, swap, audio, e dal `Driver`. CPU e rete non hanno ancora una struttura con stato.
+- `resource::Queue<T>` è la coda generica a profondità fissa. Il `Driver`, la GPU e l'input la usano; così il comportamento "piena → `Full`" è uno solo.
+- Test: `sim/tests/contratto.rs` (coda, manifest via `dyn Microkernel`, GPU/input su coda comune, stop del driver).
+
 Deviazioni aperte:
-1. **Nessun trait comune.** Il contratto è rispettato per convenzione, non per tipo: ogni modulo espone il proprio manifest e i propri errori. Passo successivo: un trait `Microkernel` con `manifest()` e `state()`, quando il monolite ne avrà bisogno.
-2. **`resource::Driver` non è usato dai moduli.** È il prototipo generico della coda; i moduli hanno code proprie. Da unificare quando si aggiunge il trait.
-3. **Stato esplicito solo per l'alimentazione.** Per gli altri il monolite non ha ancora uno stato da leggere.
+1. **Stato nel trait.** Il trait espone solo il manifest. Stato e richieste restano per modulo: il monolite non ha ancora una lettura comune dello stato.
+2. **Audio e swap non usano `Queue`.** L'audio ha buffer per canale, lo swap è sincrono. Da allineare se servono richieste asincrone.
+3. **CPU e rete** non hanno ancora una struttura con stato da implementare.
 4. **Stack TCP/IP, driver Wi-Fi e driver reali** non esistono: il prototipo di rete copre solo il frame ethernet.
