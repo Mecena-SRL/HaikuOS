@@ -66,6 +66,8 @@ pub struct Fs {
     next: [u8; BLOCKS],
     used: [bool; BLOCKS],
     files: [Entry; FILES],
+    /// Prossimo blocco da provare (next-fit): le scritture girano su tutto lo store.
+    cursor: usize,
 }
 
 impl Fs {
@@ -76,6 +78,7 @@ impl Fs {
             next: [NONE; BLOCKS],
             used: [false; BLOCKS],
             files: [EMPTY; FILES],
+            cursor: 0,
         }
     }
 
@@ -172,14 +175,18 @@ impl Fs {
         let need = bytes.len().div_ceil(BLOCK);
         let mut staged = [NONE; BLOCKS];
         let mut n = 0;
-        for b in 0..BLOCKS {
+        for k in 0..BLOCKS {
             if n == need {
                 break;
             }
+            let b = (self.cursor + k) % BLOCKS;
             if !self.used[b] {
                 staged[n] = b as u8;
                 n += 1;
             }
+        }
+        if need > 0 && n == need {
+            self.cursor = (staged[need - 1] as usize + 1) % BLOCKS;
         }
         if n < need {
             return Err(FsError::NoSpace);
@@ -321,6 +328,18 @@ mod tests {
         let mut out = [0u8; 7];
         assert_eq!(fs.read(a, 0, &mut out), Ok(7));
         assert_eq!(&out, b"keep me");
+    }
+
+    #[test]
+    fn writes_spread_over_blocks() {
+        let mut fs = Fs::new();
+        let id = fs.create(b"w", 0).unwrap();
+        let mut heads = [0u8; 4];
+        for h in heads.iter_mut() {
+            fs.write(id, 0, 1024, &[1u8; 10]).unwrap();
+            *h = fs.files[id].head;
+        }
+        assert!(heads.windows(2).all(|p| p[0] != p[1]));
     }
 
     #[test]
