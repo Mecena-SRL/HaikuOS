@@ -21,7 +21,7 @@ fn coda_fissa_piena_e_ordinata() {
     q.push(2).unwrap();
     assert_eq!(q.push(3), Err(Error::Full));
     assert_eq!(q.pop(), Some(1));
-    assert_eq!(q.drain_all(), vec![2]);
+    assert_eq!(q.drain_all().collect::<Vec<_>>(), vec![2]);
     assert!(q.is_empty());
 }
 
@@ -67,7 +67,7 @@ fn driver_stop_restituisce_le_richieste_in_coda_come_fallite() {
     let mut d = Driver::new(m("d"));
     d.submit(Request { id: 4, op: 0 }).unwrap();
     d.stop();
-    assert_eq!(d.take_completions(), vec![Completion { id: 4, result: Err(Error::Stopped) }]);
+    assert_eq!(d.take_completions().collect::<Vec<_>>(), vec![Completion { id: 4, result: Err(Error::Stopped) }]);
     let mut ds = vec![d];
     assert_eq!(tick(&mut ds), 0);
 }

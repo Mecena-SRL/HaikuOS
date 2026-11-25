@@ -20,7 +20,7 @@ pub const MAX_CHANNELS: usize = 4;
 pub struct Channel {
     /// Volume 0..=255. 255 = pieno.
     pub volume: u8,
-    samples: Queue<i16>,
+    samples: Queue<i16, CHANNEL_MAX>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -31,6 +31,9 @@ pub enum AudioError {
     Full,
 }
 
+/// Campioni massimi per canale (capacità fissa della coda).
+pub const CHANNEL_MAX: usize = 256;
+
 pub struct Mixer {
     channels: Vec<Channel>,
     underruns: u32,
@@ -39,7 +42,7 @@ pub struct Mixer {
 impl Mixer {
     /// `depth`: campioni per canale. Nessuna allocazione dopo `new`.
     pub fn new(channels: usize, depth: usize) -> Result<Self, AudioError> {
-        if channels == 0 || channels > MAX_CHANNELS {
+        if channels == 0 || channels > MAX_CHANNELS || depth > CHANNEL_MAX {
             return Err(AudioError::NoSlot);
         }
         let channels = (0..channels)
