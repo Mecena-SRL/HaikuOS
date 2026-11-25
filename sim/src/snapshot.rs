@@ -85,6 +85,7 @@ pub struct Diff {
     pub root: u32,
 }
 
+#[derive(Clone)]
 pub struct Store {
     key: [u8; 16],
     /// Contatore di riscritture per blocco (un'allocazione = una riscrittura).
@@ -399,10 +400,17 @@ impl Store {
         Ok(d)
     }
 
-    /// Applica una differenza a una replica nello stato `from`. Autentica tutto prima di scrivere.
-    /// Dopo la scrittura verifica l'impronta: se non coincide, lo stato è scorretto (`Corrupt`).
-    /// Se manca spazio a metà, lo stato è parziale: va ripetuta.
+    /// Applica una differenza a una replica nello stato `from`. Lavora su una copia di lavoro:
+    /// se qualcosa fallisce (autenticazione, spazio, impronta) la replica resta come era.
     pub fn apply(&mut self, d: &Diff) -> Result<(), SnapError> {
+        let mut work = self.clone();
+        work.apply_inner(d)?;
+        *self = work;
+        Ok(())
+    }
+
+    /// Scrive la differenza e verifica l'impronta dello stato risultante.
+    fn apply_inner(&mut self, d: &Diff) -> Result<(), SnapError> {
         let mut plain = Vec::with_capacity(d.put.len());
         for (name, sealed) in &d.put {
             let data = slot::open(sealed, &self.key, TRANSIT_SLOT, SNAP_MAX_FILE).map_err(|_| SnapError::Corrupt)?;
