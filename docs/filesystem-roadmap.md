@@ -80,6 +80,7 @@ Non raggiungibili dal sandbox: docs.kernel.org e support.apple.com (rete bloccat
 
 - `sim/src/snapshot.rs`: store a blocchi con riferimenti. Snapshot = copia della tabella file -> blocco. Scrittura = blocco nuovo. Rollback e drop con conteggio dei riferimenti.
 - `sim/tests/snapshot.rs`: 9 test. Costo zero in blocchi allo snapshot; un blocco per overwrite; drop libera i blocchi; rollback recupera file cancellati; limiti (64 blocchi, 4 snapshot, 64 byte per file) **da verificare**.
+- Checksum sui metadati (nome, blocco, lunghezza) per ogni voce, verificato in `read_checked`; test di manomissione. È il passo 1 della priorità, portato nel sim.
 - Il file system in `gba/src/fs.rs` non è stato toccato.
 
 Limiti dichiarati: un file occupa un solo blocco (64 byte). Overwrite richiede un blocco libero, anche se il file è piccolo. Non c'è persistenza su disco.
@@ -97,8 +98,14 @@ Limiti dichiarati: un file occupa un solo blocco (64 byte). Overwrite richiede u
 - Testi ufficiali di bcachefs, APFS, ReFS, WAFL: letti solo dai risultati di ricerca.
 - Il fatto che RAID5/6 su Btrfs sia "mostly OK" va rifatto dopo ogni nuova versione del kernel.
 
-## 9. Decisioni per Ivan (filosofia)
+## 9. Decisioni
 
-1. **Copy-on-write con snapshot come principio**: sì o no? Il costo è più scritture e più blocchi occupati.
-2. **Checksum su tutto** (dati e metadati) anche a costo di CPU, oppure solo sui dati importanti?
-3. **Ridondanza dentro l'OS** (mirror, RAID) oppure delegata all'hardware?
+Prese dal coordinatore (scelte tecniche, 2026-11-25):
+
+1. **Copy-on-write con snapshot** come principio di base.
+2. **Checksum su dati e metadati, sempre.** Sul GBA il costo si misura e si adatta con il profilo.
+3. **Ridondanza dentro l'OS rimandata** alla macchina potente, fase successiva. Per ora nessun RAID.
+
+Da confermare con Ivan (filosofia): nessuna.
+
+Tappe successive: checksum sui metadati (`Entry`) e snapshot, nel simulatore.
