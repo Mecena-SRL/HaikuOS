@@ -174,31 +174,33 @@ fn keys() -> u16 {
 }
 
 fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::Sram>>) {
-    fill(0, 0, W, 160, BLACK);
+    // Solo le 4 tinte della bibbia: T0 sfondo, T3 barra, T1 selezione, T2 file, T3 cartelle.
+    use desktop::{T0, T1, T2, T3};
+    fill(0, 0, W, 160, T0);
     // Barra della directory corrente: lunghezza = percorso.
     let bar = (ws.cwd().len() * 8 + 8).min(232);
-    fill(4, 4, bar, 8, BLUE);
+    fill(4, 4, bar, 8, T3);
     let mut ids = [0usize; FILES];
     let n = p.fs().list(ws.cwd(), &mut ids);
     for i in 0..n {
         let x = 8 + (i % 7) * 30;
         let y = 24 + (i / 7) * 30;
         if i == ws.sel() {
-            fill(x - 2, y - 2, 26, 26, WHITE);
+            fill(x - 2, y - 2, 26, 26, T1);
         }
-        let c = if p.fs().is_dir(ids[i]) { BLUE } else { ORANGE };
+        let c = if p.fs().is_dir(ids[i]) { T3 } else { T2 };
         fill(x, y, 22, 22, c);
     }
     // File aperto: una barra verde proporzionale alla lunghezza.
     if let Some(id) = ws.open_id() {
         let len = p.fs().len_of(id).unwrap_or(0);
-        fill(4, 140, (len * 2).min(232), 8, GREEN);
+        fill(4, 140, (len * 2).min(232), 8, T2);
     }
     // Conferma formattazione: fascia rossa, A = formatta (verde), B = annulla (grigio).
     if ws.confirming() {
-        fill(0, 100, W, 40, RED);
-        fill(20, 110, 60, 20, GREEN);
-        fill(W - 80, 110, 60, 20, WHITE);
+        fill(0, 100, W, 40, T2);
+        fill(20, 110, 60, 20, T3);
+        fill(W - 80, 110, 60, 20, T1);
     }
 }
 
