@@ -117,3 +117,25 @@ Valida per GBA e per una macchina potente.
 - **File system senza allocazione dinamica:** solo blocchi fissi nel nucleo, così il codice è identico su entrambe le piattaforme.
 - **Linguaggi:** assembly solo per l'hardware, Rust ovunque il resto. C resta piano B.
 - **Test:** solo in emulatore per ora. Il logo Nintendo e il checksum della ROM non sono inclusi.
+
+## 10. Misure sull'emulatore (GBA, mGBA)
+
+Cicli del timer a 16,78 MHz, media su più esecuzioni. Non sono misure su hardware.
+
+| Operazione | Cicli | Tempo circa |
+|---|---|---|
+| alloc 4 KB + free (64 blocchi) | 35 414 | 2,1 ms |
+| sync di un file da 100 byte | 165 122 | 9,8 ms |
+
+Il sync azzera un buffer da 8 KB a ogni chiamata: è probabilmente la parte più costosa. Da correggere prima di aumentare la frequenza di salvataggio.
+
+## 11. Obiettivi non ancora realizzati
+
+Questi sono obiettivi, non funzionalità esistenti.
+
+- **Multicore:** esecuzione su più core, con scheduling e sincronizzazione.
+- **Multithreading:** più thread dentro lo stesso programma.
+- **GPU:** accelerazione grafica sulle piattaforme che la hanno.
+- **Compressione e cifratura in RAM:** dati compressi e cifrati in memoria, per i sistemi con poca RAM.
+- **Swap:** spostamento di pagine su un supporto più lento quando la RAM non basta.
+- **Portabilità a 64 bit e x86:** il nucleo è pensato per essere portabile, ma oggi gira solo sul GBA.
