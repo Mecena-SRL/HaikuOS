@@ -142,4 +142,42 @@ mod tests {
         let mut f = fb();
         assert_eq!(compose(&mut f, &[Surface { x: 0, y: 0, w: 2, h: 2, pixels: &px, key: None }]), 0);
     }
+
+    /// Schizzo del desktop (docs/desktop-concept.md): sfondo, barra, finestra, icona trasparente.
+    #[test]
+    fn scena_desktop_di_prova() {
+        const BG: u16 = 2 | (4 << 5) | (10 << 10);
+        const BAR: u16 = 20 | (22 << 5) | (26 << 10);
+        const TITLE: u16 = 4 | (12 << 5) | (28 << 10);
+        const BODY: u16 = 28 | (28 << 5) | (24 << 10);
+        const ICON: u16 = 31 | (20 << 5);
+        const KEY: u16 = 0x7FFF;
+
+        let bg = std::vec![BG; W * H];
+        let bar = std::vec![BAR; W * 12];
+        let win: std::vec::Vec<u16> = (0..120 * 80)
+            .map(|i| if i / 120 < 10 { TITLE } else { BODY })
+            .collect();
+        let mut icon = std::vec![ICON; 16 * 16];
+        icon[0] = KEY; // angolo trasparente
+
+        let mut f = fb();
+        compose(
+            &mut f,
+            &[
+                Surface { x: 0, y: 0, w: W, h: H, pixels: &bg, key: None },
+                Surface { x: 0, y: 0, w: W, h: 12, pixels: &bar, key: None },
+                Surface { x: 40, y: 30, w: 120, h: 80, pixels: &win, key: None },
+                Surface { x: 8, y: 20, w: 16, h: 16, pixels: &icon, key: Some(KEY) },
+            ],
+        );
+        assert_eq!(f[0], BAR); // barra in alto
+        assert_eq!(f[11 * W + 100], BAR);
+        assert_eq!(f[12 * W + 100], BG); // sotto la barra: sfondo
+        assert_eq!(f[35 * W + 50], TITLE); // titolo finestra
+        assert_eq!(f[50 * W + 50], BODY); // corpo finestra
+        assert_eq!(f[29 * W + 50], BG); // sopra la finestra: sfondo
+        assert_eq!(f[20 * W + 8], BG); // angolo trasparente dell'icona
+        assert_eq!(f[20 * W + 9], ICON); // resto dell'icona
+    }
 }
