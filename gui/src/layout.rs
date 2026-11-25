@@ -11,7 +11,7 @@ pub const PITCH_Y: i32 = 40;
 pub const COLS: usize = 4;
 pub const LABEL_DY: i32 = ICON + 2;
 pub const UNDERLINE_DY: i32 = ICON + 1;
-/// Metriche del font di sistema: 3×5 di default (GBA); feature `wide-font` per x86 (5×7).
+/// Metriche del font di sistema: 3×5 di default (GBA); feature `wide-font` per x86 (5×8).
 #[cfg(not(feature = "wide-font"))]
 pub const FONT_W: i32 = 3;
 #[cfg(not(feature = "wide-font"))]
@@ -19,7 +19,7 @@ pub const FONT_H: i32 = 5;
 #[cfg(feature = "wide-font")]
 pub const FONT_W: i32 = 5;
 #[cfg(feature = "wide-font")]
-pub const FONT_H: i32 = 7;
+pub const FONT_H: i32 = 8;
 pub const CONTENT_INSET: i32 = 4;
 /// Pulsante HAIKUOS (apre il menu applicazioni): a sinistra della barra.
 pub const MENU_W: i32 = 36;

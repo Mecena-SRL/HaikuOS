@@ -6,7 +6,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-haiku-gui = { path = "../../gui" }
+haiku-gui = { path = "../../gui", features = ["wide-font"] }
 
 [profile.dev]
 panic = "abort"

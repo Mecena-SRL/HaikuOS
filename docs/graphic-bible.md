@@ -37,6 +37,7 @@ Temi alternativi (`apps/settings.rs`, `PALETTES`): restano varianti, il tema 0 �
 
 - **GBA**: font di sistema 3×5, solo maiuscole (il font non ha le minuscole). Passo di riga 6 px per il testo, 10 px per le liste.
 - **Mac**: lo stesso bitmap, ingrandito di un fattore intero (2× o 3×), mai interpolato. Il font vettoriale è rinviato finché non serve. **Da verificare**.
+- **x86**: font Spleen 5×8 (BSD-2-Clause, `x86/kernel/LICENSE-spleen.txt`), attivato dalla feature `wide-font` di `gui`. Minuscole incluse. **Da verificare** a schermo.
 - Colori: testo su sfondo T1 = T0; testo su barra = T0; testo su titolo attivo = T0; testo su icona = T1.
 
 ## 5. Spaziature
