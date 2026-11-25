@@ -16,7 +16,16 @@ cargo build --release
 
 - Barra in alto: memoria del pool (verde monolite, blu agente, arancio slot assegnati, grigio scuro libero).
 - Quattro quadrati: arancio = slot assegnato, grigio = libero. Sequenza di boot: 3 concessi, il 4° negato, revoca, riassegnazione.
-- Due quadretti in basso: monolite (verde) e agente (blu) attivi.
+- Tre quadretti in basso: monolite (verde), agente (blu), self-test del file system (verde = ok).
+
+## File system (`src/fs.rs`)
+
+- Store a 128 blocchi da 64 byte (8 KB). Nomi e contenuti separati. Max 16 file, nomi da 12 byte.
+- Checksum FNV-1a su ogni blocco, verificato in lettura.
+- Scrittura atomica: blocchi nuovi prima, cambio di testa poi, liberazione del vecchio. Se manca spazio, il file resta uguale.
+- Permessi: solo l'owner. Quota: la scrittura non supera i byte concessi dall'agente.
+- Test host: `cd gba && rustc --edition 2021 --test src/fs.rs -o /tmp/fs_test && /tmp/fs_test` (5 test, tutti ok).
+- Non ancora: directory (solo lista piatta), persistenza tra riavvii (serve la memoria di salvataggio della cartuccia, da decidere).
 
 ## Verificato
 
@@ -30,4 +39,5 @@ cargo build --release
 - Logica del monolite: porting manuale da `sim/src/lib.rs`. Nessun test sul target: i test di `sim/` coprono la versione host.
 - Dimensione reale del codice e uso reale di RAM: non misurati oltre al binario.
 - Messaggi (filtro allowlist) non portati: fuori dal primo passo.
+- Allocatore dentro gli slot: non ancora.
 - Quanta EWRAM resta davvero libera: da verificare.
