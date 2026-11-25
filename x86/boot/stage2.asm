@@ -43,35 +43,16 @@ stage2:
     mov dx, LOAD
     call read_disk
 
-    ; ---- VBE: 640x480 con framebuffer lineare (0x112|0x4000) ----
+    ; ---- VBE: framebuffer lineare 640x480. Prima 32 bit (0x142), poi 24 bit (0x112).
     ; esito a 0x0600: magic(4) base(4) w(4) h(4) pitch(4) bpp(4); magic 0 = niente grafica
-    ; 640x480 a 24 o 32 bit (0x112 è 24 bit in VBE standard)
     mov dword [0x0600], 0
-    mov ax, 0x4F01
-    mov cx, 0x112
-    xor bx, bx
-    mov es, bx
-    mov di, 0x0700
-    int 0x10
-    cmp ax, 0x004F
-    jne .novbe
-    mov ax, 0x4F02
-    mov bx, 0x4112
-    int 0x10
-    cmp ax, 0x004F
-    jne .novbe
-    mov eax, [es:0x0700+0x28]
-    mov [0x0608], eax
-    movzx eax, word [es:0x0700+0x12]
-    mov [0x060C], eax
-    movzx eax, word [es:0x0700+0x14]
-    mov [0x0610], eax
-    movzx eax, word [es:0x0700+0x10]
-    mov [0x0614], eax
-    movzx eax, byte [es:0x0700+0x19]
-    mov [0x0618], eax
-    mov dword [0x0600], 0x56424531
-.novbe:
+    mov cx, 0x0142
+    call vbe_try
+    cmp dword [0x0600], 0x56424531
+    je .vbe_done
+    mov cx, 0x0112
+    call vbe_try
+.vbe_done:
     xor ax, ax
     mov es, ax
 
@@ -81,6 +62,39 @@ stage2:
     or eax, 1
     mov cr0, eax
     jmp dword 0x08:pm32
+
+
+; ---- vbe_try: cx = modo VBE (senza bit LFB). Imposta il modo e scrive l'esito a 0x0600.
+vbe_try:
+    mov [0x0630], cx
+    xor bx, bx
+    mov es, bx
+    mov ax, 0x4F01
+    mov di, 0x0700
+    int 0x10
+    cmp ax, 0x004F
+    jne .fail
+    cmp byte [es:0x0719], 24
+    jb .fail
+    mov ax, 0x4F02
+    mov bx, [0x0630]
+    or bx, 0x4000
+    int 0x10
+    cmp ax, 0x004F
+    jne .fail
+    mov eax, [es:0x0728]
+    mov [0x0608], eax
+    movzx eax, word [es:0x0712]
+    mov [0x060C], eax
+    movzx eax, word [es:0x0714]
+    mov [0x0610], eax
+    movzx eax, word [es:0x0710]
+    mov [0x0614], eax
+    movzx eax, byte [es:0x0719]
+    mov [0x0618], eax
+    mov dword [0x0600], 0x56424531
+.fail:
+    ret
 
 ; ---- lettura BIOS: eax = LBA, cx = settori, dx = segmento di destinazione (offset 0) ----
 read_disk:

@@ -27,7 +27,7 @@ Test (`cargo test` in `gui/`):
 ## 2. Cosa manca
 
 1. **GBA**: `gba/src/desktop.rs` (939 righe) usa ancora la sua logica. Va sostituito da `haiku-gui` con un `Canvas` sopra il buffer 240×160 e il font 3×5 di `gba/src/font.rs`. Compila (vedi §3), ma non è collegato.
-2. **x86 framebuffer**: fatto in parte. `x86/boot/stage2.asm` imposta VBE 0x112 (640×480, 24 bit, framebuffer lineare) e mappa 3–4 GB per il framebuffer. `x86/kernel/src/fb.rs` implementa `Canvas` con scala 2× (320×240 logici). Verificato in QEMU: lo screenshot ha i colori T0/T2/T3 nei posti attesi. Mancano 32 bit (0x112 è 24 bit), tastiera e puntatore su x86.
+2. **x86**: fatto. `x86/boot/stage2.asm` imposta VBE 0x142 (640×480×32), con ripiego su 0x112 (24 bit), e mappa 3–4 GB. `x86/kernel/src/fb.rs` implementa `Canvas` a scala 2×. `x86/kernel/src/input.rs` legge tastiera (set 1: frecce, Z=A, X=B, Tab=Select, Invio=Start) e mouse PS/2 in polling (sinistro = click). Verificato in QEMU via QMP: tasti (freccia, Z apre, X chiude) e movimento del cursore. Non verificato: click su un'icona via mouse; la sensibilità del mouse va tarata.
 3. **Scala grande**: `gba/src/scale.rs` ingrandisce il 240×160 con fattore intero. Su x86 oggi si usa scala 2× fissa (vedi §2.2).
 4. **Finestre**: niente trascinamento né ridimensionamento (fuori dalla prima versione, come da concept).
 5. **Testo**: solo 3×5 maiuscole. Niente vettoriale.
@@ -43,5 +43,5 @@ Test (`cargo test` in `gui/`):
 ## 4. Ordine suggerito
 
 1. Collegare `gba/src/gui.rs` a `main.rs` al posto di `desktop.rs`. Non fatto: `desktop.rs` ha la logica delle app (contenuto delle finestre, tasti per app), da portare. Serve un emulatore GBA per verificarlo: non c'è in questa sessione.
-2. x86: 32 bit, tastiera e puntatore.
+2. x86: tarare la sensibilità del mouse; ICONE a pagine con mouse (scroll o pulsanti pagina).
 3. Test di usabilità con una persona (non solo conteggio tasti).

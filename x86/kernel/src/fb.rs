@@ -68,10 +68,6 @@ pub struct Scaled<'a> {
 }
 
 impl<'a> Scaled<'a> {
-    pub fn size(&self) -> (i32, i32) {
-        (self.lw, self.lh)
-    }
-
     fn block(&self, x: i32, y: i32, c: u32) {
         for dy in 0..SCALE {
             for dx in 0..SCALE {
