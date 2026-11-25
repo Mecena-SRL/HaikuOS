@@ -32,7 +32,7 @@ fn square_px(px: &[u16], file: usize, rank: usize, c: u16) -> usize {
 fn scacchi_posizione_iniziale_disegnata() {
     let v = ChessView::new();
     let mut px = vec![0u16; W * H];
-    v.draw(&mut px);
+    v.draw(&mut px, W, H);
     // e2 (file 4, traversa 1) ha un pedone bianco: pixel bianchi nella casa.
     assert!(square_px(&px, 4, 1, WHITE_PC) > 0);
     // e4 è vuota: nessun pezzo.
@@ -92,7 +92,7 @@ fn lettore_pagine_e_a_capo() {
 fn lettore_disegna_testo_e_indicatore() {
     let r = Reader::new(b"I");
     let mut px = vec![0u16; W * H];
-    r.draw(&mut px);
+    r.draw(&mut px, W, H);
     // Prima riga, prima colonna di "I": pixel di testo alla posizione di origine.
     assert_eq!(px[2 * W + 2], TEXT);
     // Una pagina sola: indicatore "1 OF 1" presente.
@@ -122,10 +122,10 @@ fn schermate_per_lo_screenshot() {
     v.key(Key::Up);
     v.key(Key::A); // 1. e4
     let mut px = vec![0u16; W * H];
-    v.draw(&mut px);
+    v.draw(&mut px, W, H);
     save("chess", &px);
     let r = Reader::new(b"Il mare e' vasto. Nelle pagine di un ebook ogni riga va a capo a una parola intera, come in un libro vero.");
     let mut px = vec![0u16; W * H];
-    r.draw(&mut px);
+    r.draw(&mut px, W, H);
     save("reader", &px);
 }

@@ -36,9 +36,9 @@ pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
 /// Numero di icone sulla riga (4 colonne, una sola riga nel primo schizzo).
-pub const ICONS: usize = 6;
+pub const ICONS: usize = 8;
 /// Etichette sotto le icone (files, term, giochi, notes).
-pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS"];
+pub const ICON_LABELS: [&[u8]; ICONS] = [b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ"];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
 /// Icona che apre la calcolatrice.
@@ -58,10 +58,17 @@ pub enum App {
     Clock,
     /// Impostazioni: tema e nome del sistema.
     Settings,
+    /// Scacchi: partita locale, nella superficie della calcolatrice.
+    Chess,
+    /// Lettore di testo paginato, nella superficie della calcolatrice.
+    Reader,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
-pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings];
+pub const APPS: [App; ICONS] = [App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader];
+
+/// Testo di esempio per il lettore: solo maiuscole, cifre e spazi, come il font.
+const READER_TEXT: &[u8] = b"HAIKU OS E UN SISTEMA PER GIOCHI E DOCUMENTI. QUESTO E UN EBOOK DI PROVA CON TESTO CHE VA A CAPO SU PIU PAGINE DEL GBA";
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
 pub fn launchable(i: usize) -> Option<App> {
@@ -72,6 +79,7 @@ pub fn launchable(i: usize) -> Option<App> {
 }
 
 use crate::apps::{clock::Clock, settings::Settings, view};
+use crate::media_ui::{ChessView, Key, Reader};
 use crate::calc_ui::{self, CalcUi};
 use crate::fs::Fs;
 use crate::terminal::{self, Terminal};
@@ -95,11 +103,24 @@ pub struct Desktop {
     calc: CalcUi,
     clock: Clock,
     settings: Settings,
+    chess: ChessView,
+    reader: Reader,
 }
 
 impl Desktop {
-    pub const fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new() }
+    pub fn new() -> Self {
+        Self {
+            sel: 0,
+            win: None,
+            prev: 0,
+            calc: CalcUi::new(),
+            term: Terminal::new(),
+            run: None,
+            clock: Clock::new(9, 0),
+            settings: Settings::new(),
+            chess: ChessView::new(),
+            reader: Reader::new(READER_TEXT),
+        }
     }
 
     /// Vero se c'è un programma a schermo intero da avviare.
@@ -124,6 +145,16 @@ impl Desktop {
         &self.calc
     }
 
+    /// Disegna la superficie della finestra aperta (calcolatrice, scacchi o lettore): calc_ui::SW * SH pixel.
+    pub fn draw_surface(&self, surf: &mut [u16]) {
+        let (w, h) = (calc_ui::SW, calc_ui::SH);
+        match self.win {
+            Some(App::Chess) => self.chess.draw(surf, w, h),
+            Some(App::Reader) => self.reader.draw(surf, w, h),
+            _ => self.calc.draw(surf),
+        }
+    }
+
     /// Disegna la superficie della calcolatrice (SW * SH pixel).
     pub fn draw_calc(&self, surf: &mut [u16]) {
         self.calc.draw(surf);
@@ -141,6 +172,7 @@ impl Desktop {
     pub fn step(&mut self, keys: u16, fs: &Fs) -> bool {
         let pressed = keys & !self.prev;
         self.prev = keys;
+        let mut media_changed = false;
         let before = (
             self.sel,
             self.win,
@@ -198,6 +230,34 @@ impl Desktop {
                     }
                 }
             }
+            Some(App::Chess) => {
+                // Croce: cursore. A: seleziona o muove. B: annulla la selezione, poi chiude la finestra.
+                for (bit, k) in [(KEY_UP, Key::Up), (KEY_DOWN, Key::Down), (KEY_LEFT, Key::Left), (KEY_RIGHT, Key::Right), (KEY_A, Key::A)] {
+                    if pressed & bit != 0 {
+                        self.chess.key(k);
+                    }
+                }
+                if pressed & KEY_B != 0 {
+                    if self.chess.from.is_some() {
+                        self.chess.key(Key::B);
+                    } else {
+                        self.win = None;
+                    }
+                }
+                media_changed = pressed != 0;
+            }
+            Some(App::Reader) => {
+                if pressed & KEY_RIGHT != 0 {
+                    self.reader.next();
+                }
+                if pressed & KEY_LEFT != 0 {
+                    self.reader.prev();
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+                media_changed = pressed != 0;
+            }
             Some(App::Clock) => {
                 if pressed & KEY_UP != 0 {
                     self.clock.adjust(1);
@@ -245,7 +305,8 @@ impl Desktop {
                 }
             }
         }
-        before
+        media_changed
+            || before
             != (
                 self.sel,
                 self.win,
@@ -332,8 +393,13 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], fs: &Fs) {
         }
         return;
     }
-    if app == App::Calc {
-        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, b"CALC", t0);
+    if matches!(app, App::Calc | App::Chess | App::Reader) {
+        let titolo: &[u8] = match app {
+            App::Chess => b"CHESS",
+            App::Reader => b"READ",
+            _ => b"CALC",
+        };
+        crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, titolo, t0);
         // Superficie propria della calcolatrice, copiata nel corpo della finestra.
         for y in 0..calc_ui::SH {
             for x in 0..calc_ui::SW {

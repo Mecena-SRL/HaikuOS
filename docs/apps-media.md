@@ -23,6 +23,11 @@
 | 8 | Lettore video | Riproduzione video | GPU/video, audio, storage | da definire | **No** | Da fare, solo ARM64/x86 |
 | 9 | Memo vocali | Registrazione e riproduzione | audio (ingresso e uscita), storage | PCM | **No** (microfono assente sul GBA: **da verificare**) | Da fare |
 
+## Su GBA
+
+- Scacchi e lettore sono finestre del lanciatore (icone CHESS e READ), sulla superficie della calcolatrice (`gba/src/media_ui.rs`, logica in `gba/src/chess.rs`).
+- Screenshot in `docs/screenshots/` (06-09), letti dalla VRAM con libmgba 0.10.2.
+
 ## Prototipi (sull'host)
 
 1. **Scacchi** (`sim/src/chess.rs`): mosse pseudo-legali e legali, scacco, matto, stallo, promozione automatica a donna. Arrocco ed en passant **da fare**. Test perft: 400, 8902, 197 281 alla profondità 2, 3, 4 (`sim/tests/media.rs`).

@@ -36,10 +36,10 @@ pub enum Key {
     B,
 }
 
-fn fill(px: &mut [u16], x: usize, y: usize, w: usize, h: usize, c: u16) {
-    for yy in y..(y + h).min(H) {
-        for xx in x..(x + w).min(W) {
-            px[yy * W + xx] = c;
+fn fill(px: &mut [u16], pw: usize, ph: usize, x: usize, y: usize, w: usize, h: usize, c: u16) {
+    for yy in y..(y + h).min(ph) {
+        for xx in x..(x + w).min(pw) {
+            px[yy * pw + xx] = c;
         }
     }
 }
@@ -89,31 +89,32 @@ impl ChessView {
     }
 
     /// Disegna la scacchiera a sinistra e il turno a destra.
-    pub fn draw(&self, px: &mut [u16]) {
-        fill(px, 0, 0, W, H, BG);
+    /// Disegna nella superficie `px` larga `pw` e alta `ph`.
+    pub fn draw(&self, px: &mut [u16], pw: usize, ph: usize) {
+        fill(px, pw, ph, 0, 0, pw, ph, BG);
         for s in 0..64u8 {
             let x = (s % 8) as usize * SQ;
             let y = (7 - s / 8) as usize * SQ;
             let light = (s % 8 + s / 8) % 2 == 1;
-            fill(px, x, y, SQ, SQ, if light { LIGHT } else { DARK });
+            fill(px, pw, ph, x, y, SQ, SQ, if light { LIGHT } else { DARK });
             if self.from == Some(s) {
-                fill(px, x, y, SQ, SQ, SEL);
+                fill(px, pw, ph, x, y, SQ, SQ, SEL);
             }
             let p = self.board.at(s);
             if p != 0 {
                 let ch = LETTERS[(p & 7) as usize - 1];
                 let col = if p >> 3 == WHITE { WHITE_PC } else { BLACK_PC };
-                draw_text(px, W, H, x + 1, y, &[ch], col);
+                draw_text(px, pw, ph, x + 1, y, &[ch], col);
             }
             if s == self.cursor {
                 // Sottolineatura in basso: non tocca le righe della lettera.
-                fill(px, x, y + SQ - 1, SQ, 1, CURSOR);
+                fill(px, pw, ph, x, y + SQ - 1, SQ, 1, CURSOR);
             }
         }
         let turn = if self.board.turn == WHITE { b'W' } else { b'B' };
-        draw_text(px, W, H, 50, 2, &[turn], TEXT);
+        draw_text(px, pw, ph, 50, 2, &[turn], TEXT);
         if self.board.in_check(self.board.turn) {
-            draw_text(px, W, H, 50, 8, b"C", PANEL);
+            draw_text(px, pw, ph, 50, 8, b"C", PANEL);
         }
     }
 
@@ -220,8 +221,8 @@ impl Reader {
         }
     }
 
-    pub fn draw(&self, px: &mut [u16]) {
-        fill(px, 0, 0, W, H, BG);
+    pub fn draw(&self, px: &mut [u16], pw: usize, ph: usize) {
+        fill(px, pw, ph, 0, 0, pw, ph, BG);
         for r in 0..ROWS {
             let li = self.page * ROWS + r;
             if li >= self.lay.n {
@@ -229,11 +230,11 @@ impl Reader {
             }
             let s = self.lay.start[li] as usize;
             let e = self.lay.end[li] as usize;
-            draw_text(px, W, H, ORIGIN, ORIGIN + r * LINE, &self.text[s..e], TEXT);
+            draw_text(px, pw, ph, ORIGIN, ORIGIN + r * LINE, &self.text[s..e], TEXT);
         }
         // Indicatore "N OF M" in fondo, sotto le sei righe.
         let ind = [b'0' + (self.page + 1) as u8, b' ', b'O', b'F', b' ', b'0' + self.pages() as u8];
-        draw_text(px, W, H, ORIGIN, 40, &ind, PANEL);
+        draw_text(px, pw, ph, ORIGIN, 40, &ind, PANEL);
     }
 
     pub fn text(&self) -> &[u8] {

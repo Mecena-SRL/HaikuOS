@@ -384,13 +384,13 @@ pub extern "C" fn rust_main() -> ! {
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
     loop {
-    dk.draw_calc(surf);
+    dk.draw_surface(surf);
     desktop::paint(fb, &dk, surf, sp.usr.fs());
     while keys() & workspace::KEY_START == 0 && !dk.run_requested() {
         sram::vblank();
         let ticked = dk.tick();
         if dk.step(keys(), sp.usr.fs()) | ticked {
-            dk.draw_calc(surf);
+            dk.draw_surface(surf);
             desktop::paint(fb, &dk, surf, sp.usr.fs());
         }
     }
