@@ -11,6 +11,7 @@ mod calc_ui;
 mod compositor;
 mod desktop;
 mod terminal;
+mod reminders;
 mod font;
 mod fs;
 mod chess;
@@ -18,6 +19,7 @@ mod editor;
 #[allow(dead_code)]
 mod media_ui;
 mod glyph;
+mod fontmgr;
 mod monolith;
 mod persist;
 mod surfaces;
@@ -356,6 +358,7 @@ const KEY_L: u16 = 1 << 9;
 
 static mut SURFACES: surfaces::Surfaces = surfaces::Surfaces::new();
 /// Superficie propria della calcolatrice (in EWRAM, non nello stack).
+static mut MEDIA_SURF: [u16; media_ui::W * media_ui::H] = [0; media_ui::W * media_ui::H];
 static mut CALC_SURF: [u16; calc_ui::SW * calc_ui::SH] = [0; calc_ui::SW * calc_ui::SH];
 
 impl surfaces::Quota for Monolith {
@@ -462,6 +465,12 @@ pub extern "C" fn rust_main() -> ! {
     draw_bits(70, sum_sync / 10, GREEN); // sync 100 byte, cicli
     draw_bits(100, sum_seal / 128, ORANGE); // Ascon seal, per blocco da 64 byte
     draw_bits(120, sum_open / 128, if ok { GREEN } else { BLUE }); // Ascon open, per blocco
+    // Gestore dei font: installa il font di ROM (3×5), lo imposta di sistema e ne mostra l'anteprima.
+    let mut fm = fontmgr::FontMgr::new();
+    let _ = fm.install(b"Sistema 3x5");
+    let _ = fm.set_system(0);
+    let vram = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
+    fm.preview(vram, W, 160, 12, 136, b"FONT OK", WHITE);
     // Schermata delle misure: resta finché non si preme A.
     while keys() & workspace::KEY_A == 0 {
         sram::vblank();
@@ -496,17 +505,21 @@ pub extern "C" fn rust_main() -> ! {
     // Desktop del concept: croce per scegliere un'icona, A apre, B chiude la finestra.
     // Il lanciatore avvia a schermo intero FILES (spazio di lavoro) e NOTES (editor). Start = FILES.
     let mut dk = desktop::Desktop::new();
+    dk.demo_reminders();
     let fb = unsafe { core::slice::from_raw_parts_mut(VRAM as *mut u16, W * 160) };
     let surf = unsafe { &mut *core::ptr::addr_of_mut!(CALC_SURF) };
+    let media = unsafe { &mut *core::ptr::addr_of_mut!(MEDIA_SURF) };
     loop {
     dk.draw_calc(surf);
-    desktop::paint(fb, &dk, surf, sp.usr.fs());
+    dk.draw_media(media);
+    desktop::paint(fb, &dk, surf, media, sp.usr.fs());
     while keys() & workspace::KEY_START == 0 && !dk.run_requested() {
         sram::vblank();
         let ticked = dk.tick();
         if dk.step(keys(), sp.usr.fs()) | ticked {
             dk.draw_calc(surf);
-            desktop::paint(fb, &dk, surf, sp.usr.fs());
+            dk.draw_media(media);
+    desktop::paint(fb, &dk, surf, media, sp.usr.fs());
         }
     }
     while keys() & workspace::KEY_START != 0 {

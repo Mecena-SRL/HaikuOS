@@ -1,8 +1,14 @@
 //! Contratto comune dei microkernel per risorsa, nel simulatore host.
 //! Nessun hardware reale. Regole in docs/resource-microkernels.md.
 //! Ogni driver ha la propria coda fissa; i driver avanzano in modo indipendente.
+//! Nessun heap: il contratto usa solo `core`, compilabile senza `std`.
 
-use std::collections::VecDeque;
+use core::ops::{Deref, DerefMut};
+
+/// Capacità massima di una coda, se non specificata. Ogni coda occupa questo spazio fisso.
+pub const QUEUE_MAX: usize = 32;
+/// Microkernel attivabili insieme, e nomi in un piano.
+pub const MAX_KERNELS: usize = 16;
 
 /// Architetture note. Il 128 bit non ha CPU general purpose in uso: non c'è variante.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,47 +71,59 @@ pub struct Completion {
     pub result: Result<u32, Error>,
 }
 
-/// Coda a dimensione fissa: la parte generica delle richieste asincrone.
-/// Piena → `Error::Full`; nessuna allocazione oltre `depth`.
+/// Coda FIFO a capacità fissa `N` (in uso `depth <= N`). Piena → `Error::Full`.
+/// Nessuna allocazione: lo spazio è un array nel tipo.
 #[derive(Debug, PartialEq, Eq)]
-pub struct Queue<T> {
-    items: VecDeque<T>,
+pub struct Queue<T, const N: usize = QUEUE_MAX> {
+    items: [Option<T>; N],
+    head: usize,
+    len: usize,
     depth: usize,
 }
 
-impl<T> Queue<T> {
+impl<T, const N: usize> Queue<T, N> {
+    /// Panics se `depth > N`: la capacità è decisa a compilazione.
     pub fn new(depth: usize) -> Self {
-        Self { items: VecDeque::with_capacity(depth), depth }
+        assert!(depth <= N, "coda: profondità {depth} oltre la capacità {N}");
+        Self { items: core::array::from_fn(|_| None), head: 0, len: 0, depth }
     }
 
     pub fn push(&mut self, t: T) -> Result<(), Error> {
-        if self.items.len() >= self.depth {
+        if self.len >= self.depth {
             return Err(Error::Full);
         }
-        self.items.push_back(t);
+        let at = (self.head + self.len) % N;
+        self.items[at] = Some(t);
+        self.len += 1;
         Ok(())
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        self.items.pop_front()
+        if self.len == 0 {
+            return None;
+        }
+        let t = self.items[self.head].take();
+        self.head = (self.head + 1) % N;
+        self.len -= 1;
+        t
     }
 
     pub fn len(&self) -> usize {
-        self.items.len()
+        self.len
     }
 
     /// Posti liberi.
     pub fn free(&self) -> usize {
-        self.depth - self.items.len()
+        self.depth - self.len
     }
 
     pub fn is_empty(&self) -> bool {
-        self.items.is_empty()
+        self.len == 0
     }
 
     /// Svuota la coda restituendo gli elementi in ordine.
-    pub fn drain_all(&mut self) -> Vec<T> {
-        self.items.drain(..).collect()
+    pub fn drain_all(&mut self) -> impl Iterator<Item = T> + '_ {
+        core::iter::from_fn(move || self.pop())
     }
 }
 
@@ -125,18 +143,33 @@ pub trait Microkernel {
     }
 }
 
+const IDLE: Manifest = Manifest {
+    name: "",
+    kind: Kind::Cpu,
+    archs: &[],
+    required: false,
+    bytes: 0,
+    queue_depth: 0,
+};
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Driver {
     manifest: Manifest,
     queue: Queue<Request>,
-    done: Vec<Completion>,
+    /// Completamenti non ancora letti. Invariante: `queue.len() + done.len() <= QUEUE_MAX`.
+    done: Queue<Completion>,
     running: bool,
 }
 
 impl Driver {
     pub fn new(manifest: Manifest) -> Self {
         let queue = Queue::new(manifest.queue_depth);
-        Self { manifest, queue, done: Vec::new(), running: true }
+        Self { manifest, queue, done: Queue::new(QUEUE_MAX), running: true }
+    }
+
+    /// Segnaposto senza lavoro, per riempire `Drivers`.
+    fn idle() -> Self {
+        Self { manifest: IDLE, queue: Queue::new(0), done: Queue::new(0), running: false }
     }
 
     pub fn name(&self) -> &'static str {
@@ -148,6 +181,10 @@ impl Driver {
         if !self.running {
             return Err(Error::Stopped);
         }
+        // Richieste in coda più completamenti non letti non superano la capacità.
+        if self.queue.len() + self.done.len() >= QUEUE_MAX {
+            return Err(Error::Full);
+        }
         self.queue.push(r)
     }
 
@@ -155,22 +192,22 @@ impl Driver {
     pub fn step(&mut self) -> bool {
         match self.queue.pop() {
             Some(r) => {
-                self.done.push(Completion { id: r.id, result: Ok(r.op.wrapping_add(1)) });
+                let _ = self.done.push(Completion { id: r.id, result: Ok(r.op.wrapping_add(1)) });
                 true
             }
             None => false,
         }
     }
 
-    pub fn take_completions(&mut self) -> Vec<Completion> {
-        std::mem::take(&mut self.done)
+    pub fn take_completions(&mut self) -> impl Iterator<Item = Completion> + '_ {
+        self.done.drain_all()
     }
 
     /// Ferma solo questo driver: le richieste in coda falliscono, gli altri non cambiano.
     pub fn stop(&mut self) {
         self.running = false;
-        for r in self.queue.drain_all() {
-            self.done.push(Completion { id: r.id, result: Err(Error::Stopped) });
+        while let Some(r) = self.queue.pop() {
+            let _ = self.done.push(Completion { id: r.id, result: Err(Error::Stopped) });
         }
     }
 }
@@ -189,21 +226,49 @@ pub enum PlanError {
     UnknownArch,
     RequiredIncompatible(&'static str),
     NotEnoughRam { need: usize, have: usize },
+    /// Più microkernel di `MAX_KERNELS`.
+    TooMany,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Plan {
-    pub active: Vec<&'static str>,
+    pub active: Names,
     /// Componenti opzionali incompatibili: saltati, da registrare nel log.
-    pub skipped: Vec<&'static str>,
+    pub skipped: Names,
     pub bytes: usize,
+}
+
+/// Elenco di nomi a capacità fissa (`MAX_KERNELS`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Names {
+    buf: [&'static str; MAX_KERNELS],
+    len: usize,
+}
+
+impl Names {
+    pub fn new() -> Self {
+        Self { buf: [""; MAX_KERNELS], len: 0 }
+    }
+
+    /// Chi la chiama garantisce `len < MAX_KERNELS`.
+    fn push(&mut self, name: &'static str) {
+        self.buf[self.len] = name;
+        self.len += 1;
+    }
+
+    pub fn as_slice(&self) -> &[&'static str] {
+        &self.buf[..self.len]
+    }
 }
 
 /// Rilevamento e verifica: nessuna modifica di stato.
 pub fn plan(target: Target, manifests: &[Manifest]) -> Result<Plan, PlanError> {
     let arch = target.arch.ok_or(PlanError::UnknownArch)?;
-    let mut active = Vec::new();
-    let mut skipped = Vec::new();
+    if manifests.len() > MAX_KERNELS {
+        return Err(PlanError::TooMany);
+    }
+    let mut active = Names::new();
+    let mut skipped = Names::new();
     let mut bytes = 0;
     for m in manifests {
         if m.archs.contains(&arch) {
@@ -225,28 +290,51 @@ pub fn plan(target: Target, manifests: &[Manifest]) -> Result<Plan, PlanError> {
 pub struct ActivateError {
     pub failed: &'static str,
     /// Driver già attivati e poi fermati, in ordine inverso di attivazione.
-    pub rolled_back: Vec<&'static str>,
+    pub rolled_back: Names,
 }
 
-/// Attivazione in ordine di dipendenza. Se una fallisce, ferma quelle già attive
-/// in ordine inverso e non restituisce nulla: nessuno stato parziale.
+/// Driver attivi, a capacità fissa. Si usano come slice: `ds[0]`, `&mut ds`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Drivers {
+    items: [Driver; MAX_KERNELS],
+    len: usize,
+}
+
+impl Deref for Drivers {
+    type Target = [Driver];
+    fn deref(&self) -> &[Driver] {
+        &self.items[..self.len]
+    }
+}
+
+impl DerefMut for Drivers {
+    fn deref_mut(&mut self) -> &mut [Driver] {
+        &mut self.items[..self.len]
+    }
+}
+
+/// Attivazione in ordine di dipendenza. Se una fallisce (o non c'è più posto), ferma quelle già
+/// attive in ordine inverso e non restituisce nulla: nessuno stato parziale.
 pub fn activate(
     manifests: &[Manifest],
     fail: impl Fn(&Manifest) -> bool,
-) -> Result<Vec<Driver>, ActivateError> {
-    let mut drivers: Vec<Driver> = Vec::new();
+) -> Result<Drivers, ActivateError> {
+    let mut out = Drivers { items: core::array::from_fn(|_| Driver::idle()), len: 0 };
     for m in manifests {
-        if fail(m) {
-            let mut rolled_back = Vec::new();
-            while let Some(mut d) = drivers.pop() {
+        if fail(m) || out.len == MAX_KERNELS {
+            let mut rolled_back = Names::new();
+            while out.len > 0 {
+                out.len -= 1;
+                let d = &mut out.items[out.len];
                 d.stop();
                 rolled_back.push(d.name());
             }
             return Err(ActivateError { failed: m.name, rolled_back });
         }
-        drivers.push(Driver::new(m.clone()));
+        out.items[out.len] = Driver::new(m.clone());
+        out.len += 1;
     }
-    Ok(drivers)
+    Ok(out)
 }
 
 /// Esegue un passo per driver. I driver sono indipendenti: un passo di uno non blocca gli altri.

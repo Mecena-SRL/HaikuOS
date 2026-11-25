@@ -12,6 +12,8 @@ mod monolith;
 mod workspace;
 #[path = "../src/space.rs"]
 mod space;
+#[path = "../src/reminders.rs"]
+mod reminders;
 #[path = "../src/desktop.rs"]
 mod desktop;
 #[path = "../src/font.rs"]
@@ -28,3 +30,7 @@ mod glyph;
 mod editor;
 #[path = "../src/apps/mod.rs"]
 mod apps;
+#[path = "../src/chess.rs"]
+mod chess;
+#[path = "../src/media_ui.rs"]
+mod media_ui;

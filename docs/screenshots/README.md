@@ -21,4 +21,11 @@ python3 host/render_shots.py /tmp/raw ../docs/screenshots
 - `04_visualizzatore_testo.png`: visualizzatore di testo con il file `docs/hello`.
 - `05_editor.png`: editor sullo stesso file, con caratteri in corso di inserimento (arancio) e testo salvato (verde).
 
-Non ancora presenti nel codice: browser, mail, mappe, musica, foto, scacchi, compressione e gli altri programmi della lista.
+- `06_desktop_nove_icone.png`: desktop con nove icone su tre righe. Seconda riga: CLOCK, SETTINGS, CHESS, READ. Terza riga: REMIND.
+- `07_scacchi_1e4.png`: scacchi in finestra dopo 1. e4. Tocca a Nero (B).
+- `08_lettore_pagina_1.png`: lettore di testo, pagina 1 di 2.
+- `09_lettore_pagina_2.png`: lettore di testo, pagina 2 di 2.
+
+Per 06-09 usare `gba/host/render_media.c` (stessa procedura, sequenza di tasti diversa).
+
+Non ancora presenti nel codice: browser, mail, mappe, musica, foto, compressione e gli altri programmi della lista.

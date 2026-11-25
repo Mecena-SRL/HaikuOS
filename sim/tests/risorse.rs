@@ -15,8 +15,8 @@ fn t(arch: Option<Arch>, ram: usize) -> Target {
 fn opzionale_incompatibile_saltato() {
     let ms = [m("cpu", ALL, true, 10), m("gpu-nvidia", ARM_X86, false, 10)];
     let p = plan(t(Some(Arch::Gba), 100), &ms).unwrap();
-    assert_eq!(p.active, vec!["cpu"]);
-    assert_eq!(p.skipped, vec!["gpu-nvidia"]);
+    assert_eq!(p.active.as_slice(), &["cpu"]);
+    assert_eq!(p.skipped.as_slice(), &["gpu-nvidia"]);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn attivazione_fallita_fa_rollback_in_ordine_inverso() {
     let ms = [m("a", ALL, true, 1), m("b", ALL, true, 1), m("c", ALL, true, 1)];
     let err = activate(&ms, |x| x.name == "c").unwrap_err();
     assert_eq!(err.failed, "c");
-    assert_eq!(err.rolled_back, vec!["b", "a"]);
+    assert_eq!(err.rolled_back.as_slice(), &["b", "a"]);
 }
 
 #[test]
@@ -60,10 +60,10 @@ fn due_gpu_lavorano_in_parallelo_senza_mescolare_i_risultati() {
     ds[1].submit(Request { id: 7, op: 70 }).unwrap();
 
     assert_eq!(tick(&mut ds), 2); // un passo per driver nello stesso giro
-    assert_eq!(ds[1].take_completions(), vec![Completion { id: 7, result: Ok(71) }]);
+    assert_eq!(ds[1].take_completions().collect::<Vec<_>>(), vec![Completion { id: 7, result: Ok(71) }]);
     assert_eq!(tick(&mut ds), 1);
     assert_eq!(
-        ds[0].take_completions(),
+        ds[0].take_completions().collect::<Vec<_>>(),
         vec![
             Completion { id: 1, result: Ok(11) },
             Completion { id: 2, result: Ok(21) },
@@ -85,9 +85,9 @@ fn stop_di_un_driver_non_tocca_gli_altri() {
     let mut ds = activate(&ms, |_| false).unwrap();
     ds[0].submit(Request { id: 1, op: 0 }).unwrap();
     ds[0].stop();
-    assert_eq!(ds[0].take_completions(), vec![Completion { id: 1, result: Err(Error::Stopped) }]);
+    assert_eq!(ds[0].take_completions().collect::<Vec<_>>(), vec![Completion { id: 1, result: Err(Error::Stopped) }]);
     assert_eq!(ds[0].submit(Request { id: 2, op: 0 }), Err(Error::Stopped));
     ds[1].submit(Request { id: 9, op: 0 }).unwrap();
     tick(&mut ds);
-    assert_eq!(ds[1].take_completions(), vec![Completion { id: 9, result: Ok(1) }]);
+    assert_eq!(ds[1].take_completions().collect::<Vec<_>>(), vec![Completion { id: 9, result: Ok(1) }]);
 }
