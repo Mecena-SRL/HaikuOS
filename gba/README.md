@@ -101,13 +101,17 @@ Note sulle misure:
 - Formattare lo spazio sistema (`Spaces::format_system`) azzera solo le sue intestazioni e lo riapre vuoto. Lo spazio utente non viene toccato: test host.
 - Permessi per spazio: solo la capacità di sistema (`SYS_CAP`, id 0) può formattare il sistema. Nello spazio utente vale il proprietario di ogni file. Niente permessi in stile Unix.
 - Il contatore di avvii sta nel sistema; i file e il workspace stanno nell'utente.
-- Limite: un file deve stare nella regione del suo spazio (circa 8 KB per regione). Un file di 8 KB pieno non rientra in compattazione: da correggere.
+- Limite: un file deve stare nella regione del suo spazio. `Persist::write` rifiuta con `TooLarge` ciò che non entra, prima di toccare la RAM.
 - Test host: 31 test. ROM con demo del compositore (PR #24) ancora presente: passa con A.
 
 ## Da fare sul GBA
 
 - Verificare su hardware reale SRAM, tempi di scrittura e stack.
-- Ridurre il costo di sync (buffer da 8 KB azzerato a ogni chiamata).
 - Formattazione del sistema: non collegata a un tasto né a un comando nel workspace.
-- Limite del file pieno (vedi sopra).
 - Profilo macchina potente: valori da verificare.
+
+## Sync a blocchi (ultima misura)
+
+- Il sync scrive i dati dei file a blocchi (`put_stream` + `Fs::read_block`), senza buffer da 8 KB azzerato a ogni chiamata.
+- Misura in mGBA (cicli del timer, media): sync di 100 byte = 50 734 cicli (prima 165 122). Alloc+free invariato: 35 400.
+- Test host: 33 test, incluso il file grande che sopravvive a compattazioni e riavvio.

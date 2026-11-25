@@ -254,6 +254,30 @@ impl Fs {
         Ok(len.min(out.len()))
     }
 
+    /// Legge il blocco `i` (in ordine) del file. Ritorna quanti byte sono validi in `out`.
+    pub fn read_block(&self, id: usize, i: usize, out: &mut [u8; BLOCK]) -> Result<usize, FsError> {
+        let e = self.entry(id)?;
+        if e.dir {
+            return Err(FsError::IsDir);
+        }
+        let mut b = e.head;
+        for _ in 0..i {
+            if b == NONE {
+                return Err(FsError::Corrupt);
+            }
+            b = self.next[b as usize];
+        }
+        if b == NONE {
+            return Err(FsError::Corrupt);
+        }
+        let k = b as usize;
+        if fnv(&self.data[k]) != self.sum[k] {
+            return Err(FsError::Corrupt);
+        }
+        *out = self.data[k];
+        Ok((e.len as usize).saturating_sub(i * BLOCK).min(BLOCK))
+    }
+
     /// Rimuove un file o una directory vuota.
     pub fn remove(&mut self, id: usize, caller: u8) -> Result<(), FsError> {
         let e = self.entry(id)?;
