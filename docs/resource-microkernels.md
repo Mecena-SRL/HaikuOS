@@ -121,3 +121,26 @@ Una GPU ha memoria propria (VRAM o memoria unificata con accesso dichiarato), co
 - Driver audio: quanti buffer servono per non avere scatti.
 - Alimentazione su ARM64 e x86-64: quali stati esistono davvero.
 - Ordine di attivazione tra risorse (es. memoria prima di GPU): oggi è fisso nel manifest.
+
+## 11. Revisione di coerenza con il contratto comune
+
+Verificata per ogni microkernel nel simulatore. Test di coerenza in `sim/tests/audio_coerenza.rs` (manifest unici, architetture e memoria dichiarate, risorse indispensabili su tutte le architetture).
+
+| Microkernel | Manifest | Capacità | Stato | Richieste asincrone | Errori tipizzati | Note |
+|---|---|---|---|---|---|---|
+| CPU (`cpu.rs`) | sì | `caps_of` | in `process.rs` | no (ammissione sincrona) | `AdmitError` | conforme |
+| Memoria (`memory.rs`) | sì | quote | conteggio blocchi | no (sincrona) | `MemError` | conforme |
+| Storage (`storage.rs`) | sì | dimensione blocco | no | no (sincrono) | `StorageError` | conforme |
+| Rete (`net.rs`) | sì | MTU | no | no (solo frame) | `NetError` | stack TCP/IP da fare |
+| GPU (`gpu.rs`) | sì (2) | VRAM | no | sì (`submit`/`run`) | `GpuError` | conforme |
+| Input (`input.rs`) | sì | profondità coda | no | sì (`push`/`poll`) | `resource::Error` | corretto: prima restituiva `bool` |
+| Alimentazione (`power.rs`) | sì | soglia batteria | sì (`State`) | no | `PowerError` | conforme |
+| Crittografia (`crypto.rs`) | sì | slot | no | no | `CryptoError` | conforme |
+| Swap (`swap.rs`) | sì | pagina fissa | no | no | `SwapError` | conforme |
+| Audio (`audio.rs`) | sì | canali (max 4) | underrun contati | sì (`push`/`mix`) | `AudioError` | conforme |
+
+Deviazioni aperte:
+1. **Nessun trait comune.** Il contratto è rispettato per convenzione, non per tipo: ogni modulo espone il proprio manifest e i propri errori. Passo successivo: un trait `Microkernel` con `manifest()` e `state()`, quando il monolite ne avrà bisogno.
+2. **`resource::Driver` non è usato dai moduli.** È il prototipo generico della coda; i moduli hanno code proprie. Da unificare quando si aggiunge il trait.
+3. **Stato esplicito solo per l'alimentazione.** Per gli altri il monolite non ha ancora uno stato da leggere.
+4. **Stack TCP/IP, driver Wi-Fi e driver reali** non esistono: il prototipo di rete copre solo il frame ethernet.

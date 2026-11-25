@@ -2,7 +2,7 @@
 //! Un evento in più sulla coda piena viene scartato e contato. Nessun hardware reale.
 //! Regole: docs/resource-microkernels.md.
 
-use crate::resource::{Arch, Kind, Manifest};
+use crate::resource::{Arch, Error, Kind, Manifest};
 use std::collections::VecDeque;
 
 /// Manifest generico: pulsanti e polling, su tutte le architetture.
@@ -46,14 +46,14 @@ impl Input {
         Self { queue: VecDeque::with_capacity(depth), depth, dropped: 0 }
     }
 
-    /// Ritorna false se la coda è piena: l'evento si scarta e si conta.
-    pub fn push(&mut self, e: Event) -> bool {
+    /// Errore `Full` se la coda è piena: l'evento si scarta e si conta.
+    pub fn push(&mut self, e: Event) -> Result<(), Error> {
         if self.queue.len() >= self.depth {
             self.dropped += 1;
-            return false;
+            return Err(Error::Full);
         }
         self.queue.push_back(e);
-        true
+        Ok(())
     }
 
     pub fn poll(&mut self) -> Option<Event> {
