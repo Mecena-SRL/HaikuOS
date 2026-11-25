@@ -165,5 +165,25 @@ Deviazioni residue:
   - `sim/src/ip.rs`: IPv4 senza opzioni, checksum verificato in lettura, versione e lunghezza controllate.
   - `sim/src/tcp.rs`: handshake a tre vie, dati in ordine, FIN. Checksum su pseudo-intestazione.
   - Test in `sim/tests/stack.rs`: un messaggio TCP attraversa IP ed ethernet tra due `NetLink`.
-- Limiti del TCP: nessuna ritrasmissione, nessuna finestra, nessun controllo di congestione. Segmenti fuori ordine vengono scartati. Da fare prima dell'uso reale.
+- Limiti del TCP: vedi sezione 13 (ritrasmissione e finestra ora presenti).
 - **Da verificare:** la RAM che lo stack richiede sulla GBA (oggi non entra nel budget di 8 KB dichiarato).
+
+## 13. TCP con finestra e ritrasmissione; RAM dello stack
+
+- **Finestra di base:** ogni segmento annuncia il buffer libero (`wnd`). Il mittente non supera la finestra del peer; con finestra zero non invia. La lettura dell'applicazione (`read`) riapre la finestra con un ACK.
+- **Ritrasmissione:** i segmenti senza ACK restano in coda. Dopo `RTO_TICKS` (3) tick senza conferma li rimanda tutti (go-back-N). Un duplicato non raddoppia i dati e riceve un ACK.
+- **Limiti ancora aperti:** nessun controllo di congestione, RTO fisso (non adattivo), nessun buffer fuori ordine, SYN non ritrasmesso. Il numero di sequenza del SYN-ACK ora avanza di uno, come richiede il protocollo.
+- Test: `sim/tests/tcp_affidabile.rs` (4 test: perdita e ritrasmissione, duplicato, finestra a zero e riapertura, byte in volo limitati).
+
+### RAM dello stack (misurata sull'host, 64 bit)
+
+| Oggetto | Byte host | Note |
+|---|---|---|
+| `Conn` (connessione) | 88 | struttura, senza buffer |
+| buffer di ricezione (`RCV_BUF`) | 1024 | default, riducibile |
+| `Segment` / `Packet` / `Frame` | 40 | per messaggio in volo |
+| `NetLink` | 88 | due code di frame |
+
+Totale per connessione sull'host (struttura più buffer RX, senza segmenti in volo): **1112 byte**. Il test `sim/tests/ram_stack.rs` lo fissa sotto 2 KB.
+
+**Stima GBA (ARM7, 32 bit): da verificare.** I puntatori e i `Vec` sono circa la metà. Stima per connessione: struttura circa 60 byte, RX 1024 byte, TX in volo fino a 1024 byte (la finestra del peer). Nel caso peggiore circa 2,1 KB per connessione. Con `RCV_BUF = 256` si scende a circa 600 byte. Il budget del manifest `net-ethernet-generic` è 8 KB: regge una connessione con buffer piccoli, non due con buffer da 1 KB. Decisione da prendere: buffer piccoli sulla GBA, da misurare sull'emulatore.

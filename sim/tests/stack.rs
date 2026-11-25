@@ -111,8 +111,10 @@ fn tcp_segmento_fuori_ordine_ignorato_e_porta_sbagliata() {
     let (mut cli, syn) = Conn::connect(5000, 80, 100);
     pump(&mut cli, &mut srv, syn);
     let mut d = cli.send(b"abc").unwrap();
-    d.seq = d.seq.wrapping_add(10); // fuori ordine
-    assert!(srv.on_segment(&d).is_none());
+    let in_order = d.seq;
+    d.seq = d.seq.wrapping_add(10); // fuori ordine: scartato, risponde con ACK di ciò che manca
+    let dup = srv.on_segment(&d).unwrap();
+    assert_eq!(dup.ack, in_order);
     assert!(srv.received.is_empty());
     d.dst_port = 81; // porta sbagliata
     assert!(srv.on_segment(&d).is_none());
@@ -131,7 +133,7 @@ fn tcp_fin_chiude_il_lato_remoto() {
 
 #[test]
 fn tcp_checksum_su_pseudo_intestazione() {
-    let s = Segment { src_port: 1, dst_port: 2, seq: 3, ack: 4, flags: 0x10, payload: b"xy".to_vec() };
+    let s = Segment { src_port: 1, dst_port: 2, seq: 3, ack: 4, flags: 0x10, wnd: 512, payload: b"xy".to_vec() };
     let raw = s.encode(A_IP, B_IP);
     assert_eq!(Segment::parse(&raw, A_IP, B_IP).unwrap(), s);
     // stesso segmento con un IP diverso: il checksum non torna.
