@@ -10,6 +10,6 @@
 | ODS | sì | no | `office/src/ods.rs` |
 | XLSX | primo foglio, testo | no | `office/src/sheet.rs` |
 | PDF | testo di base | no | `office/src/pdf.rs` |
-| Pages (`.pages`) | no | no | da fare: IWA (Snappy + protobuf). **Da verificare** |
+| Pages (`.pages`) | testo | no | `office/src/pages.rs`, `snappy.rs`. Tipo 2001, campo 3: **da verificare** su file Apple |
 
 File di prova: `office/tests/fixtures/`. Nessun file creato con Word, LibreOffice o Pages: compatibilità reale **da verificare**.

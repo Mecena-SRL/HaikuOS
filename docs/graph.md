@@ -14,6 +14,8 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `gui/` | host | - | desktop e window manager |
 | `office/src/ods.rs` | host, no_std | formats | ODS in sola lettura, test inline |
 | `sim/` (formati) | - | - | rimossi: duplicavano `office/` |
+| `office/src/snappy.rs` | host, no_std | - | Snappy a blocchi, test inline |
+| `office/src/pages.rs` | host, no_std | snappy, zip | testo Pages da IWA, **da verificare** |
 | `devtools/` | host, std | - | manifest, ordine di build, build runner, package manager, nucleo IDE, progetto, SHA-256, CLI `hdev` |
 
 ## Stato
