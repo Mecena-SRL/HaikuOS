@@ -46,6 +46,20 @@ pub extern "C" fn kmain() -> ! {
     kprintln!("[ok] seriale COM1 e VGA attivi");
 
     let fbo = fb::init();
+    match &fbo {
+        Some(f) => {
+            console::puts("[ok] framebuffer ");
+            console::put_dec(f.w as u32);
+            console::puts("x");
+            console::put_dec(f.h as u32);
+            console::puts(" bpp ");
+            console::put_dec(f.bpp() as u32);
+            console::puts(" pitch ");
+            console::put_dec(f.pitch() as u32);
+            console::puts("\n");
+        }
+        None => kprintln!("[avviso] framebuffer non valido: resto a testo"),
+    }
     if let Some(f) = &fbo {
         splash(f, 0, "AVVIO IN CORSO");
     }
