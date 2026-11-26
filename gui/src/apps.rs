@@ -29,6 +29,11 @@ impl Store for Disk {
     fn file(&self, name: &str) -> Option<&'static str> {
         FILES.iter().find(|(n, _)| *n == name).map(|(_, b)| *b)
     }
+    fn names(&self, out: &mut dyn FnMut(&str)) {
+        for (n, _) in FILES {
+            out(n);
+        }
+    }
 }
 
 

@@ -23,7 +23,22 @@ pub fn exec(line: &str, store: &dyn Store, out: &mut dyn FnMut(&str), depth: u8)
     };
     match cmd {
         "help" => {
-            out("help apps echo browse run");
+            out("help apps echo ls cat browse run uname");
+            Ok(())
+        }
+        "uname" => {
+            out("HaikuOS 0.1 x86_64");
+            Ok(())
+        }
+        "ls" => {
+            store.names(out);
+            Ok(())
+        }
+        "cat" => {
+            let body = file(store, arg)?;
+            for l in body.lines() {
+                out(l);
+            }
             Ok(())
         }
         "apps" => {
@@ -95,6 +110,13 @@ mod tests {
     fn run_script_and_reject_nesting() {
         assert_eq!(run("run script").1, ["uno", "due"]);
         assert_eq!(run("run loop").0, Err(ShellError::NestedRun));
+    }
+
+    #[test]
+    fn ls_cat_uname() {
+        assert_eq!(run("uname").1, ["HaikuOS 0.1 x86_64"]);
+        assert_eq!(run("cat pagina").1, ["# Titolo", "=> x"]);
+        assert_eq!(run("cat").0, Err(ShellError::MissingArg));
     }
 
     #[test]
