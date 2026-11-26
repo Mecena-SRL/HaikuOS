@@ -105,7 +105,7 @@ pub extern "C" fn kmain() -> ! {
 }
 
 // App di sistema: FILE, terminale, calcolatrice, browser, editor, impostazioni, orologio, lettore. Titoli in maiuscole per il font 3×5.
-static ICONS: [haiku_gui::Icon; 8] = [
+static ICONS: [haiku_gui::Icon; 9] = [
     haiku_gui::Icon { label: "FILE", app: 1, title: "FILE", w: 120, h: 80 },
     haiku_gui::Icon { label: "TERM", app: 2, title: "TERMINALE", w: 120, h: 80 },
     haiku_gui::Icon { label: "CALC", app: 3, title: "CALCOLATRICE", w: 80, h: 80 },
@@ -114,6 +114,7 @@ static ICONS: [haiku_gui::Icon; 8] = [
     haiku_gui::Icon { label: "SET", app: 6, title: "IMPOST", w: 120, h: 80 },
     haiku_gui::Icon { label: "ORA", app: 7, title: "ORA", w: 80, h: 80 },
     haiku_gui::Icon { label: "READ", app: 8, title: "LETTORE", w: 120, h: 80 },
+    haiku_gui::Icon { label: "IDE", app: 9, title: "IDE", w: 160, h: 120 },
 ];
 
 fn halt() -> ! {

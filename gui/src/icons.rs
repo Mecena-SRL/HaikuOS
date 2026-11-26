@@ -23,6 +23,7 @@ const REMIND: &[Cut] = &[(7, 3, 2, 1), (5, 4, 6, 5), (4, 9, 8, 1), (7, 10, 2, 2)
 const PASSWORDS: &[Cut] = &[(3, 6, 3, 4), (6, 7, 6, 2), (10, 9, 1, 2), (12, 9, 1, 2)];
 const DICTIONARY: &[Cut] = &[(7, 4, 1, 8), (4, 4, 3, 1), (9, 4, 3, 1), (4, 6, 3, 1), (9, 6, 3, 1), (4, 8, 3, 1), (9, 8, 3, 1)];
 const CALENDAR: &[Cut] = &[(3, 4, 10, 1), (3, 4, 1, 9), (12, 4, 1, 9), (3, 12, 10, 1), (3, 7, 10, 1), (6, 3, 1, 2), (9, 3, 1, 2)];
+const CODE: &[Cut] = &[(3, 5, 1, 1), (4, 6, 1, 1), (5, 7, 1, 1), (4, 8, 1, 1), (3, 9, 1, 1), (11, 5, 1, 1), (10, 6, 1, 1), (9, 7, 1, 1), (10, 8, 1, 1), (11, 9, 1, 1)];
 const DEFAULT: &[Cut] = &[(4, 4, 6, 6)];
 
 /// Segni del glifo per l'etichetta dell'icona; sconosciute: riquadro vuoto.
@@ -36,6 +37,7 @@ pub fn cuts(label: &str) -> &'static [Cut] {
         "SET" => SET,
         "ORA" | "CLOCK" => CLOCK,
         "READ" => READ,
+        "IDE" => CODE,
         "REMIND" => REMIND,
         "PASSWORDS" => PASSWORDS,
         "DICTIONARY" => DICTIONARY,
