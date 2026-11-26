@@ -43,7 +43,7 @@ Obiettivo di Ivan: leggere e scrivere con Microsoft Office, LibreOffice, OpenDoc
 | `.pdf` | Macchine potenti | Sola lettura, tappa 4 |
 | `.pages` (Apple) | Macchine potenti | Solo dopo verifica della specifica, formato poco documentato. **Da verificare** |
 
-Limite: il GBA non ha memoria per ZIP e XML completi. La compatibilità piena parte dalle macchine potenti. Decisione in attesa di Ivan: compatibilità piena sulle macchine potenti (proposta), oppure un sottoinsieme di `.docx` anche sul GBA.
+Limite: il GBA non ha memoria per ZIP e XML completi. La compatibilità piena parte dalle macchine potenti. Decisione (Ivan, 2026-11-26): compatibilità piena sulle macchine potenti. Il GBA usa solo `.txt`.
 
 ## 4. Modulo testo (`office/src/text.rs`)
 
