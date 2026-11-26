@@ -31,6 +31,6 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `formats.rs` | `zip` | testo di docx e odt, scrittura docx e odt |
 | `pdf.rs` | `inflate` | PDF in sola lettura (font semplici e Identity-H) |
 | `sheet.rs` | `zip`, `formats` | fogli: CSV, xlsx, formule |
-| `slides.rs` | `zip`, `formats` | presentazioni: formato nativo, lettura pptx |
+| `slides.rs` | `zip`, `formats` | presentazioni: formato nativo, lettura e scrittura pptx |
 
-Stato: tappe 1-3 unite (#121, #171). Rinviati: scrittura pptx, `.pages`.
+Stato: tappe 1-3 unite (#121, #171, #174). Scrittura pptx minima verificata con LibreOffice. Rinviato: `.pages`.
