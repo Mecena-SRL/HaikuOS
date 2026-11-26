@@ -45,6 +45,16 @@ Obiettivo di Ivan: leggere e scrivere con Microsoft Office, LibreOffice, OpenDoc
 
 Limite: il GBA non ha memoria per ZIP e XML completi. La compatibilità piena parte dalle macchine potenti. Decisione (Ivan, 2026-11-26): compatibilità piena sulle macchine potenti. Il GBA usa solo `.txt`.
 
+## 3c. Stato compatibilità (tappa 2 in corso)
+
+- `office/src/inflate.rs`: DEFLATE (RFC 1951) senza allocazioni. Test su blocchi fissi, dinamici e stored.
+- `office/src/zip.rs`: lettura ZIP (stored e DEFLATE). Scrittura stored con CRC-32. Il CRC non si verifica in lettura (**da verificare**).
+- `office/src/formats.rs`: lettura del testo di `.docx` e `.odt`; scrittura di un docx e un odt minimi di solo testo.
+- Verifica: LibreOffice apre i nostri docx e odt e ne estrae il testo corretto. Il nostro lettore legge docx e odt creati da LibreOffice.
+- Da verificare: caratteri accentati (il file di test usa UTF-8 nei byte, non Latin-1; resta da controllare sul font GBA e sulle suite Apple).
+- PDF in sola lettura: solo font semplici (WinAnsi). Font incorporati con Identity-H (quasi tutti i PDF di LibreOffice) richiedono il ToUnicode: rinviato.
+- `.pages`: non ancora verificato.
+
 ## 4. Modulo testo (`office/src/text.rs`)
 
 - `Text<N>`: buffer fisso di `N` byte, nessuna allocazione, solo `core`.
