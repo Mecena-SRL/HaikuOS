@@ -164,3 +164,85 @@ impl<'a> Iterator for Entries<'a> {
         }
     }
 }
+
+/// Cursore di scrittura su buffer fisso.
+pub struct Out<'a> {
+    buf: &'a mut [u8],
+    pub n: usize,
+}
+
+impl<'a> Out<'a> {
+    pub fn new(buf: &'a mut [u8]) -> Self {
+        Out { buf, n: 0 }
+    }
+
+    pub fn put(&mut self, b: &[u8]) -> Result<(), Error> {
+        let dst = self.buf.get_mut(self.n..self.n + b.len()).ok_or(Error::Full)?;
+        dst.copy_from_slice(b);
+        self.n += b.len();
+        Ok(())
+    }
+
+    fn u16(&mut self, v: u16) -> Result<(), Error> {
+        self.put(&v.to_le_bytes())
+    }
+
+    fn u32(&mut self, v: u32) -> Result<(), Error> {
+        self.put(&v.to_le_bytes())
+    }
+}
+
+/// Scrive un archivio ZIP con voci stored (metodo 0), CRC-32 calcolato. Restituisce i byte scritti.
+pub fn write_stored(out: &mut [u8], files: &[(&str, &[u8])]) -> Result<usize, Error> {
+    let mut o = Out::new(out);
+    for (name, data) in files {
+        let len = data.len() as u32;
+        o.u32(SIG_LOCAL)?;
+        o.u16(20)?;
+        o.u16(0)?; // flag
+        o.u16(0)?; // metodo
+        o.u16(0)?; // ora
+        o.u16(0)?; // data
+        o.u32(crc32(data))?;
+        o.u32(len)?;
+        o.u32(len)?;
+        o.u16(name.len() as u16)?;
+        o.u16(0)?;
+        o.put(name.as_bytes())?;
+        o.put(data)?;
+    }
+    let cd = o.n;
+    let mut off = 0usize;
+    for (name, data) in files {
+        let len = data.len() as u32;
+        o.u32(SIG_CD)?;
+        o.u16(20)?;
+        o.u16(20)?;
+        o.u16(0)?;
+        o.u16(0)?;
+        o.u16(0)?;
+        o.u16(0)?;
+        o.u32(crc32(data))?;
+        o.u32(len)?;
+        o.u32(len)?;
+        o.u16(name.len() as u16)?;
+        o.u16(0)?;
+        o.u16(0)?;
+        o.u16(0)?;
+        o.u16(0)?;
+        o.u32(0)?;
+        o.u32(off as u32)?;
+        o.put(name.as_bytes())?;
+        off += 30 + name.len() + data.len();
+    }
+    let cdlen = (o.n - cd) as u32;
+    o.u32(SIG_EOCD)?;
+    o.u16(0)?;
+    o.u16(0)?;
+    o.u16(files.len() as u16)?;
+    o.u16(files.len() as u16)?;
+    o.u32(cdlen)?;
+    o.u32(cd as u32)?;
+    o.u16(0)?;
+    Ok(o.n)
+}

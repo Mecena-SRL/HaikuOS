@@ -21,13 +21,13 @@ impl<'a> Sink<'a> {
         self.n
     }
 
-    fn byte(&mut self, b: u8) -> Result<(), Error> {
+    pub(crate) fn byte(&mut self, b: u8) -> Result<(), Error> {
         *self.buf.get_mut(self.n).ok_or(Error::Full)? = b;
         self.n += 1;
         Ok(())
     }
 
-    fn bytes(&mut self, b: &[u8]) -> Result<(), Error> {
+    pub(crate) fn bytes(&mut self, b: &[u8]) -> Result<(), Error> {
         for &c in b {
             self.byte(c)?;
         }
@@ -35,11 +35,24 @@ impl<'a> Sink<'a> {
     }
 
     /// Fine riga: toglie le tabulazioni finali (celle vuote) e scrive `\n`.
-    fn newline(&mut self) -> Result<(), Error> {
+    pub(crate) fn newline(&mut self) -> Result<(), Error> {
         while self.n > 0 && self.buf[self.n - 1] == b'\t' {
             self.n -= 1;
         }
         self.byte(b'\n')
+    }
+
+    /// A capo, senza righe vuote consecutive e senza riga iniziale.
+    pub(crate) fn nl(&mut self) -> Result<(), Error> {
+        if self.n == 0 || self.buf[self.n - 1] == b'\n' {
+            return Ok(());
+        }
+        self.byte(b'\n')
+    }
+
+    pub(crate) fn push_char(&mut self, ch: char) -> Result<(), Error> {
+        let mut b = [0u8; 4];
+        self.bytes(ch.encode_utf8(&mut b).as_bytes())
     }
 
     fn tabs(&mut self, k: usize) -> Result<(), Error> {
@@ -50,7 +63,7 @@ impl<'a> Sink<'a> {
     }
 
     /// Testo grezzo XML con entità decodificate (`&amp;`, `&#233;`, `&#xE9;` …).
-    fn text(&mut self, raw: &[u8]) -> Result<(), Error> {
+    pub(crate) fn text(&mut self, raw: &[u8]) -> Result<(), Error> {
         let mut i = 0;
         while i < raw.len() {
             if raw[i] != b'&' {
@@ -284,6 +297,9 @@ mod host {
 
     /// Testo di un documento Office o OpenDocument. Il formato è riconosciuto dal contenuto.
     pub fn read_text(file: &[u8]) -> Result<String, Error> {
+        if file.starts_with(b"%PDF") {
+            return render(|s| crate::pdf::text(file, s, &mut vec![0u8; 1 << 22]));
+        }
         let ar = Archive::open(file)?;
         if ar.find("word/document.xml").is_ok() {
             let xml = part(&ar, "word/document.xml")?;

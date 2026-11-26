@@ -41,6 +41,8 @@ pub mod crypto;
 pub mod csum;
 pub mod inflate;
 pub mod office;
+pub mod officewrite;
+pub mod pdf;
 pub mod xml;
 pub mod zip;
 #[cfg(feature = "std")]

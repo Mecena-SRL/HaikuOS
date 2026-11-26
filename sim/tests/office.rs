@@ -116,6 +116,21 @@ fn file_troncati_non_fanno_panico() {
 }
 
 #[test]
+fn pdf_testo_base() {
+    let t = read_text(&fixture("sample.pdf")).unwrap();
+    assert_eq!(t.trim(), "Ciao (mondo)\nRiga due\nTerza \\ riga\nTesto piano");
+}
+
+#[test]
+fn scrittura_docx_odt_round_trip() {
+    use haiku_alloc_sim::officewrite::{docx_vec, odt_vec};
+    let t = "Ciao & <mondo>\n  due  spazi\nÈ tutto qui";
+    let want = "Ciao & <mondo>\n  due  spazi\nÈ tutto qui\n";
+    assert_eq!(read_text(&docx_vec(t).unwrap()).unwrap(), want);
+    assert_eq!(read_text(&odt_vec(t).unwrap()).unwrap(), want);
+}
+
+#[test]
 fn formato_sconosciuto() {
     let mut zf = Vec::new();
     {
