@@ -9,4 +9,6 @@ pub mod formats;
 pub mod pdf;
 pub mod sheet;
 pub mod ods;
+pub mod snappy;
+pub mod pages;
 pub mod slides;
