@@ -66,6 +66,8 @@ pub struct Shell {
     pub editor: Editor<7, 27>,
     /// Buffer dell'app IDE (id 9): stesso editor, F5 esegue lo script.
     pub ide: Editor<7, 27>,
+    /// File mostrato dall'IDE (indice in `FILES`), cambiato con L.
+    pub ide_sel: usize,
     /// Prima riga visibile del browser, del lettore e uscita dell'ultimo script.
     pub bscroll: usize,
     pub rscroll: usize,
@@ -103,6 +105,7 @@ impl Shell {
             bsel: 0,
             editor: Editor::new(),
             ide: Editor::new(),
+            ide_sel: 0,
             bscroll: 0,
             rscroll: 0,
             eout: Term::new(),
@@ -217,9 +220,7 @@ impl Shell {
                 }
             }
             9 => {
-                if let Some(text) = Disk.file(SCRIPT) {
-                    let _ = self.ide.load(text);
-                }
+                let _ = self.ide.load(FILES[self.ide_sel].1);
             }
             _ => {}
         }
@@ -334,6 +335,12 @@ impl Shell {
             (8, Key::Down) if self.rscroll + 1 < self.file_lines() => self.rscroll += 1,
             (5 | 9, Key::Up) => self.ed_mut(app).up(),
             (5 | 9, Key::Down) => self.ed_mut(app).down(),
+            (9, Key::L) => {
+                // IDE: L passa al file successivo di FILES.
+                self.ide_sel = (self.ide_sel + 1) % FILES.len();
+                self.ide = Editor::new();
+                let _ = self.ide.load(FILES[self.ide_sel].1);
+            }
             (5 | 9, Key::Left) => self.ed_mut(app).left(),
             (5 | 9, Key::Right) => self.ed_mut(app).right(),
             _ => {}

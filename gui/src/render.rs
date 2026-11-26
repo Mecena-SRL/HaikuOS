@@ -1,7 +1,7 @@
 //! Disegno della scrivania sopra un `Canvas`. Il canvas ritaglia da solo.
 use crate::layout::*;
 use crate::palette::Tok::{self, T0, T1, T2, T3};
-use crate::apps::{num_str, LINE_H, TEXT_ROWS, THEME_NAMES, TL};
+use crate::apps::{num_str, FILES, LINE_H, TEXT_ROWS, THEME_NAMES, TL};
 use crate::chess::{self, Outcome};
 
 const PIECE_LETTERS: [&str; 7] = ["", "P", "N", "B", "R", "Q", "K"];
@@ -124,14 +124,19 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
         5 | 9 => {
             // Buffer dell'editor (5) o dell'IDE (9), cursore T2, e in fondo il pannello dell'uscita di F5.
             let ed = if app == 9 { &s.ide } else { &s.editor };
-            let code = ed.lines().min(7);
+            // IDE: prima riga il nome del file (L lo cambia), il testo sotto.
+            let off = if app == 9 { 1 } else { 0 };
+            if app == 9 {
+                c.text(cc.x, row_y(0), clip(FILES[s.ide_sel].0, cols), T0);
+            }
+            let code = ed.lines().min(7 - off);
             for i in 0..code {
-                c.text(cc.x, row_y(i), clip(ed.line(i), cols), T0);
+                c.text(cc.x, row_y(i + off), clip(ed.line(i), cols), T0);
             }
             let (r, col) = ed.cursor();
             let cx = cc.x + col as i32 * (FONT_W + 1);
             if r < code && cx + FONT_W <= cc.x + cc.w {
-                c.fill(Rect::new(cx, row_y(r), FONT_W, FONT_H), T2);
+                c.fill(Rect::new(cx, row_y(r + off), FONT_W, FONT_H), T2);
             }
             if rows >= TEXT_ROWS {
                 c.fill(Rect::new(cc.x, row_y(7), cc.w, 1), T3);
