@@ -1,7 +1,7 @@
 //! CLI dell'editor (versione host). Uso:
 //!   haiku-editor [file] new | show | paint X Y V | fill X0 Y0 X1 Y1 V | sprite KIND X Y
 
-use haiku_editor::{Scene, Sprite};
+use haiku_editor::{gui::{Editor, Key}, platform::{run, Platform}, Scene, Sprite};
 use std::{env, fs, process};
 
 type S = Scene<16, 12, 32>;
@@ -57,29 +57,51 @@ fn main() {
     }
 }
 
-/// Editor interattivo da terminale: w/a/s/d muovi, spazio dipingi, u annulla,
-/// [ ] cambia pennello, p stampa stato, q salva ed esce.
-fn edit(scene: S, path: &str) {
-    use haiku_editor::gui::{Editor, Key};
-    use std::io::{BufRead, Write};
-    let mut ed: Editor<16, 12, 32, 64> = Editor::new(scene);
-    let keys = [('w', Key::Up), ('s', Key::Down), ('a', Key::Left), ('d', Key::Right),
-        (' ', Key::Paint), ('u', Key::Undo), (']', Key::NextBrush), ('[', Key::PrevBrush)];
-    for line in std::io::stdin().lock().lines().map_while(Result::ok) {
-        for c in line.chars() {
-            if c == 'q' {
-                save(&ed.scene, path);
-                return;
-            }
-            if let Some((_, k)) = keys.iter().find(|(kc, _)| *kc == c) {
-                ed.handle(*k);
-            }
-        }
-        println!("pennello {} cursore ({},{})", ed.brush, ed.cx, ed.cy);
-        show(&ed.scene);
-        let _ = std::io::stdout().flush();
+/// Backend di prova sull'host: tasti da stdin (w/a/s/d, spazio, u, [ ], q).
+struct TermPlatform {
+    buf: Vec<u32>,
+    pending: Vec<Key>,
+}
+
+impl Platform for TermPlatform {
+    fn size(&self) -> (usize, usize) {
+        (16 * 16, 12 * 16)
     }
+    fn buffer(&mut self) -> &mut [u32] {
+        &mut self.buf
+    }
+    fn poll_key(&mut self) -> Option<Key> {
+        use std::io::BufRead;
+        while self.pending.is_empty() {
+            let mut line = String::new();
+            if std::io::stdin().lock().read_line(&mut line).ok()? == 0 {
+                return None;
+            }
+            self.pending = line.chars().rev().filter_map(|c| match c {
+                'w' => Some(Key::Up),
+                's' => Some(Key::Down),
+                'a' => Some(Key::Left),
+                'd' => Some(Key::Right),
+                ' ' => Some(Key::Paint),
+                'u' => Some(Key::Undo),
+                ']' => Some(Key::NextBrush),
+                '[' => Some(Key::PrevBrush),
+                'q' => Some(Key::Quit),
+                _ => None,
+            }).collect();
+        }
+        self.pending.pop()
+    }
+    fn present(&mut self) {}
+}
+
+/// Editor interattivo da terminale, sul backend di prova.
+fn edit(scene: S, path: &str) {
+    let mut ed: Editor<16, 12, 32, 64> = Editor::new(scene);
+    let mut term = TermPlatform { buf: vec![0; 16 * 16 * 12 * 16], pending: Vec::new() };
+    run(&mut ed, &mut term, 16);
     save(&ed.scene, path);
+    show(&ed.scene);
 }
 
 fn save(s: &S, path: &str) {
@@ -91,7 +113,7 @@ fn save(s: &S, path: &str) {
 
 /// Esporta la vista dell'editor come PPM (tile da 16 px).
 fn render(s: &S, out: &str) {
-    use haiku_editor::{gui::{Canvas, Editor}, History};
+    use haiku_editor::{gui::Canvas, History};
     const TS: usize = 16;
     let ed = Editor { scene: *s, hist: History::<8>::default(), cx: 0, cy: 0, brush: 1 };
     let (w, h) = (16 * TS, 12 * TS);

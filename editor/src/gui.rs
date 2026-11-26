@@ -61,6 +61,7 @@ pub enum Key {
     Undo,
     NextBrush,
     PrevBrush,
+    Quit,
 }
 
 impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H, N, U> {
@@ -80,6 +81,7 @@ impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H
             Key::Undo => {
                 self.scene.undo(&mut self.hist);
             }
+            Key::Quit => {}
             Key::NextBrush => self.brush = (self.brush + 1) % PALETTE.len() as u8,
             Key::PrevBrush => self.brush = (self.brush + PALETTE.len() as u8 - 1) % PALETTE.len() as u8,
         }

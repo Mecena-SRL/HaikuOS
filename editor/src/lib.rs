@@ -4,6 +4,7 @@
 #![cfg_attr(not(test), no_std)]
 
 pub mod gui;
+pub mod platform;
 
 /// Griglia di tile, `cells[y][x]`. Valore 0 = vuoto.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
