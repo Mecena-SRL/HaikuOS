@@ -1,13 +1,13 @@
 # Avvio di HaikuOS su x86-64 (QEMU)
 
-Stato: primo passo verificato in QEMU 8.2 (headless, seriale e VGA). Hardware reale e UEFI: **da verificare**.
+Stato: schermo 1280x800 verificato in QEMU (screenshot `x86/build/screen.png`, non versionato); hardware reale: da verificare. Primo passo verificato in QEMU 8.2 (headless, seriale e VGA). Hardware reale e UEFI: **da verificare**.
 
 ## Cosa parte (verificato)
 
 | Fase | Cosa fa | Verifica |
 |---|---|---|
 | MBR (`x86/boot/stage1.asm`) | Carica lo stage 2 da LBA 1 a 0x7E00 con BIOS int 13h | ok |
-| Stage 2 (`x86/boot/stage2.asm`) | Attiva A20, legge il kernel a 0x10000, in modo protetto lo copia a 0x100000, attiva paging (identità 1 GB, pagine da 2 MB) e long mode, salta al kernel | ok |
+| Stage 2 (`x86/boot/stage2.asm`) | Imposta 1280x800x32 via porte VGA Bochs/QEMU (fallback VBE 640x480); attiva A20, legge il kernel a 0x10000, in modo protetto lo copia a 0x100000, attiva paging (identità 1 GB, pagine da 2 MB) e long mode, salta al kernel | ok |
 | Kernel (`kernel/`, Rust `no_std`) | Stack, azzeramento BSS, seriale COM1, VGA testo 80x25 | ok |
 | Disco ATA | Legge il settore 0 (PIO, LBA28, canale primario master) e verifica la firma 0x55AA | ok |
 | File system di prova `HAIKUFS1` | Legge il superblocco a LBA 2048, elenca i file, stampa `LEGGIMI.TXT` | ok |
