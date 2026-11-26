@@ -39,6 +39,10 @@ pub mod cpu;
 #[cfg(feature = "std")]
 pub mod crypto;
 pub mod csum;
+pub mod inflate;
+pub mod office;
+pub mod xml;
+pub mod zip;
 #[cfg(feature = "std")]
 pub mod install;
 #[cfg(feature = "std")]
