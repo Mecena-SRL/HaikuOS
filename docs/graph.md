@@ -17,6 +17,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `office/src/snappy.rs` | host, no_std | - | Snappy a blocchi, test inline |
 | `office/src/pages.rs` | host, no_std | snappy, zip | testo Pages da IWA, **da verificare** |
 | `devtools/` | host, std | - | manifest, ordine di build, build runner, package manager, nucleo IDE, progetto, SHA-256, CLI `hdev` |
+| `tools/recompiler/` | host, std | serde_json | ricompilatore C -> Rust via LLM, verifica con `cargo test`; vedi `docs/recompiler.md` |
 
 ## Stato
 
