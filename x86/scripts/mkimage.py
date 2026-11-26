@@ -33,15 +33,29 @@ assert 34 * SECTOR + len(k) < FS_LBA * SECTOR, "kernel troppo grande"
 img[33 * SECTOR:34 * SECTOR] = struct.pack("<I", len(k)).ljust(SECTOR, b"\0")
 img[34 * SECTOR:34 * SECTOR + len(k)] = k
 
-text = b"Benvenuto in HaikuOS. Questo file e' stato letto dal disco ATA.\n"
-file_lba = FS_LBA + 1
+import os
+# File: LEGGIMI.TXT (test) + ogni file di DISK_DIR (default x86/disk), in ordine di nome.
+disk_dir = os.environ.get("DISK_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "disk"))
+files = [(b"LEGGIMI.TXT", b"Benvenuto in HaikuOS. Questo file e' stato letto dal disco ATA.\n")]
+if os.path.isdir(disk_dir):
+    for name in sorted(os.listdir(disk_dir)):
+        path = os.path.join(disk_dir, name)
+        if os.path.isfile(path) and name != "LEGGIMI.TXT" and len(name) <= 15 and name.isascii():
+            files.append((name.encode(), open(path, "rb").read()))
+assert len(files) <= 15, "troppi file (massimo 15)"
+
 sb = bytearray(SECTOR)
 sb[0:8] = b"HAIKUFS1"
-struct.pack_into("<I", sb, 8, 1)                       # numero di file
-sb[16:16 + 11] = b"LEGGIMI.TXT"                        # entry 0: nome[16]
-struct.pack_into("<II", sb, 32, file_lba, len(text))   # lba, dimensione
+struct.pack_into("<I", sb, 8, len(files))              # numero di file
+lba = FS_LBA + 1
+for i, (name, data) in enumerate(files):
+    e = 16 + i * 32                                    # entry: nome[16], lba, dimensione
+    sb[e:e + len(name)] = name
+    struct.pack_into("<II", sb, e + 16, lba, len(data))
+    assert lba * SECTOR + len(data) <= IMG_SIZE, "disco pieno"
+    img[lba * SECTOR:lba * SECTOR + len(data)] = data
+    lba += (len(data) + SECTOR - 1) // SECTOR
 img[FS_LBA * SECTOR:(FS_LBA + 1) * SECTOR] = sb
-img[file_lba * SECTOR:file_lba * SECTOR + len(text)] = text
 
 open(out_path, "wb").write(img)
 print(f"immagine: {out_path} ({len(img)} byte, kernel {len(k)} byte)")

@@ -1,7 +1,7 @@
 //! Disegno della scrivania sopra un `Canvas`. Il canvas ritaglia da solo.
 use crate::layout::*;
 use crate::palette::Tok::{self, T0, T1, T2, T3};
-use crate::apps::{num_str, FILES, LINE_H, TEXT_ROWS, THEME_NAMES, TL};
+use crate::apps::{num_str, LINE_H, TEXT_ROWS, THEME_NAMES, TL};
 use crate::chess::{self, Outcome};
 
 const PIECE_LETTERS: [&str; 7] = ["", "P", "N", "B", "R", "Q", "K"];
@@ -52,13 +52,13 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
     let row_y = |k: usize| cc.y + k as i32 * LINE_H;
     match app {
         1 if s.files.open => {
-            let (_, body) = FILES[s.files.sel];
+            let (_, body) = s.files_list[s.files.sel];
             for (k, line) in body.lines().take(rows).enumerate() {
                 c.text(cc.x, row_y(k), clip(line, cols), T0);
             }
         }
         1 => {
-            for (k, (name, _)) in FILES.iter().enumerate() {
+            for (k, (name, _)) in s.files_list.iter().enumerate() {
                 if k == s.files.sel {
                     c.fill(Rect::new(cc.x + 1, row_y(k), cc.w - 2, LINE_H), T2);
                 }
@@ -154,7 +154,7 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
         }
         8 => {
             // Lettore: nome del file scelto (←/→), poi il testo con scorrimento (↑/↓).
-            let (name, body) = FILES[s.files.sel];
+            let (name, body) = s.files_list[s.files.sel];
             c.text(cc.x, row_y(0), clip(name, cols), T0);
             c.fill(Rect::new(cc.x, row_y(1), cc.w, 1), T3);
             for (k, line) in body.lines().skip(s.rscroll).take(rows.min(TEXT_ROWS) - 2).enumerate() {
