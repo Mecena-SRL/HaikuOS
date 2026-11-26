@@ -12,6 +12,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `sim/` | host | - | simulatore monolite, agente, filtro messaggi |
 | `gba/` | OS, Game Boy Advance | - | ROM GBA |
 | `gui/` | host | - | desktop e window manager |
+| `sim/` (formati) | - | - | rimossi: duplicavano `office/` |
 | `devtools/` | host, std | - | manifest, ordine di build, build runner, package manager, nucleo IDE, progetto, SHA-256, CLI `hdev` |
 
 ## Stato
