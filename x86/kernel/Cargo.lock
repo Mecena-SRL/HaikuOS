@@ -14,7 +14,12 @@ name = "haiku-kernel"
 version = "0.1.0"
 dependencies = [
  "haiku-gui",
+ "haiku-office",
 ]
+
+[[package]]
+name = "haiku-office"
+version = "0.1.0"
 
 [[package]]
 name = "sysapps"

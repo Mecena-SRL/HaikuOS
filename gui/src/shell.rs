@@ -1,5 +1,6 @@
 //! Scrivania: icone, finestre, menu, pannello, regole di input. Nessun disegno qui.
-use crate::apps::{Calc, Disk, FileView, Term, FILES, HOME, SCRIPT, TEXT_ROWS, THEMES};
+use crate::apps::{Calc, Chess, Disk, FileView, Term, FILES, HOME, SCRIPT, TEXT_ROWS, THEMES};
+use crate::chess;
 use sysapps::browser::{parse_line, Browser, Line};
 use sysapps::editor::Editor;
 use sysapps::Store;
@@ -67,6 +68,11 @@ pub struct Shell {
     pub eout: Term,
     /// Tema di colore (0..THEMES): usato dal disegno x86 e scelto da IMPOST o F2.
     pub theme: u8,
+    /// Testo del documento (DOC), passato dal kernel.
+    pub doc: &'static [u8],
+    /// Partita (CHESS) e cursore.
+    pub board: chess::Board,
+    pub chess: Chess,
 }
 
 impl Shell {
@@ -94,6 +100,9 @@ impl Shell {
             rscroll: 0,
             eout: Term::new(),
             theme: 0,
+            doc: &[],
+            board: chess::Board::empty(),
+            chess: Chess::new(),
         }
     }
 
@@ -189,7 +198,11 @@ impl Shell {
                 self.bsel = 0;
                 self.bscroll = 0;
             }
-            8 => self.rscroll = 0,
+            8 | 10 => self.rscroll = 0,
+            11 => {
+                self.board = chess::Board::start();
+                self.chess = Chess::new();
+            }
             5 => {
                 if let Some(text) = Disk.file(SCRIPT) {
                     let _ = self.editor.load(text);
@@ -199,8 +212,20 @@ impl Shell {
         }
     }
 
+    /// Invio nelle scacchi: prima la casa di partenza, poi quella d'arrivo.
+    fn chess_enter(&mut self) {
+        let cur = self.chess.cur;
+        if self.chess.sel < 64 && self.board.play(chess::Move { from: self.chess.sel, to: cur }) {
+            self.chess.sel = 64;
+            return;
+        }
+        let p = self.board.sq[cur as usize];
+        self.chess.sel = if p != 0 && p >> 3 == self.board.turn { cur } else { 64 };
+    }
+
     fn app_text(&mut self, app: u8, c: u8) {
         match app {
+            11 if c == 0x0D => self.chess_enter(),
             1 if c == 0x0D => self.files.open = !self.files.open,
             2 if c == 0x0D => self.term.enter(),
             2 => self.term.type_char(c),
@@ -268,6 +293,12 @@ impl Shell {
                 self.files.sel += 1;
                 self.rscroll = 0;
             }
+            (10, Key::Up) if self.rscroll > 0 => self.rscroll -= 1,
+            (10, Key::Down) if self.rscroll + 1 < self.doc.split(|&b| b == b'\n').count() => self.rscroll += 1,
+            (11, Key::Up) if self.chess.cur < 56 => self.chess.cur += 8,
+            (11, Key::Down) if self.chess.cur >= 8 => self.chess.cur -= 8,
+            (11, Key::Left) if self.chess.cur % 8 > 0 => self.chess.cur -= 1,
+            (11, Key::Right) if self.chess.cur % 8 < 7 => self.chess.cur += 1,
             (8, Key::Up) if self.rscroll > 0 => self.rscroll -= 1,
             (8, Key::Down) if self.rscroll + 1 < self.file_lines() => self.rscroll += 1,
             (5, Key::Up) => self.editor.up(),
