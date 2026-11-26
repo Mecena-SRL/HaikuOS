@@ -36,3 +36,9 @@ Comando (da `x86/`):
 
 - Nella ISO non c'è un disco ATA con il file system di prova `HAIKUFS1`: sul seriale compaiono due righe `[errore]`. Il desktop non le usa.
 - `grub.cfg` chiede il modo grafico 1280x800x32. Se la VM non lo supporta, il loader non trova il framebuffer e il desktop non parte.
+
+## VirtualBox
+
+`x86/scripts/vbox-create.sh` crea la VM "HaikuOS" (BIOS, 256 MB, VGA 1280x800) con `build/haikuos.iso` nel lettore DVD. Poi: `VBoxManage startvm HaikuOS`.
+
+Stato: la VM viene creata e registrata (verificato). L'avvio non è verificato: nell'ambiente di sviluppo VirtualBox è installato ma senza modulo kernel (`vboxdrv`) e senza KVM, quindi non può far partire VM.
