@@ -10,6 +10,7 @@ mod rtc;
 mod boot;
 mod docs;
 mod fs;
+mod mem;
 mod io;
 
 use core::arch::asm;
@@ -37,6 +38,9 @@ pub extern "C" fn kmain() -> ! {
         kprintln!("[errore] file system HAIKUFS1 non trovato");
     }
 
+    console::puts("[ok] RAM utilizzabile: ");
+    console::put_dec((mem::usable() >> 20) as u32);
+    console::puts(" MB\n");
     match fb::init() {
         Some(f) => {
             kprintln!("[ok] framebuffer VBE 640x480 con desktop");

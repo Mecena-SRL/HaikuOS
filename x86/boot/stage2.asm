@@ -74,6 +74,27 @@ stage2:
     mov cx, 0x0112
     call vbe_try
 .vbe_done:
+    ; ---- mappa memoria BIOS (E820): conteggio a 0x0A00, voci da 0x0A10 (24 byte), max 16
+    xor ax, ax
+    mov es, ax
+    mov dword [0x0A00], 0
+    xor ebx, ebx
+    mov di, 0x0A10
+.e820:
+    mov eax, 0xE820
+    mov ecx, 24
+    mov edx, 0x534D4150
+    int 0x15
+    jc .e820_done
+    cmp eax, 0x534D4150
+    jne .e820_done
+    inc dword [0x0A00]
+    add di, 24
+    test ebx, ebx
+    jz .e820_done
+    cmp dword [0x0A00], 16
+    jb .e820
+.e820_done:
     xor ax, ax
     mov es, ax
 
