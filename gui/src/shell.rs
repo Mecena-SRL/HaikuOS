@@ -68,8 +68,9 @@ pub struct Shell {
     pub eout: Term,
     /// Tema di colore (0..THEMES): usato dal disegno x86 e scelto da IMPOST o F2.
     pub theme: u8,
-    /// Testo del documento (DOC), passato dal kernel.
-    pub doc: &'static [u8],
+    /// Testi dei documenti (DOC) passati dal kernel, e quello scelto.
+    pub docs: [&'static [u8]; 4],
+    pub doc_sel: usize,
     /// Partita (CHESS) e cursore.
     pub board: chess::Board,
     pub chess: Chess,
@@ -100,7 +101,8 @@ impl Shell {
             rscroll: 0,
             eout: Term::new(),
             theme: 0,
-            doc: &[],
+            docs: [&[]; 4],
+            doc_sel: 0,
             board: chess::Board::empty(),
             chess: Chess::new(),
         }
@@ -294,7 +296,15 @@ impl Shell {
                 self.rscroll = 0;
             }
             (10, Key::Up) if self.rscroll > 0 => self.rscroll -= 1,
-            (10, Key::Down) if self.rscroll + 1 < self.doc.split(|&b| b == b'\n').count() => self.rscroll += 1,
+            (10, Key::Left) if self.doc_sel > 0 => {
+                self.doc_sel -= 1;
+                self.rscroll = 0;
+            }
+            (10, Key::Right) if self.doc_sel + 1 < self.docs.len() => {
+                self.doc_sel += 1;
+                self.rscroll = 0;
+            }
+            (10, Key::Down) if self.rscroll + 1 < self.docs[self.doc_sel].split(|&b| b == b'\n').count() => self.rscroll += 1,
             (11, Key::Up) if self.chess.cur < 56 => self.chess.cur += 8,
             (11, Key::Down) if self.chess.cur >= 8 => self.chess.cur -= 8,
             (11, Key::Left) if self.chess.cur % 8 > 0 => self.chess.cur -= 1,

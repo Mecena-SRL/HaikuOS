@@ -32,16 +32,34 @@ stage2:
     mov ds, bx
     mov [ksize], eax
 
-    ; kernel: numero di settori = (ksize + 511) / 512, massimo 127 per chiamata
+    ; kernel: settori = (ksize + 511) / 512, letti a blocchi da 64 (32 KB) a 0x10000
     mov eax, [ksize]
     add eax, 511
     shr eax, 9
-    cmp eax, 127
-    ja disk_fail
-    mov cx, ax
-    mov eax, 34
-    mov dx, LOAD
+    mov [krem], eax
+    mov dword [klba], 34
+    mov word [kseg], LOAD
+.kload:
+    mov ecx, [krem]
+    test ecx, ecx
+    jz .kdone
+    cmp ecx, 64
+    jbe .kc
+    mov ecx, 64
+.kc:
+    mov [kchk], ecx
+    mov eax, [klba]
+    mov dx, [kseg]
+    mov cx, [kchk]
     call read_disk
+    mov eax, [kchk]
+    add [klba], eax
+    shl eax, 5                  ; 32 paragrafi (512 byte) per settore
+    add [kseg], ax
+    mov ecx, [kchk]
+    sub [krem], ecx
+    jmp .kload
+.kdone:
 
     ; ---- VBE: framebuffer lineare 640x480. Prima 32 bit (0x142), poi 24 bit (0x112).
     ; esito a 0x0600: magic(4) base(4) w(4) h(4) pitch(4) bpp(4); magic 0 = niente grafica
@@ -254,6 +272,10 @@ lm64:
 [bits 16]
 drive:    db 0
 ksize:    dd 0
+krem:     dd 0
+klba:     dd 0
+kseg:     dw 0
+kchk:     dd 0
 msg_disk: db "Errore disco (stage2)", 0
 
 rd_dap:
