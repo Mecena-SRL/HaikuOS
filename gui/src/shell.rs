@@ -58,6 +58,8 @@ pub struct Shell {
     pub calc: Calc,
     pub term: Term,
     pub files: FileView,
+    /// File mostrati da FILE: quelli incorporati, o quelli letti dal disco.
+    pub files_list: &'static [(&'static str, &'static str)],
     pub browser: Browser<8>,
     /// Collegamento selezionato nella pagina.
     pub bsel: usize,
@@ -94,6 +96,7 @@ impl Shell {
             calc: Calc::new(),
             term: Term::new(),
             files: FileView::new(),
+            files_list: FILES,
             browser: Browser::new(),
             bsel: 0,
             editor: Editor::new(),
@@ -278,7 +281,7 @@ impl Shell {
         match (app, k) {
             (1, _) if self.files.open => {}
             (1, Key::Up) if self.files.sel > 0 => self.files.sel -= 1,
-            (1, Key::Down) if self.files.sel + 1 < FILES.len() => self.files.sel += 1,
+            (1, Key::Down) if self.files.sel + 1 < self.files_list.len() => self.files.sel += 1,
             (4, Key::Up) if self.bsel > 0 => {
                 self.bsel -= 1;
                 self.follow_sel();
@@ -291,7 +294,7 @@ impl Shell {
                 self.files.sel -= 1;
                 self.rscroll = 0;
             }
-            (8, Key::Right) if self.files.sel + 1 < FILES.len() => {
+            (8, Key::Right) if self.files.sel + 1 < self.files_list.len() => {
                 self.files.sel += 1;
                 self.rscroll = 0;
             }
@@ -334,7 +337,7 @@ impl Shell {
 
     /// Righe del file scelto in FILE (per il lettore).
     pub fn file_lines(&self) -> usize {
-        FILES[self.files.sel].1.lines().count()
+        self.files_list[self.files.sel].1.lines().count()
     }
 
     /// Collegamenti della pagina corrente del browser.

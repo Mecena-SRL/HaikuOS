@@ -45,3 +45,56 @@ pub fn show_root() -> bool {
     }
     true
 }
+
+const MAX_FILES: usize = 15;
+const ARENA: usize = 8192;
+static mut ARENA_BUF: [u8; ARENA] = [0; ARENA];
+static mut NAMES: [[u8; 16]; MAX_FILES] = [[0; 16]; MAX_FILES];
+static mut LIST: [(&str, &str); MAX_FILES] = [("", ""); MAX_FILES];
+
+/// Tutti i file della radice di HAIKUFS1 (nome, testo), letti dal disco.
+/// Vuoto se il disco non c'è o non ha il magic. Testo oltre 8 KB viene troncato.
+pub fn list() -> &'static [(&'static str, &'static str)] {
+    unsafe {
+        let arena = &mut *core::ptr::addr_of_mut!(ARENA_BUF);
+        let names = &mut *core::ptr::addr_of_mut!(NAMES);
+        let mut sb = [0u8; 512];
+        if !read_sector(SUPER_LBA, &mut sb) || &sb[0..8] != b"HAIKUFS1" {
+            return &[];
+        }
+        let count = (u32_at(&sb, 8) as usize).min(MAX_FILES);
+        // Fase 1: lettura. Per ogni file: lunghezza del nome e del testo nell'arena.
+        let mut meta = [(0usize, 0usize, 0usize); MAX_FILES];
+        let mut used = 0;
+        for i in 0..count {
+            let e = 16 + i * 32;
+            let nl = sb[e..e + 16].iter().position(|&c| c == 0).unwrap_or(16);
+            names[i][..nl].copy_from_slice(&sb[e..e + nl]);
+            let lba = u32_at(&sb, e + 16);
+            let len = (u32_at(&sb, e + 20) as usize).min(ARENA - used);
+            let mut off = 0;
+            while off < len {
+                let mut s = [0u8; 512];
+                if !read_sector(lba + (off / 512) as u32, &mut s) {
+                    break;
+                }
+                let k = (len - off).min(512);
+                arena[used + off..used + off + k].copy_from_slice(&s[..k]);
+                off += 512;
+            }
+            meta[i] = (nl, used, len);
+            used += len;
+        }
+        // Fase 2: solo letture, poi le str puntano ai buffer statici.
+        let names = &*core::ptr::addr_of!(NAMES);
+        let arena = &*core::ptr::addr_of!(ARENA_BUF);
+        let list = &mut *core::ptr::addr_of_mut!(LIST);
+        for i in 0..count {
+            let (nl, off, len) = meta[i];
+            let name = core::str::from_utf8(&names[i][..nl]).unwrap_or("?");
+            let body = core::str::from_utf8(&arena[off..off + len]).unwrap_or("(non testuale)");
+            list[i] = (name, body);
+        }
+        &list[..count]
+    }
+}

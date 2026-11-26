@@ -43,3 +43,9 @@ Comando (da `x86/`):
 `x86/scripts/vbox-create.sh` crea la VM "HaikuOS" (BIOS, 256 MB, VGA 1280x800) con `build/haikuos.iso` nel lettore DVD. Poi: `VBoxManage startvm HaikuOS`.
 
 Stato: la VM viene creata e registrata (verificato). L'avvio non è verificato: nell'ambiente di sviluppo VirtualBox è installato ma senza modulo kernel (`vboxdrv`) e senza KVM, quindi non può far partire VM.
+
+## File dell'utente (disco di prova)
+
+FILE mostra i file del disco HAIKUFS1 (`x86/disk/`): ogni file della cartella entra nel disco, dopo `LEGGIMI.TXT`. Massimo 15 file, nomi fino a 15 caratteri, testo fino a 8 KB in totale.
+
+Per aggiungere file: copiali in `x86/disk/`, poi `./x86/scripts/build.sh` e avvia `build/haikuos.img` (disco master IDE). La ISO non ha disco: mostra i file incorporati.

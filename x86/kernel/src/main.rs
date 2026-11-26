@@ -44,6 +44,10 @@ pub extern "C" fn kmain() -> ! {
             let (lw, lh) = (f.w / fb::SCALE, f.h / fb::SCALE);
             let mut shell = haiku_gui::Shell::new(&ICONS, lw, lh);
             shell.docs = docs::load();
+            let files = fs::list();
+            if !files.is_empty() {
+                shell.files_list = files;
+            }
             let (mut cx, mut cy) = (lw / 2, lh / 2); // cursore in unità logiche
             let mut left_prev = false;
             let mut acc = (0i32, 0i32);
