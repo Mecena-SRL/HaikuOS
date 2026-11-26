@@ -10,8 +10,6 @@ mb2_start:
     dd 0                                           ; architettura i386
     dd mb2_end - mb2_start
     dd -(0xE85250D6 + 0 + (mb2_end - mb2_start))
-    dw 5, 0                                        ; richiesta framebuffer 1280x800x32
-    dd 20, 1280, 800, 32
     align 8
     dw 0, 0                                        ; fine tag
     dd 8
@@ -86,30 +84,25 @@ _start:
     rep movsb
 .copied:
 
-    ; tabelle di pagina a 0x1000 (PML4), 0x2000 (PDPT), 0x3000 e 0x4000 (PD)
+    ; tabelle di pagina: PML4 0x1000, PDPT 0x2000, PD 0x3000..0x6FFF.
+    ; Identità su 0..4 GB con pagine da 2 MB (copre il framebuffer, es. QEMU/OVMF a 0x80000000).
     mov edi, 0x1000
-    mov ecx, 4096
+    mov ecx, 6144                  ; 6 pagine da 4 KB, in dword
     xor eax, eax
     rep stosd
     mov dword [0x1000], 0x2003
     mov dword [0x2000], 0x3003
-    mov dword [0x2018], 0x4003                     ; 3..4 GB: framebuffer
+    mov dword [0x2008], 0x4003
+    mov dword [0x2010], 0x5003
+    mov dword [0x2018], 0x6003
     mov edi, 0x3000
-    mov eax, 0x83
-    mov ecx, 512
+    mov eax, 0x83                  ; presente, scrivibile, pagina da 2 MB
+    mov ecx, 2048
 .pd:
     mov [edi], eax
     add eax, 0x200000
     add edi, 8
     loop .pd
-    mov edi, 0x4000
-    mov eax, 0xC0000083
-    mov ecx, 512
-.pd2:
-    mov [edi], eax
-    add eax, 0x200000
-    add edi, 8
-    loop .pd2
 
     lgdt [gdt_desc]
     jmp 0x08:reload
