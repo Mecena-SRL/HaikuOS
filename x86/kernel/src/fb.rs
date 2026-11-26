@@ -46,7 +46,11 @@ pub fn init() -> Option<Fb> {
         }
         let w = rd(12) as i32;
         let h = rd(16) as i32;
-        if w <= 0 || h <= 0 || (w as usize) * (h as usize) * 4 > BACK_MAX {
+        let (pitch, bpp) = (rd(20) as usize, rd(24) as usize);
+        // Solo 24 o 32 bit, e riga almeno larga quanto i pixel: altrimenti testo.
+        if w <= 0 || h <= 0 || (w as usize) * (h as usize) * 4 > BACK_MAX
+            || (bpp != 24 && bpp != 32) || pitch < w as usize * (bpp / 8)
+        {
             return None;
         }
         Some(Fb {
@@ -54,8 +58,8 @@ pub fn init() -> Option<Fb> {
             back: BACK,
             w,
             h: rd(16) as i32,
-            pitch: rd(20) as usize,
-            bpp: rd(24) as usize,
+            pitch,
+            bpp,
             scale: scale_for(w),
         })
     }
@@ -70,6 +74,14 @@ impl Fb {
     /// Canvas logico: w/scale × h/scale, pixel fisici moltiplicati per scale.
     pub fn canvas(&self, theme: usize) -> Scaled<'_> {
         Scaled { fb: self, lw: self.w / self.scale, lh: self.h / self.scale, pal: &THEMES[theme] }
+    }
+
+    pub fn bpp(&self) -> usize {
+        self.bpp
+    }
+
+    pub fn pitch(&self) -> usize {
+        self.pitch
     }
 
     fn put(&self, x: i32, y: i32, c: u32) {
