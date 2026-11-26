@@ -21,6 +21,11 @@ fn main() {
         S::decode(&buf).unwrap_or_else(|| fail("file scena non valido"))
     };
 
+    if cmd[0] == "edit" {
+        edit(scene, &path);
+        return;
+    }
+
     if cmd[0] == "render" {
         let out = cmd.get(1).cloned().unwrap_or_else(|| usage());
         render(&scene, &out);
@@ -50,6 +55,38 @@ fn main() {
         fs::write(&path, &buf[..n]).unwrap_or_else(|e| fail(&format!("{path}: {e}")));
         println!("salvato {path}");
     }
+}
+
+/// Editor interattivo da terminale: w/a/s/d muovi, spazio dipingi, u annulla,
+/// [ ] cambia pennello, p stampa stato, q salva ed esce.
+fn edit(scene: S, path: &str) {
+    use haiku_editor::gui::{Editor, Key};
+    use std::io::{BufRead, Write};
+    let mut ed: Editor<16, 12, 32, 64> = Editor::new(scene);
+    let keys = [('w', Key::Up), ('s', Key::Down), ('a', Key::Left), ('d', Key::Right),
+        (' ', Key::Paint), ('u', Key::Undo), (']', Key::NextBrush), ('[', Key::PrevBrush)];
+    for line in std::io::stdin().lock().lines().map_while(Result::ok) {
+        for c in line.chars() {
+            if c == 'q' {
+                save(&ed.scene, path);
+                return;
+            }
+            if let Some((_, k)) = keys.iter().find(|(kc, _)| *kc == c) {
+                ed.handle(*k);
+            }
+        }
+        println!("pennello {} cursore ({},{})", ed.brush, ed.cx, ed.cy);
+        show(&ed.scene);
+        let _ = std::io::stdout().flush();
+    }
+    save(&ed.scene, path);
+}
+
+fn save(s: &S, path: &str) {
+    let mut buf = vec![0u8; S::encoded_len()];
+    let n = s.encode(&mut buf).expect("buffer");
+    fs::write(path, &buf[..n]).unwrap_or_else(|e| fail(&format!("{path}: {e}")));
+    println!("salvato {path}");
 }
 
 /// Esporta la vista dell'editor come PPM (tile da 16 px).
