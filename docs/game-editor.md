@@ -12,3 +12,6 @@ Prossimi passi: interfaccia grafica sul framebuffer, formato sprite con palette,
 - `editor/src/gui.rs`: canvas `u32` ARGB, stato `Editor` (cursore, pennello, undo), tasti logici `Key`, render scena. `no_std`.
 - Anteprima host: `haiku-editor scena.hgs render out.ppm`.
 - Driver framebuffer di HaikuOS: da fare quando esiste il livello grafico.
+
+## Piattaforma (v2)
+- `editor/src/platform.rs`: trait `Platform` (dimensioni, buffer, tasti, present) e `run()`. Ogni backend lo implementa: host (`edit`), framebuffer HaikuOS, GBA.
