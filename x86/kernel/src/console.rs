@@ -30,7 +30,11 @@ pub fn init() {
 
 fn serial_byte(b: u8) {
     unsafe {
-        while inb(COM1 + 5) & 0x20 == 0 {}
+        for _ in 0..100_000 {
+            if inb(COM1 + 5) & 0x20 != 0 {
+                break;
+            }
+        }
         outb(COM1, b);
     }
 }

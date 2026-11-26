@@ -26,14 +26,23 @@ pub struct Ps2 {
 }
 
 fn wait_write() {
-    unsafe { while inb(STATUS) & 2 != 0 {} }
+    unsafe {
+        for _ in 0..100_000 {
+            if inb(STATUS) & 2 == 0 {
+                return;
+            }
+        }
+    }
 }
 
 impl Ps2 {
     pub fn init() -> Ps2 {
         unsafe {
             // Svuota il buffer, attiva il mouse ausiliario e il flusso dati.
-            while inb(STATUS) & 1 != 0 {
+            for _ in 0..16 {
+                if inb(STATUS) & 1 == 0 {
+                    break;
+                }
                 inb(DATA);
             }
             wait_write();
