@@ -64,6 +64,8 @@ pub struct Shell {
     /// Collegamento selezionato nella pagina.
     pub bsel: usize,
     pub editor: Editor<7, 27>,
+    /// Buffer dell'app IDE (id 9): stesso editor, F5 esegue lo script.
+    pub ide: Editor<7, 27>,
     /// Prima riga visibile del browser, del lettore e uscita dell'ultimo script.
     pub bscroll: usize,
     pub rscroll: usize,
@@ -100,6 +102,7 @@ impl Shell {
             browser: Browser::new(),
             bsel: 0,
             editor: Editor::new(),
+            ide: Editor::new(),
             bscroll: 0,
             rscroll: 0,
             eout: Term::new(),
@@ -213,6 +216,11 @@ impl Shell {
                     let _ = self.editor.load(text);
                 }
             }
+            9 => {
+                if let Some(text) = Disk.file(SCRIPT) {
+                    let _ = self.ide.load(text);
+                }
+            }
             _ => {}
         }
     }
@@ -226,6 +234,11 @@ impl Shell {
         }
         let p = self.board.sq[cur as usize];
         self.chess.sel = if p != 0 && p >> 3 == self.board.turn { cur } else { 64 };
+    }
+
+    /// Editor dell'app: 5 (editor) o 9 (IDE).
+    fn ed_mut(&mut self, app: u8) -> &mut Editor<7, 27> {
+        if app == 9 { &mut self.ide } else { &mut self.editor }
     }
 
     fn app_text(&mut self, app: u8, c: u8) {
@@ -251,24 +264,29 @@ impl Shell {
                 }
                 _ => {}
             },
-            5 => match c {
+            5 | 9 => match c {
                 0x0D => {
-                    let _ = self.editor.newline();
+                    let _ = self.ed_mut(app).newline();
                 }
                 0x08 => {
-                    let _ = self.editor.backspace();
+                    let _ = self.ed_mut(app).backspace();
                 }
                 0x05 => {
                     // F5: esegue il buffer; l'uscita va nel pannello sotto il testo.
                     self.eout = Term::new();
                     let eout = &mut self.eout;
                     let mut out = |s: &str| eout.add(s.as_bytes());
-                    if self.editor.run(&Disk, &mut out).is_err() {
+                    let r = if app == 5 {
+                        self.editor.run(&Disk, &mut out)
+                    } else {
+                        self.ide.run(&Disk, &mut out)
+                    };
+                    if r.is_err() {
                         self.eout.add(b"ERRORE SCRIPT");
                     }
                 }
                 b' '..=b'~' => {
-                    let _ = self.editor.insert(c);
+                    let _ = self.ed_mut(app).insert(c);
                 }
                 _ => {}
             },
@@ -314,10 +332,10 @@ impl Shell {
             (11, Key::Right) if self.chess.cur % 8 < 7 => self.chess.cur += 1,
             (8, Key::Up) if self.rscroll > 0 => self.rscroll -= 1,
             (8, Key::Down) if self.rscroll + 1 < self.file_lines() => self.rscroll += 1,
-            (5, Key::Up) => self.editor.up(),
-            (5, Key::Down) => self.editor.down(),
-            (5, Key::Left) => self.editor.left(),
-            (5, Key::Right) => self.editor.right(),
+            (5 | 9, Key::Up) => self.ed_mut(app).up(),
+            (5 | 9, Key::Down) => self.ed_mut(app).down(),
+            (5 | 9, Key::Left) => self.ed_mut(app).left(),
+            (5 | 9, Key::Right) => self.ed_mut(app).right(),
             _ => {}
         }
     }
