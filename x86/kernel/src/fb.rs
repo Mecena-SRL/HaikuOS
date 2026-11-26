@@ -21,8 +21,14 @@ pub const THEMES: [[u32; 4]; 3] = [
     [0x1E_1E_1E, 0xEE_EE_EE, 0xFF_B0_00, 0x5A_5A_5A],
 ];
 
+/// Buffer di lavoro in RAM (32 bit per pixel): ogni quadro si disegna qui e poi si copia tutto insieme.
+const BACK: usize = 0x0400_0000;
+/// Copia massima del buffer di lavoro: 1920×1080×4 byte.
+const BACK_MAX: usize = 1920 * 1080 * 4;
+
 pub struct Fb {
     base: usize,
+    back: usize,
     pitch: usize,
     bpp: usize,
     pub w: i32,
@@ -39,8 +45,13 @@ pub fn init() -> Option<Fb> {
             return None;
         }
         let w = rd(12) as i32;
+        let h = rd(16) as i32;
+        if w <= 0 || h <= 0 || (w as usize) * (h as usize) * 4 > BACK_MAX {
+            return None;
+        }
         Some(Fb {
             base: rd(8) as usize,
+            back: BACK,
             w,
             h: rd(16) as i32,
             pitch: rd(20) as usize,
@@ -65,15 +76,29 @@ impl Fb {
         if x < 0 || y < 0 || x >= self.w || y >= self.h {
             return;
         }
-        let p = self.base + y as usize * self.pitch + x as usize * (self.bpp / 8);
+        let p = self.back + (y as usize * self.w as usize + x as usize) * 4;
+        unsafe { core::ptr::write_volatile(p as *mut u32, c) }
+    }
+
+    /// Copia il buffer di lavoro sulla scheda video in un solo passo (niente sfarfallio).
+    pub fn flush(&self) {
+        let (w, h) = (self.w as usize, self.h as usize);
         unsafe {
-            if self.bpp == 32 {
-                core::ptr::write_volatile(p as *mut u32, c);
-            } else {
-                // 24 bit: byte in ordine B, G, R
-                core::ptr::write_volatile(p as *mut u8, c as u8);
-                core::ptr::write_volatile((p + 1) as *mut u8, (c >> 8) as u8);
-                core::ptr::write_volatile((p + 2) as *mut u8, (c >> 16) as u8);
+            for y in 0..h {
+                let src = (self.back + y * w * 4) as *const u32;
+                let dst = self.base + y * self.pitch;
+                if self.bpp == 32 {
+                    core::ptr::copy_nonoverlapping(src, dst as *mut u32, w);
+                } else {
+                    // 24 bit: byte in ordine B, G, R
+                    for x in 0..w {
+                        let c = core::ptr::read_volatile(src.add(x));
+                        let p = dst + x * 3;
+                        core::ptr::write_volatile(p as *mut u8, c as u8);
+                        core::ptr::write_volatile((p + 1) as *mut u8, (c >> 8) as u8);
+                        core::ptr::write_volatile((p + 2) as *mut u8, (c >> 16) as u8);
+                    }
+                }
             }
         }
     }
