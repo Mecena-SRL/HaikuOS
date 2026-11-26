@@ -1,0 +1,10 @@
+[package]
+name = "devtools"
+version = "0.1.0"
+edition = "2021"
+description = "Strumenti host di HaikuOS: manifest, ordine di build, verifica pacchetti (std, solo host)"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+sha2 = "0.10"
