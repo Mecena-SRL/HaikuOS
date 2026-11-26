@@ -3,23 +3,45 @@
 
 use crate::{History, Scene};
 
-/// Area di disegno su un buffer di pixel.
-pub struct Canvas<'a> {
-    pub px: &'a mut [u32],
+/// Formato pixel nativo della piattaforma (u32 ARGB sull'host, u16 BGR555 sul GBA).
+pub trait Pixel: Copy {
+    fn from_argb(c: u32) -> Self;
+}
+
+impl Pixel for u32 {
+    fn from_argb(c: u32) -> Self {
+        c
+    }
+}
+
+impl Pixel for u16 {
+    fn from_argb(c: u32) -> Self {
+        let r = (c >> 19) & 0x1F;
+        let g = (c >> 11) & 0x1F;
+        let b = (c >> 3) & 0x1F;
+        (r | (g << 5) | (b << 10)) as u16
+    }
+}
+
+/// Area di disegno su un buffer di pixel. I colori in ingresso sono sempre ARGB.
+pub struct Canvas<'a, P: Pixel> {
+    pub px: &'a mut [P],
     pub w: usize,
     pub h: usize,
 }
 
-impl Canvas<'_> {
+impl<P: Pixel> Canvas<'_, P> {
     pub fn clear(&mut self, c: u32) {
-        self.px.iter_mut().for_each(|p| *p = c);
+        let p = P::from_argb(c);
+        self.px.iter_mut().for_each(|x| *x = p);
     }
 
     pub fn rect(&mut self, x: usize, y: usize, w: usize, h: usize, c: u32) {
+        let p = P::from_argb(c);
         for yy in y..(y + h).min(self.h) {
             let row = yy * self.w;
             for xx in x..(x + w).min(self.w) {
-                self.px[row + xx] = c;
+                self.px[row + xx] = p;
             }
         }
     }
@@ -88,7 +110,7 @@ impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H
     }
 
     /// Disegna la scena con tile quadrate di `ts` pixel, in alto a sinistra.
-    pub fn draw(&self, c: &mut Canvas, ts: usize) {
+    pub fn draw<P: Pixel>(&self, c: &mut Canvas<P>, ts: usize) {
         c.clear(0xFF000000);
         for y in 0..H {
             for x in 0..W {
@@ -139,5 +161,18 @@ mod tests {
         // Centro dello sprite (1,1) con ts=4 -> pixel (5,5) area sprite.
         assert_eq!(buf[6 * 16 + 6], SPRITE_COLORS[1]);
         assert_eq!(buf[0], CURSOR_COLOR);
+    }
+}
+
+#[cfg(test)]
+mod pixel_tests {
+    use super::*;
+
+    #[test]
+    fn bgr555_conversion() {
+        assert_eq!(<u16 as Pixel>::from_argb(0xFFFF0000), 0x001F); // rosso
+        assert_eq!(<u16 as Pixel>::from_argb(0xFF00FF00), 0x03E0); // verde
+        assert_eq!(<u16 as Pixel>::from_argb(0xFF0000FF), 0x7C00); // blu
+        assert_eq!(<u32 as Pixel>::from_argb(0xFF112233), 0xFF112233);
     }
 }

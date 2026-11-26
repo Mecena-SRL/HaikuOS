@@ -15,3 +15,4 @@ Prossimi passi: interfaccia grafica sul framebuffer, formato sprite con palette,
 
 ## Piattaforma (v2)
 - `editor/src/platform.rs`: trait `Platform` (dimensioni, buffer, tasti, present) e `run()`. Ogni backend lo implementa: host (`edit`), framebuffer HaikuOS, GBA.
+- Il trait ha un tipo pixel associato: `u32` ARGB sull'host, `u16` BGR555 sul GBA (Mode 3 a 240x160, senza copie).
