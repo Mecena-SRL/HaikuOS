@@ -3,6 +3,8 @@
 
 #![cfg_attr(not(test), no_std)]
 
+pub mod gui;
+
 /// Griglia di tile, `cells[y][x]`. Valore 0 = vuoto.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Grid<const W: usize, const H: usize> {

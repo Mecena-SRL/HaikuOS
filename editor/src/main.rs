@@ -21,6 +21,12 @@ fn main() {
         S::decode(&buf).unwrap_or_else(|| fail("file scena non valido"))
     };
 
+    if cmd[0] == "render" {
+        let out = cmd.get(1).cloned().unwrap_or_else(|| usage());
+        render(&scene, &out);
+        return;
+    }
+
     match cmd[0].as_str() {
         "new" => {}
         "paint" => {
@@ -44,6 +50,22 @@ fn main() {
         fs::write(&path, &buf[..n]).unwrap_or_else(|e| fail(&format!("{path}: {e}")));
         println!("salvato {path}");
     }
+}
+
+/// Esporta la vista dell'editor come PPM (tile da 16 px).
+fn render(s: &S, out: &str) {
+    use haiku_editor::{gui::{Canvas, Editor}, History};
+    const TS: usize = 16;
+    let ed = Editor { scene: *s, hist: History::<8>::default(), cx: 0, cy: 0, brush: 1 };
+    let (w, h) = (16 * TS, 12 * TS);
+    let mut px = vec![0u32; w * h];
+    ed.draw(&mut Canvas { px: &mut px, w, h }, TS);
+    let mut data = format!("P6\n{w} {h}\n255\n").into_bytes();
+    for p in px {
+        data.extend_from_slice(&[(p >> 16) as u8, (p >> 8) as u8, p as u8]);
+    }
+    fs::write(out, data).unwrap_or_else(|e| fail(&format!("{out}: {e}")));
+    println!("render {out}");
 }
 
 fn show(s: &S) {

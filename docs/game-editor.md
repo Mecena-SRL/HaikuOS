@@ -7,3 +7,8 @@
 Test: `cargo test --workspace`. Gioco: `cargo run -p chess`.
 
 Prossimi passi: interfaccia grafica sul framebuffer, formato sprite con palette, arrocco/en passant, backend GBA.
+
+## GUI (v1)
+- `editor/src/gui.rs`: canvas `u32` ARGB, stato `Editor` (cursore, pennello, undo), tasti logici `Key`, render scena. `no_std`.
+- Anteprima host: `haiku-editor scena.hgs render out.ppm`.
+- Driver framebuffer di HaikuOS: da fare quando esiste il livello grafico.
