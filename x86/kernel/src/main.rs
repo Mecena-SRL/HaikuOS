@@ -70,7 +70,7 @@ pub extern "C" fn kmain() -> ! {
     console::puts(" MB\n");
     match fbo {
         Some(f) => {
-            kprintln!("[ok] framebuffer VBE 640x480 con desktop");
+            kprintln!("[ok] framebuffer VBE con desktop");
             let mut ps2 = input::Ps2::init();
             let (lw, lh) = (f.w / f.scale, f.h / f.scale);
             let mut shell = haiku_gui::Shell::new(&ICONS, lw, lh);

@@ -30,8 +30,11 @@ pub fn read_sector(lba: u32, buf: &mut [u8; 512]) -> bool {
 
 /// Attende che il disco non sia occupato; con `drq` attende anche i dati pronti.
 unsafe fn wait(drq: bool) -> bool {
-    for _ in 0..1_000_000 {
+    for _ in 0..100_000 {
         let s = inb(STATUS);
+        if s == 0xFF {
+            return false; // nessun disco sul bus (UTM/AHCI): niente attesa
+        }
         if s & 0x80 == 0 {
             if s & 0x21 != 0 {
                 return false; // ERR o DF
