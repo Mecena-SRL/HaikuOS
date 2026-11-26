@@ -6,6 +6,8 @@ pub const LINE_H: i32 = crate::layout::FONT_H + 1;
 /// Righe di testo in una finestra alta 80 px (corpo 60 px, passo 6 px).
 pub const TEXT_ROWS: usize = 10;
 /// Temi disponibili (vedi `Shell::next_theme`); i nomi sono per IMPOST.
+/// Id dello slot app IDE (finestra vuota finché il thread IDE non la collega).
+pub const IDE: u8 = 9;
 pub const THEMES: u8 = 3;
 pub const THEME_NAMES: [&str; 3] = ["BLU", "VERDE", "GRAFITE"];
 /// Byte per riga del terminale e righe di storico.
@@ -28,6 +30,11 @@ pub struct Disk;
 impl Store for Disk {
     fn file(&self, name: &str) -> Option<&'static str> {
         FILES.iter().find(|(n, _)| *n == name).map(|(_, b)| *b)
+    }
+    fn names(&self, out: &mut dyn FnMut(&str)) {
+        for (n, _) in FILES {
+            out(n);
+        }
     }
 }
 

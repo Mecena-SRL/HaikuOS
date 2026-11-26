@@ -21,6 +21,8 @@ pub const APPS: &[AppEntry] = &[
 /// Unica sorgente di pagine e script. Nessuna rete: il file system è l'unico accesso.
 pub trait Store {
     fn file(&self, name: &str) -> Option<&'static str>;
+    /// Passa a `out` il nome di ogni file (per `ls`). Default: nessun file.
+    fn names(&self, _out: &mut dyn FnMut(&str)) {}
 }
 
 #[cfg(test)]

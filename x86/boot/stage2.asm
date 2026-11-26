@@ -46,6 +46,9 @@ stage2:
     ; ---- VBE: framebuffer lineare 640x480. Prima 32 bit (0x142), poi 24 bit (0x112).
     ; esito a 0x0600: magic(4) base(4) w(4) h(4) pitch(4) bpp(4); magic 0 = niente grafica
     mov dword [0x0600], 0
+    call dispi_try              ; 1280x800x32 (VGA std QEMU/Bochs), se presente
+    cmp dword [0x0600], 0x56424531
+    je .vbe_done
     mov cx, 0x0142
     call vbe_try
     cmp dword [0x0600], 0x56424531
@@ -63,6 +66,61 @@ stage2:
     mov cr0, eax
     jmp dword 0x08:pm32
 
+
+; ---- dispi_try: VGA Bochs/QEMU (porte 0x1CE/0x1CF), 1280x800x32, LFB da PCI 00:02.0 BAR0.
+dispi_try:
+    mov eax, 0x80001010
+    mov dx, 0x0CF8
+    out dx, eax
+    mov dx, 0x0CFC
+    in eax, dx
+    and eax, 0xFFFFFFF0
+    mov [0x0608], eax
+    mov dx, 0x01CE
+    xor ax, ax
+    out dx, ax                  ; indice 0: ID
+    mov dx, 0x01CF
+    in ax, dx
+    and ax, 0xFFF8
+    cmp ax, 0xB0C0
+    jne .fail
+    mov dx, 0x01CE
+    mov ax, 4                   ; ENABLE = 0 prima di cambiare modo
+    out dx, ax
+    mov dx, 0x01CF
+    xor ax, ax
+    out dx, ax
+    mov dx, 0x01CE
+    mov ax, 1
+    out dx, ax
+    mov dx, 0x01CF
+    mov ax, 1280
+    out dx, ax
+    mov dx, 0x01CE
+    mov ax, 2
+    out dx, ax
+    mov dx, 0x01CF
+    mov ax, 800
+    out dx, ax
+    mov dx, 0x01CE
+    mov ax, 3
+    out dx, ax
+    mov dx, 0x01CF
+    mov ax, 32
+    out dx, ax
+    mov dx, 0x01CE
+    mov ax, 4
+    out dx, ax
+    mov dx, 0x01CF
+    mov ax, 0x41                ; ENABLE | LFB
+    out dx, ax
+    mov dword [0x0600], 0x56424531
+    mov dword [0x060C], 1280
+    mov dword [0x0610], 800
+    mov dword [0x0614], 5120
+    mov dword [0x0618], 32
+.fail:
+    ret
 
 ; ---- vbe_try: cx = modo VBE (senza bit LFB). Imposta il modo e scrive l'esito a 0x0600.
 vbe_try:
