@@ -4,7 +4,7 @@
 
 use crate::zip;
 
-fn tag(x: &[u8], i: usize) -> Option<(&[u8], bool, bool, usize)> {
+pub(crate) fn tag(x: &[u8], i: usize) -> Option<(&[u8], bool, bool, usize)> {
     let j = i + x.get(i..)?.iter().position(|&b| b == b'>')?;
     let inner = &x[i + 1..j];
     let close = inner.first() == Some(&b'/');
@@ -14,14 +14,14 @@ fn tag(x: &[u8], i: usize) -> Option<(&[u8], bool, bool, usize)> {
     Some((&body[..end], close, selfclose, j + 1))
 }
 
-fn push(out: &mut [u8], o: &mut usize, b: u8) -> Option<()> {
+pub(crate) fn push(out: &mut [u8], o: &mut usize, b: u8) -> Option<()> {
     *out.get_mut(*o)? = b;
     *o += 1;
     Some(())
 }
 
 /// Copia il testo di un nodo, decodificando le entità XML di base.
-fn text(src: &[u8], out: &mut [u8], o: &mut usize) -> Option<()> {
+pub(crate) fn text(src: &[u8], out: &mut [u8], o: &mut usize) -> Option<()> {
     let mut i = 0;
     while i < src.len() {
         if src[i] == b'&' {
