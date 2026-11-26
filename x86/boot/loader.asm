@@ -31,6 +31,8 @@ _start:
     mov eax, [esi]
     cmp eax, 0
     je .tags_done
+    cmp eax, 6                                     ; mappa memoria: copiata a 0x0A00 in formato E820 (UEFI)
+    je .mmap
     cmp eax, 3                                     ; modulo: start @8, end @12
     jne .not_mod
     mov eax, [esi + 8]
@@ -53,6 +55,31 @@ _start:
     movzx eax, byte [esi + 28]
     mov [0x618], eax
     mov dword [0x600], 0x56424531                  ; magic VBE (riconosciuto da fb.rs)
+    jmp .next
+; tag 6: entry_size @8 (24), voci da @16 (base u64, len u64, tipo u32, riservato u32)
+.mmap:
+    push edi
+    push esi
+    cmp dword [esi + 8], 24
+    jne .mmap_end
+    mov eax, [esi + 4]
+    sub eax, 16
+    xor edx, edx
+    mov ecx, 24
+    div ecx                                        ; eax = numero di voci
+    cmp eax, 16
+    jbe .mmap_n
+    mov eax, 16
+.mmap_n:
+    mov [0x0A00], eax                              ; COUNT
+    mov ecx, eax
+    imul ecx, ecx, 24
+    lea esi, [esi + 16]
+    mov edi, 0x0A10
+    rep movsb
+.mmap_end:
+    pop esi
+    pop edi
 .next:
     mov eax, [esi + 4]
     add eax, 7
