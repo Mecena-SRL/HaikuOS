@@ -31,6 +31,20 @@ Regole del formato v1:
 - Nessuna intestazione, nessun metadato. Un file `.txt` si apre con qualsiasi editor.
 - Dimensione massima: 8 KB (un file del file system).
 
+## 3b. Compatibilità con le suite esistenti
+
+Obiettivo di Ivan: leggere e scrivere con Microsoft Office, LibreOffice, OpenDocument, Pages e la suite Apple.
+
+| Formato | Dove | Stato |
+|---|---|---|
+| `.txt` | GBA e macchine potenti | Nativo, tappa 1 |
+| `.docx` (Word) | Macchine potenti | Lettura e scrittura, tappa futura. ZIP + XML (ECMA-376). **Da verificare** |
+| `.odt` (OpenDocument, LibreOffice) | Macchine potenti | Lettura e scrittura, tappa futura. ZIP + XML (ODF). **Da verificare** |
+| `.pdf` | Macchine potenti | Sola lettura, tappa 4 |
+| `.pages` (Apple) | Macchine potenti | Solo dopo verifica della specifica, formato poco documentato. **Da verificare** |
+
+Limite: il GBA non ha memoria per ZIP e XML completi. La compatibilità piena parte dalle macchine potenti. Decisione in attesa di Ivan: compatibilità piena sulle macchine potenti (proposta), oppure un sottoinsieme di `.docx` anche sul GBA.
+
 ## 4. Modulo testo (`office/src/text.rs`)
 
 - `Text<N>`: buffer fisso di `N` byte, nessuna allocazione, solo `core`.
