@@ -27,8 +27,9 @@ Fixture: `tools/recompiler/fixtures/` (djb2: C, test, risposta buona e risposta 
 - Verificato: pipeline con risposta fissa. Risposta buona: OK al primo tentativo. Risposta errata (overflow non gestito): rifiutata dopo 3 tentativi, exit 1.
 - **Da verificare**: traduzione reale con DeepSeek. L'ambiente di sviluppo non raggiunge `api.deepseek.com`.
 - Secondo caso: `adler32.c` (core di zlib, licenza zlib), test con valori di riferimento calcolati da `zlib` Python. Traduzione in `fixtures/adler32_translated.rs`: **scritta a mano da un agente, non dall'LLM**, passata dalla pipeline (mock): OK al tentativo 1.
+- Terzo caso: `sds_ll2str.c` (da SDSLib, licenza BSD-2), test su i64 incluso MIN/MAX. Traduzione `fixtures/sds_ll2str_translated.rs`, anche questa **scritta a mano**, OK al tentativo 1.
 - **Da fare**: traduzione reale con DeepSeek di questi sorgenti e di altri repo pubblici.
 
 ## Fuori scope adesso
 
-Layer di compatibilità (Rosetta-like, Linux/Unix): fase successiva.
+Layer di compatibilità (Linux/Unix): fase successiva, vedi `docs/recompiler-compat-layer.md`.
