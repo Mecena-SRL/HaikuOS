@@ -385,3 +385,173 @@ mod tests {
         assert_eq!(s.get(2, 0), b"Pera");
     }
 }
+
+/// Parser delle formule: `+ - * /`, parentesi, numeri, riferimenti (`A1`), `SUM(A1:B3)`.
+struct Parser<'a, const R: usize, const C: usize> {
+    s: &'a [u8],
+    i: usize,
+    sh: &'a Sheet<R, C>,
+    depth: usize,
+}
+
+impl<const R: usize, const C: usize> Parser<'_, R, C> {
+    fn ws(&mut self) {
+        while self.s.get(self.i) == Some(&b' ') {
+            self.i += 1;
+        }
+    }
+
+    fn peek(&mut self) -> Option<u8> {
+        self.ws();
+        self.s.get(self.i).copied()
+    }
+
+    fn expr(&mut self) -> Option<f64> {
+        let mut v = self.term()?;
+        while let Some(op @ (b'+' | b'-')) = self.peek() {
+            self.i += 1;
+            let r = self.term()?;
+            v = if op == b'+' { v + r } else { v - r };
+        }
+        Some(v)
+    }
+
+    fn term(&mut self) -> Option<f64> {
+        let mut v = self.factor()?;
+        while let Some(op @ (b'*' | b'/')) = self.peek() {
+            self.i += 1;
+            let r = self.factor()?;
+            if op == b'*' {
+                v *= r;
+            } else {
+                if r == 0.0 {
+                    return None;
+                }
+                v /= r;
+            }
+        }
+        Some(v)
+    }
+
+    fn factor(&mut self) -> Option<f64> {
+        match self.peek()? {
+            b'-' => {
+                self.i += 1;
+                Some(-self.factor()?)
+            }
+            b'(' => {
+                self.i += 1;
+                let v = self.expr()?;
+                (self.peek()? == b')').then_some(())?;
+                self.i += 1;
+                Some(v)
+            }
+            b'0'..=b'9' => self.number(),
+            b'A'..=b'Z' => self.name(),
+            _ => None,
+        }
+    }
+
+    fn number(&mut self) -> Option<f64> {
+        let mut v = 0.0;
+        while let Some(&d @ b'0'..=b'9') = self.s.get(self.i) {
+            v = v * 10.0 + (d - b'0') as f64;
+            self.i += 1;
+        }
+        if self.s.get(self.i) == Some(&b'.') {
+            self.i += 1;
+            let mut f = 0.1;
+            while let Some(&d @ b'0'..=b'9') = self.s.get(self.i) {
+                v += (d - b'0') as f64 * f;
+                f /= 10.0;
+                self.i += 1;
+            }
+        }
+        Some(v)
+    }
+
+    /// Riferimento di cella o funzione SUM(intervallo).
+    fn name(&mut self) -> Option<f64> {
+        let s = self.i;
+        while self.s.get(self.i).is_some_and(|b| b.is_ascii_uppercase() || b.is_ascii_digit()) {
+            self.i += 1;
+        }
+        let word = &self.s[s..self.i];
+        if self.s.get(self.i) == Some(&b'(') {
+            if word != b"SUM" {
+                return None;
+            }
+            self.i += 1;
+            let a = self.cell_ref()?;
+            (self.s.get(self.i) == Some(&b':')).then_some(())?;
+            self.i += 1;
+            let b = self.cell_ref()?;
+            (self.s.get(self.i) == Some(&b')')).then_some(())?;
+            self.i += 1;
+            let mut sum = 0.0;
+            for r in a.0.min(b.0)..=a.0.max(b.0) {
+                for c in a.1.min(b.1)..=a.1.max(b.1) {
+                    if let Some(v) = self.sh.value_at(r, c, self.depth + 1) {
+                        sum += v;
+                    }
+                }
+            }
+            return Some(sum);
+        }
+        self.i = s;
+        let (r, c) = self.cell_ref()?;
+        self.sh.value_at(r, c, self.depth + 1)
+    }
+
+    fn cell_ref(&mut self) -> Option<(usize, usize)> {
+        self.ws();
+        let s = self.i;
+        while self.s.get(self.i).is_some_and(|b| b.is_ascii_uppercase() || b.is_ascii_digit()) {
+            self.i += 1;
+        }
+        addr(&self.s[s..self.i]).ok()
+    }
+}
+
+impl<const R: usize, const C: usize> Sheet<R, C> {
+    /// Valore numerico di una cella: numero, oppure formula che inizia con `=`.
+    pub fn value(&self, r: usize, c: usize) -> Option<f64> {
+        self.value_at(r, c, 0)
+    }
+
+    fn value_at(&self, r: usize, c: usize, depth: usize) -> Option<f64> {
+        if depth > 16 {
+            return None; // riferimenti circolari
+        }
+        let t = self.get(r, c);
+        if t.first() == Some(&b'=') {
+            let mut p = Parser { s: &t[1..], i: 0, sh: self, depth };
+            let v = p.expr()?;
+            p.ws();
+            return (p.i == p.s.len()).then_some(v);
+        }
+        let mut p = Parser { s: t, i: 0, sh: self, depth };
+        let v = p.number()?;
+        (p.i == t.len() && !t.is_empty()).then_some(v)
+    }
+}
+
+#[cfg(test)]
+mod formule {
+    use super::*;
+
+    #[test]
+    fn formule_base() {
+        let mut s: Sheet<6, 4> = Sheet::new();
+        s.set(0, 0, b"2").unwrap();
+        s.set(1, 0, b"3").unwrap();
+        s.set(2, 0, b"=A1+A2*2").unwrap();
+        s.set(3, 0, b"=SUM(A1:A3)").unwrap();
+        s.set(4, 0, b"=(A1-1)/0").unwrap();
+        s.set(5, 0, b"=A6").unwrap();
+        assert_eq!(s.value(2, 0), Some(8.0));
+        assert_eq!(s.value(3, 0), Some(13.0));
+        assert_eq!(s.value(4, 0), None);
+        assert_eq!(s.value(5, 0), None);
+    }
+}
