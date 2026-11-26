@@ -1,13 +1,15 @@
 //! API di piattaforma minima. Ogni backend (host, framebuffer HaikuOS, GBA)
 //! implementa questo trait; il ciclo dell'editor è uguale per tutti.
 
-use crate::gui::{Canvas, Editor, Key};
+use crate::gui::{Canvas, Editor, Key, Pixel};
 
 pub trait Platform {
+    /// Formato del framebuffer: u32 sull'host, u16 sul GBA.
+    type Px: Pixel;
     /// Dimensioni del framebuffer in pixel.
     fn size(&self) -> (usize, usize);
-    /// Buffer ARGB dove disegnare il frame corrente.
-    fn buffer(&mut self) -> &mut [u32];
+    /// Buffer dove disegnare il frame corrente.
+    fn buffer(&mut self) -> &mut [Self::Px];
     /// Prossimo tasto, `None` quando l'input è finito.
     fn poll_key(&mut self) -> Option<Key>;
     /// Mostra il frame disegnato.
@@ -43,6 +45,7 @@ mod tests {
     }
 
     impl Platform for Fake {
+        type Px = u32;
         fn size(&self) -> (usize, usize) {
             (8, 6)
         }

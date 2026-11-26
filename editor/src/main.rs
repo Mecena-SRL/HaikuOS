@@ -64,6 +64,7 @@ struct TermPlatform {
 }
 
 impl Platform for TermPlatform {
+    type Px = u32;
     fn size(&self) -> (usize, usize) {
         (16 * 16, 12 * 16)
     }
