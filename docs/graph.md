@@ -13,6 +13,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `gba/` | OS, Game Boy Advance | - | ROM GBA |
 | `gui/` | host | - | desktop e window manager |
 | `office/src/ods.rs` | host, no_std | formats | ODS in sola lettura, test inline |
+| `sim/` (formati) | - | - | rimossi: duplicavano `office/` |
 | `office/src/snappy.rs` | host, no_std | - | Snappy a blocchi, test inline |
 | `office/src/pages.rs` | host, no_std | snappy, zip | testo Pages da IWA, **da verificare** |
 | `devtools/` | host, std | - | manifest, ordine di build, build runner, package manager, nucleo IDE, progetto, SHA-256, CLI `hdev` |
@@ -34,6 +35,6 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `formats.rs` | `zip` | testo di docx e odt, scrittura docx e odt |
 | `pdf.rs` | `inflate` | PDF in sola lettura (font semplici e Identity-H) |
 | `sheet.rs` | `zip`, `formats` | fogli: CSV, xlsx, formule |
-| `slides.rs` | `zip`, `formats` | presentazioni: formato nativo, lettura pptx |
+| `slides.rs` | `zip`, `formats` | presentazioni: formato nativo, lettura e scrittura pptx |
 
-Stato: tappe 1-3 unite (#121, #171). Rinviati: scrittura pptx, `.pages`.
+Stato: tappe 1-3 unite (#121, #171, #174). Scrittura pptx minima verificata con LibreOffice. Rinviato: `.pages`.

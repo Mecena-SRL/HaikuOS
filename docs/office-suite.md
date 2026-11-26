@@ -55,8 +55,15 @@ Limite: il GBA non ha memoria per ZIP e XML completi. La compatibilità piena pa
 - `office/src/pdf.rs`: PDF in sola lettura. Flussi FlateDecode, font semplici (1 byte per codice) e Type0/Identity-H (2 byte), con ToUnicode (bfchar, bfrange). Verificato su un PDF creato da LibreOffice e su uno scritto a mano.
 - Limiti del PDF (**da verificare**): niente cifratura, niente oggetti compressi in ObjStm, niente ricerca tramite xref (si scandisce il file), CMap con array `[...]` non supportate.
 - `office/src/sheet.rs` (tappa 2): fogli a griglia fissa. Formato nativo CSV (RFC 4180, con virgolette). Lettura e scrittura di xlsx (testo e stringhe condivise). Formule: `+ - * /`, parentesi, `A1`, `SUM(A1:B3)`; errori e cicli danno vuoto. Verificato: LibreOffice legge il nostro xlsx.
-- `office/src/slides.rs` (tappa 3): formato nativo a diapositive separate da `---`. Lettura di pptx (testo per diapositiva). Scrittura pptx **rinviata**: serve un tema e un master validi (da verificare con LibreOffice e PowerPoint).
+- `office/src/slides.rs` (tappa 3): formato nativo a diapositive separate da `---`. Lettura di pptx (testo per diapositiva). Scrittura pptx minima (tema, master, layout, fino a 8 diapositive di testo). Verificata con LibreOffice; PowerPoint **da verificare**.
 - `.pages`: rinviato. Non esiste una specifica pubblica di Apple. Ricavarla da progetti di reverse engineering non basta per "verifica della specifica". Soluzione per gli utenti Pages: salvare come Word, poi aprire il docx.
+
+## 3d. Integrazione nella GBA (solo `.txt`)
+
+- `gba/src/main.rs`: l'editor carica il testo con il lettore `.txt` (CRLF e CR diventano LF). Se il file supera i 128 byte dell'editor, si usa il testo grezzo come prima. ROM compilata con nightly.
+- Accenti: il font GBA (3x5, solo ASCII maiuscolo) non copre i caratteri UTF-8 accentati (`è` = C3 A8): vengono disegnati come vuoti. **Verificato** leggendo `glyph()`. Decisione da prendere: sostituire o sillabare gli accenti solo in visualizzazione, oppure aggiungere glifi.
+- Il file system del GBA usa ancora nomi senza estensione (`docs/hello`): non rinominati, per non perdere i dati.
+- Test host `gba/host/test_root.rs`: non compila per `haiku_gui` mancante. Già così su main prima di questa modifica.
 
 ## 4. Modulo testo (`office/src/text.rs`)
 

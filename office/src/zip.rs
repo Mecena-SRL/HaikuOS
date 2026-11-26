@@ -73,7 +73,7 @@ fn put(out: &mut [u8], o: &mut usize, bytes: &[u8]) -> Option<()> {
 /// Scrive un archivio ZIP con voci stored. Ritorna i byte scritti in `out`.
 pub fn write(entries: &[(&[u8], &[u8])], out: &mut [u8]) -> Option<usize> {
     let mut o = 0;
-    let mut central = [0u8; 512];
+    let mut central = [0u8; 2048];
     let mut cn = 0;
     for &(name, data) in entries {
         let local = o;
