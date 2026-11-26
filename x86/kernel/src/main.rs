@@ -45,7 +45,7 @@ pub extern "C" fn kmain() -> ! {
         Some(f) => {
             kprintln!("[ok] framebuffer VBE 640x480 con desktop");
             let mut ps2 = input::Ps2::init();
-            let (lw, lh) = (f.w / fb::SCALE, f.h / fb::SCALE);
+            let (lw, lh) = (f.w / f.scale, f.h / f.scale);
             let mut shell = haiku_gui::Shell::new(&ICONS, lw, lh);
             shell.docs = docs::load();
             let files = fs::list();

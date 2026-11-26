@@ -12,7 +12,6 @@ mod font;
 
 const INFO: usize = 0x600;
 const MAGIC: u32 = 0x5642_4531;
-pub const SCALE: i32 = 2;
 
 /// Temi di colore: stessi quattro token (T0..T3) con valori diversi. Tema 0 è il riferimento (bibbia §3).
 /// Da verificare la leggibilità dei temi 1 e 2.
@@ -28,6 +27,8 @@ pub struct Fb {
     bpp: usize,
     pub w: i32,
     pub h: i32,
+    /// Pixel fisico per pixel logico: circa 640 colonne logiche su qualsiasi schermo.
+    pub scale: i32,
 }
 
 /// Legge la configurazione VBE; None se stage2 non ha impostato un modo grafico.
@@ -37,20 +38,27 @@ pub fn init() -> Option<Fb> {
         if rd(0) != MAGIC {
             return None;
         }
+        let w = rd(12) as i32;
         Some(Fb {
             base: rd(8) as usize,
-            w: rd(12) as i32,
+            w,
             h: rd(16) as i32,
             pitch: rd(20) as usize,
             bpp: rd(24) as usize,
+            scale: scale_for(w),
         })
     }
 }
 
+/// Scala intera: larghezza logica vicina a 640 (1024→2, 1280→2, 1920→3, 640→1).
+pub fn scale_for(w: i32) -> i32 {
+    ((w + 320) / 640).max(1)
+}
+
 impl Fb {
-    /// Canvas logico: 320×240 (w/2 × h/2) con scala intera.
+    /// Canvas logico: w/scale × h/scale, pixel fisici moltiplicati per scale.
     pub fn canvas(&self, theme: usize) -> Scaled<'_> {
-        Scaled { fb: self, lw: self.w / SCALE, lh: self.h / SCALE, pal: &THEMES[theme] }
+        Scaled { fb: self, lw: self.w / self.scale, lh: self.h / self.scale, pal: &THEMES[theme] }
     }
 
     fn put(&self, x: i32, y: i32, c: u32) {
@@ -98,9 +106,9 @@ fn inside_plate(px: i32, py: i32, k: i32, r: i32) -> bool {
 
 impl<'a> Scaled<'a> {
     fn block(&self, x: i32, y: i32, c: u32) {
-        for dy in 0..SCALE {
-            for dx in 0..SCALE {
-                self.fb.put(x * SCALE + dx, y * SCALE + dy, c);
+        for dy in 0..self.fb.scale {
+            for dx in 0..self.fb.scale {
+                self.fb.put(x * self.fb.scale + dx, y * self.fb.scale + dy, c);
             }
         }
     }
@@ -126,8 +134,8 @@ impl<'a> Canvas for Scaled<'a> {
     /// Icona vera: piatto colorato con angoli smussati, poi i segni dell'icona (32 px per cella 16 logica).
     /// Con cella 8×8 (titoli) la scala è 16 px. Coordinate dei segni: griglia 32, scalate su `k`.
     fn icon(&mut self, cell: Rect, label: &str, app: u8) {
-        let k = cell.w * SCALE;
-        let (ox, oy) = (cell.x * SCALE, cell.y * SCALE);
+        let k = cell.w * self.fb.scale;
+        let (ox, oy) = (cell.x * self.fb.scale, cell.y * self.fb.scale);
         let r = k / 8;
         let plate = col(self.pal, Tok::A(app));
         for py in 0..k {
