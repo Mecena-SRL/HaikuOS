@@ -4,6 +4,8 @@
 #![no_std]
 
 pub mod apps;
+#[path = "../../gba/src/chess.rs"]
+pub mod chess;
 pub mod icons;
 pub mod input;
 pub mod layout;

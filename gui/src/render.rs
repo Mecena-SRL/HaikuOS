@@ -2,6 +2,9 @@
 use crate::layout::*;
 use crate::palette::Tok::{self, T0, T1, T2, T3};
 use crate::apps::{num_str, FILES, LINE_H, TEXT_ROWS, THEME_NAMES, TL};
+use crate::chess::{self, Outcome};
+
+const PIECE_LETTERS: [&str; 7] = ["", "P", "N", "B", "R", "Q", "K"];
 use sysapps::browser::{parse_line, Line};
 use crate::shell::{Shell, MENU_MAX};
 use crate::icons::{cuts, BLOCK};
@@ -157,6 +160,44 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             for (k, line) in body.lines().skip(s.rscroll).take(rows.min(TEXT_ROWS) - 2).enumerate() {
                 c.text(cc.x, row_y(k + 2), clip(line, cols), T0);
             }
+        }
+        10 => {
+            // Documento: testo estratto da un .docx, con scorrimento (↑/↓).
+            for (k, line) in s.doc.split(|&b| b == b'\n').skip(s.rscroll).take(rows).enumerate() {
+                c.text(cc.x, row_y(k), clip(core::str::from_utf8(line).unwrap_or(""), cols), T0);
+            }
+        }
+        11 => {
+            // Scacchi: scacchiera 8×8 (cursore in T2, case scure in T3), poi lo stato.
+            const CW: i32 = 10;
+            const CH: i32 = 8;
+            let (ox, oy) = (cc.x + 4, cc.y + 2);
+            for r in 0..8u8 {
+                for f in 0..8u8 {
+                    let sq = (7 - r) * 8 + f;
+                    let (x, y) = (ox + f as i32 * CW, oy + r as i32 * CH);
+                    if ((7 - r) + f) % 2 == 0 {
+                        c.fill(Rect::new(x, y, CW, CH), T3);
+                    }
+                    if sq == s.chess.cur {
+                        c.fill(Rect::new(x, y, CW, CH), T2);
+                    }
+                    let p = s.board.sq[sq as usize];
+                    if p != 0 {
+                        let ink = if p >> 3 == chess::WHITE { T0 } else { T2 };
+                        c.text(x + 3, y + 1, PIECE_LETTERS[(p & 7) as usize], ink);
+                    }
+                }
+            }
+            let msg = match s.board.outcome() {
+                Outcome::Checkmate(w) if w == chess::WHITE => "BIANCO HA VINTO",
+                Outcome::Checkmate(_) => "NERO HA VINTO",
+                Outcome::Stalemate => "PATTA",
+                Outcome::Check => "SCACCO",
+                Outcome::Ongoing if s.board.turn == chess::WHITE => "TOCCA AL BIANCO",
+                Outcome::Ongoing => "TOCCA AL NERO",
+            };
+            c.text(cc.x + 4, oy + 8 * CH + 3, clip(msg, cols), T0);
         }
         _ => {}
     }

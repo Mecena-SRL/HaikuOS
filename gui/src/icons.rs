@@ -24,6 +24,8 @@ const PASSWORDS: &[Cut] = &[(3, 6, 3, 4), (6, 7, 6, 2), (10, 9, 1, 2), (12, 9, 1
 const DICTIONARY: &[Cut] = &[(7, 4, 1, 8), (4, 4, 3, 1), (9, 4, 3, 1), (4, 6, 3, 1), (9, 6, 3, 1), (4, 8, 3, 1), (9, 8, 3, 1)];
 const CALENDAR: &[Cut] = &[(3, 4, 10, 1), (3, 4, 1, 9), (12, 4, 1, 9), (3, 12, 10, 1), (3, 7, 10, 1), (6, 3, 1, 2), (9, 3, 1, 2)];
 const CODE: &[Cut] = &[(3, 5, 1, 1), (4, 6, 1, 1), (5, 7, 1, 1), (4, 8, 1, 1), (3, 9, 1, 1), (11, 5, 1, 1), (10, 6, 1, 1), (9, 7, 1, 1), (10, 8, 1, 1), (11, 9, 1, 1)];
+const DOC: &[Cut] = &[(4, 3, 8, 1), (4, 6, 8, 1), (4, 9, 8, 1), (4, 12, 5, 1)];
+const CHESS: &[Cut] = &[(4, 4, 8, 1), (4, 11, 8, 1), (4, 4, 1, 8), (11, 4, 1, 8), (7, 6, 2, 4)];
 const DEFAULT: &[Cut] = &[(4, 4, 6, 6)];
 
 /// Segni del glifo per l'etichetta dell'icona; sconosciute: riquadro vuoto.
@@ -38,6 +40,8 @@ pub fn cuts(label: &str) -> &'static [Cut] {
         "ORA" | "CLOCK" => CLOCK,
         "READ" => READ,
         "IDE" => CODE,
+        "DOC" => DOC,
+        "SCACCHI" => CHESS,
         "REMIND" => REMIND,
         "PASSWORDS" => PASSWORDS,
         "DICTIONARY" => DICTIONARY,

@@ -205,3 +205,19 @@ impl FileView {
         FileView { sel: 0, open: false }
     }
 }
+
+/// Id delle app documenti e scacchi (kernel x86).
+pub const DOC: u8 = 10;
+pub const CHESS: u8 = 11;
+
+/// Scacchi: cursore e casa selezionata (64 = nessuna). La partita è in `Shell::board`.
+pub struct Chess {
+    pub cur: u8,
+    pub sel: u8,
+}
+
+impl Chess {
+    pub const fn new() -> Chess {
+        Chess { cur: 12, sel: 64 }
+    }
+}
