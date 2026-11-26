@@ -26,7 +26,8 @@ Fixture: `tools/recompiler/fixtures/` (djb2: C, test, risposta buona e risposta 
 
 - Verificato: pipeline con risposta fissa. Risposta buona: OK al primo tentativo. Risposta errata (overflow non gestito): rifiutata dopo 3 tentativi, exit 1.
 - **Da verificare**: traduzione reale con DeepSeek. L'ambiente di sviluppo non raggiunge `api.deepseek.com`.
-- **Da fare**: sorgenti open source pubblici reali (utility, giochi semplici), con test di specifica tratti dal sorgente stesso.
+- Secondo caso: `adler32.c` (core di zlib, licenza zlib), test con valori di riferimento calcolati da `zlib` Python. Traduzione in `fixtures/adler32_translated.rs`: **scritta a mano da un agente, non dall'LLM**, passata dalla pipeline (mock): OK al tentativo 1.
+- **Da fare**: traduzione reale con DeepSeek di questi sorgenti e di altri repo pubblici.
 
 ## Fuori scope adesso
 
