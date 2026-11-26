@@ -50,11 +50,33 @@ pub const FONT: [[u8; GH]; 37] = [
 
 /// Righe del glifo per `c` (minuscole convertite in maiuscole). Carattere sconosciuto: spazio.
 pub fn glyph(c: u8) -> [u8; GH] {
-    let c = c.to_ascii_uppercase();
+    let c = accent_base(c).unwrap_or(c.to_ascii_uppercase());
     match CHARS.iter().position(|&k| k == c) {
         Some(i) => FONT[i],
         None => FONT[0],
     }
+}
+
+/// Secondo byte UTF-8 delle lettere latine accentate (C3 xx) -> lettera base.
+/// Il primo byte C3 resta vuoto. Il file non cambia: è solo la resa a schermo.
+fn accent_base(c: u8) -> Option<u8> {
+    Some(match c {
+        0x80..=0x85 => b'A',
+        0x87 => b'C',
+        0x88..=0x8B => b'E',
+        0x8C..=0x8F => b'I',
+        0x91 => b'N',
+        0x92..=0x96 => b'O',
+        0x99..=0x9C => b'U',
+        0xA0..=0xA5 => b'A',
+        0xA7 => b'C',
+        0xA8..=0xAB => b'E',
+        0xAC..=0xAF => b'I',
+        0xB1 => b'N',
+        0xB2..=0xB6 => b'O',
+        0xB9..=0xBC => b'U',
+        _ => return None,
+    })
 }
 
 /// Disegna `text` nel buffer `px` largo `w` e alto `h`, partendo da (x, y). Ritaglia ai bordi.
@@ -120,6 +142,8 @@ mod tests {
     #[test]
     fn minuscole_e_sconosciuti() {
         assert_eq!(glyph(b'h'), glyph(b'H'));
+        assert_eq!(glyph(0xA8), glyph(b'E')); // è in UTF-8 = C3 A8
+        assert_eq!(glyph(0xC3), FONT[0]); // primo byte: vuoto
         assert_eq!(glyph(b'?'), FONT[0]);
     }
 

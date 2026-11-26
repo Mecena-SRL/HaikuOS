@@ -61,7 +61,7 @@ Limite: il GBA non ha memoria per ZIP e XML completi. La compatibilità piena pa
 ## 3d. Integrazione nella GBA (solo `.txt`)
 
 - `gba/src/main.rs`: l'editor carica il testo con il lettore `.txt` (CRLF e CR diventano LF). Se il file supera i 128 byte dell'editor, si usa il testo grezzo come prima. ROM compilata con nightly.
-- Accenti: il font GBA (3x5, solo ASCII maiuscolo) non copre i caratteri UTF-8 accentati (`è` = C3 A8): vengono disegnati come vuoti. **Verificato** leggendo `glyph()`. Decisione da prendere: sostituire o sillabare gli accenti solo in visualizzazione, oppure aggiungere glifi.
+- Accenti: decisione di Ivan (lettera base, file intatti). In `gba/src/glyph.rs` il secondo byte UTF-8 di `à è é ì ò ù` (e maiuscole) disegna la lettera base. Il primo byte `C3` resta vuoto. **Test** unitari ok. Lettura a 3x5 pixel: **da verificare** in emulatore.
 - Il file system del GBA usa ancora nomi senza estensione (`docs/hello`): non rinominati, per non perdere i dati.
 - Test host `gba/host/test_root.rs`: non compila per `haiku_gui` mancante. Già così su main prima di questa modifica.
 
