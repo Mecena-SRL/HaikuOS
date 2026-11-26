@@ -3,6 +3,9 @@
 #![no_std]
 #![no_main]
 
+#[allow(dead_code)]
+#[path = "../../office/src/text.rs"]
+mod office_text;
 mod alloc;
 mod apps;
 mod ascon;
@@ -223,7 +226,9 @@ fn draw_editor(surf: &mut surfaces::Surfaces, ed: &editor::Editor, status: Optio
 fn run_editor(surf: &mut surfaces::Surfaces, m: &mut Monolith, text: &[u8], save: &mut dyn FnMut(&[u8]) -> bool) {
     let _ = surf.open(m, 0, 10, 20);
     let mut ed = editor::Editor::new();
-    ed.load(text);
+    // Formato .txt: CRLF e CR diventano LF. Se non entra nel buffer, si carica il testo grezzo.
+    let mut norm: office_text::Text<{ editor::MAX }> = office_text::Text::new();
+    ed.load(if norm.load(text).is_ok() { norm.bytes() } else { text });
     draw_editor(surf, &ed, None);
     let mut prev = keys();
     loop {
