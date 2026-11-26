@@ -12,9 +12,10 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `sim/` | host | - | simulatore monolite, agente, filtro messaggi |
 | `gba/` | OS, Game Boy Advance | - | ROM GBA |
 | `gui/` | host | - | desktop e window manager |
-| `devtools/` | host, std | - | manifest, ordine di build, SHA-256 |
+| `devtools/` | host, std | - | manifest, ordine di build, build runner, SHA-256, CLI `hdev` |
 
 ## Stato
 
-- `devtools/`: manifest, ordine di build, verifica SHA-256 (PR #158).
-- Build runner: in corso.
+- `devtools/`: manifest, ordine di build, verifica SHA-256 (#158 unita).
+- Build runner: `build.rs` + `hdev` (questa PR).
+- Package manager: da fare.
