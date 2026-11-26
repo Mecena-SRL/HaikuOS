@@ -50,19 +50,22 @@ pub extern "C" fn kmain() -> ! {
     }
 
     let mut mbr = [0u8; 512];
-    if ata::read_sector(0, &mut mbr) && mbr[510] == 0x55 && mbr[511] == 0xAA {
+    let disk = ata::read_sector(0, &mut mbr) && mbr[510] == 0x55 && mbr[511] == 0xAA;
+    if disk {
         kprintln!("[ok] disco ATA: settore 0 letto, firma 0x55AA presente");
     } else {
         kprintln!("[errore] disco ATA: settore 0 non letto");
     }
 
-    if fs::show_root() {
+    if !disk {
+        kprintln!("[avviso] nessun disco: uso dati incorporati");
+    } else if fs::show_root() {
         kprintln!("[ok] file system HAIKUFS1 letto");
     } else {
         kprintln!("[errore] file system HAIKUFS1 non trovato");
     }
     if let Some(f) = &fbo {
-        splash(f, 30, "LETTURA DISCO");
+        splash(f, 30, if disk { "LETTURA DISCO" } else { "NESSUN DISCO: DATI INCORPORATI" });
     }
 
     console::puts("[ok] RAM utilizzabile: ");
@@ -76,7 +79,7 @@ pub extern "C" fn kmain() -> ! {
             let mut shell = haiku_gui::Shell::new(&ICONS, lw, lh);
             splash(&f, 60, "CARICO DOCUMENTI");
             shell.docs = docs::load();
-            let files = fs::list();
+            let files = if disk { fs::list() } else { &[] };
             if !files.is_empty() {
                 shell.files_list = files;
             }
