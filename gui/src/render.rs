@@ -162,9 +162,13 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             }
         }
         10 => {
-            // Documento: testo estratto da un .docx, con scorrimento (↑/↓).
-            for (k, line) in s.doc.split(|&b| b == b'\n').skip(s.rscroll).take(rows).enumerate() {
-                c.text(cc.x, row_y(k), clip(core::str::from_utf8(line).unwrap_or(""), cols), T0);
+            // Documento: nome e posizione (←/→), poi il testo con scorrimento (↑/↓).
+            const NAMES: [&str; 4] = ["DOCX", "PDF", "PPTX", "XLSX"];
+            c.text(cc.x, row_y(0), clip(NAMES[s.doc_sel], cols), T0);
+            c.fill(Rect::new(cc.x, row_y(1), cc.w, 1), T3);
+            let text = s.docs[s.doc_sel];
+            for (k, line) in text.split(|&b| b == b'\n').skip(s.rscroll).take(rows.min(TEXT_ROWS) - 2).enumerate() {
+                c.text(cc.x, row_y(k + 2), clip(core::str::from_utf8(line).unwrap_or(""), cols), T0);
             }
         }
         11 => {

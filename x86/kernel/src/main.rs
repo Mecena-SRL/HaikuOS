@@ -8,6 +8,7 @@ mod fb;
 mod input;
 mod rtc;
 mod boot;
+mod docs;
 mod fs;
 mod io;
 
@@ -15,20 +16,7 @@ use core::arch::asm;
 use core::panic::PanicInfo;
 use haiku_gui::render::Canvas;
 
-// Documento di prova (suite office): .docx incluso nel kernel, letto all'avvio.
-static DOCX: &[u8] = include_bytes!("../../../office/tests/fixtures/sample.docx");
-static mut XML: [u8; 16384] = [0; 16384];
-static mut TEXT: [u8; 4096] = [0; 4096];
 
-fn doc_text() -> &'static [u8] {
-    unsafe {
-        let xml = &mut *core::ptr::addr_of_mut!(XML);
-        let text = &mut *core::ptr::addr_of_mut!(TEXT);
-        let n = haiku_office::zip::extract(DOCX, b"word/document.xml", xml).unwrap_or(0);
-        let m = haiku_office::formats::read_docx(&xml[..n], text).unwrap_or(0);
-        &text[..m]
-    }
-}
 
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
@@ -55,7 +43,7 @@ pub extern "C" fn kmain() -> ! {
             let mut ps2 = input::Ps2::init();
             let (lw, lh) = (f.w / fb::SCALE, f.h / fb::SCALE);
             let mut shell = haiku_gui::Shell::new(&ICONS, lw, lh);
-            shell.doc = doc_text();
+            shell.docs = docs::load();
             let (mut cx, mut cy) = (lw / 2, lh / 2); // cursore in unità logiche
             let mut left_prev = false;
             let mut acc = (0i32, 0i32);

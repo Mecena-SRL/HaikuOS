@@ -7,9 +7,10 @@ Stato: avvio verificato in QEMU 8.2 (BIOS, seriale e screenshot del desktop 1280
 - Loader Multiboot2 (`x86/boot/loader.asm`): carica il kernel, prepara il framebuffer e il long mode.
 - Kernel x86-64 (`x86/kernel`, `no_std`) con il desktop (`gui/`).
 - App pronte al primo avvio, senza installazione: FILE, TERM (terminale), CALC (calcolatrice), WEB (browser), EDIT (editor), SET (impostazioni), ORA (orologio), READ (lettore), IDE.
-- Suite documenti: DOCUMENTI (DOC) mostra il testo di un `.docx` incluso (`office/tests/fixtures/sample.docx`, letto con `haiku-office`). Sola lettura, un solo documento.
+- Suite documenti: DOCUMENTI (DOC), sola lettura. Con ←/→ scegli tra quattro documenti inclusi (`office/tests/fixtures/`): `sample.docx`, `sample.pdf` (testo), `sample.pptx` (diapositive separate da `---`), `sample.xlsx` (come CSV). Scorrimento con ↑/↓.
 - Giochi: SCACCHI (gioco a due, cursore con le frecce, Invio per muovere). Regole da `gba/src/chess.rs`: niente arrocco né en passant, promozione automatica a donna.
-- Non incluso: fogli, presentazioni, PDF e apertura di file dal disco.
+- Non incluso: modifica dei documenti, scrittura nei formati office, apertura di file scelti dall'utente (nella ISO non c'è un disco).
+- Kernel: circa 100 KB. Il disco di prova (`build.sh`) carica il kernel a blocchi da 32 KB, quindi il limite è 1 MB.
 
 ## Come si crea
 
