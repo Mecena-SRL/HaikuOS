@@ -7,3 +7,5 @@ pub mod text;
 pub mod zip;
 pub mod formats;
 pub mod pdf;
+pub mod sheet;
+pub mod slides;
