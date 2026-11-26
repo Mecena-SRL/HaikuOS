@@ -26,7 +26,7 @@ Far girare software Linux/Unix su HaikuOS senza emulare la CPU. Niente Rosetta n
 2. Prototipo per una sola architettura (ARM64 o x86_64, da decidere con Ivan).
 3. Criterio di successo: un programma con output identico al Linux di riferimento, misurato con test.
 
-## 5. Domande aperte
+## 5. Decisioni
 
-1. Quale architettura di partenza per le syscall: x86_64 o ARM64?
-2. Serve compatibilità binaria, o basta la ricompilazione dai sorgenti?
+1. Architettura di partenza: **x86_64** (QEMU già pronto). ARM64 dopo.
+2. Compatibilità binaria: **no per ora**. Solo ricompilazione da sorgente.
