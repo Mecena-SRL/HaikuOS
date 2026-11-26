@@ -36,6 +36,7 @@ fn splash(f: &fb::Fb, pct: i32, what: &str) {
     c.fill(Rect::new(bx - 1, by - 1, bw + 2, 6), T1);
     c.fill(Rect::new(bx, by, bw, 4), T0);
     c.fill(Rect::new(bx, by, bw * pct / 100, 4), T2);
+    f.flush();
 }
 
 #[no_mangle]
@@ -138,6 +139,7 @@ pub extern "C" fn kmain() -> ! {
                     let mut c = f.canvas(shell.theme as usize);
                     haiku_gui::render::draw(&mut c, &shell);
                     c.fill(haiku_gui::layout::Rect::new(cx, cy, 2, 2), haiku_gui::Tok::T1);
+                    f.flush();
                 }
             }
         }
