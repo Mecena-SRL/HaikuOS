@@ -14,6 +14,7 @@ Codice del sistema. Documentazione di progetto: [docs/architecture.md](docs/arch
 cargo test                  # test della logica di setup (host)
 sh tools/make-iso.sh        # crea target/haiku.iso
 python3 tools/test-first-boot.py   # avvia in QEMU e percorre il primo avvio
+sh tools/build-pkgs.sh gba <dir>...   # compila pacchetti (haiku.toml) con hdev, in ordine di dipendenza
 ```
 
 Requisiti: Rust con target `i686-unknown-linux-gnu`, `grub-mkrescue` (con `xorriso`), `qemu-system-i386`.
