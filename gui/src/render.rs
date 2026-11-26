@@ -118,9 +118,9 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
                 }
             }
         }
-        5 => {
-            // Buffer dell'editor, cursore T2, e in fondo il pannello dell'uscita di F5.
-            let ed = &s.editor;
+        5 | 9 => {
+            // Buffer dell'editor (5) o dell'IDE (9), cursore T2, e in fondo il pannello dell'uscita di F5.
+            let ed = if app == 9 { &s.ide } else { &s.editor };
             let code = ed.lines().min(7);
             for i in 0..code {
                 c.text(cc.x, row_y(i), clip(ed.line(i), cols), T0);
