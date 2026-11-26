@@ -19,11 +19,35 @@ use haiku_gui::render::Canvas;
 
 
 
+/// Schermata di avvio: titolo, testo di stato e barra di avanzamento (pct 0..=100).
+fn splash(f: &fb::Fb, pct: i32, what: &str) {
+    use haiku_gui::layout::{Rect, FONT_W};
+    use haiku_gui::palette::Tok::{T0, T1, T2, T3};
+    use haiku_gui::render::Canvas;
+    let mut c = f.canvas(0);
+    let (w, h) = (f.w / f.scale, f.h / f.scale);
+    let (cx, cy) = (w / 2, h / 2);
+    c.fill(Rect::new(0, 0, w, h), T0);
+    let cw = FONT_W + 1;
+    c.text(cx - 7 * cw / 2, cy - 14, "HAIKUOS", T3);
+    c.text(cx - what.len() as i32 * cw / 2, cy + 2, what, T1);
+    let bw = w / 3;
+    let (bx, by) = (cx - bw / 2, cy + 12);
+    c.fill(Rect::new(bx - 1, by - 1, bw + 2, 6), T1);
+    c.fill(Rect::new(bx, by, bw, 4), T0);
+    c.fill(Rect::new(bx, by, bw * pct / 100, 4), T2);
+}
+
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
     console::init();
     kprintln!("HaikuOS 0.1 - kernel x86-64 avviato in long mode");
     kprintln!("[ok] seriale COM1 e VGA attivi");
+
+    let fbo = fb::init();
+    if let Some(f) = &fbo {
+        splash(f, 0, "AVVIO IN CORSO");
+    }
 
     let mut mbr = [0u8; 512];
     if ata::read_sector(0, &mut mbr) && mbr[510] == 0x55 && mbr[511] == 0xAA {
@@ -37,21 +61,26 @@ pub extern "C" fn kmain() -> ! {
     } else {
         kprintln!("[errore] file system HAIKUFS1 non trovato");
     }
+    if let Some(f) = &fbo {
+        splash(f, 30, "LETTURA DISCO");
+    }
 
     console::puts("[ok] RAM utilizzabile: ");
     console::put_dec((mem::usable() >> 20) as u32);
     console::puts(" MB\n");
-    match fb::init() {
+    match fbo {
         Some(f) => {
             kprintln!("[ok] framebuffer VBE 640x480 con desktop");
             let mut ps2 = input::Ps2::init();
             let (lw, lh) = (f.w / f.scale, f.h / f.scale);
             let mut shell = haiku_gui::Shell::new(&ICONS, lw, lh);
+            splash(&f, 60, "CARICO DOCUMENTI");
             shell.docs = docs::load();
             let files = fs::list();
             if !files.is_empty() {
                 shell.files_list = files;
             }
+            splash(&f, 100, "PRONTO");
             let (mut cx, mut cy) = (lw / 2, lh / 2); // cursore in unità logiche
             let mut left_prev = false;
             let mut acc = (0i32, 0i32);
