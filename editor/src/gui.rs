@@ -62,6 +62,7 @@ pub const PALETTE: [u32; 8] = [
 /// Colore degli sprite per tipo (`kind`), ciclico.
 pub const SPRITE_COLORS: [u32; 4] = [0xFFFFFFFF, 0xFFFF66CC, 0xFF66FFFF, 0xFFFF9900];
 pub const CURSOR_COLOR: u32 = 0xFFFFFF00;
+pub const SOLID_COLOR: u32 = 0xFFFF2020;
 
 /// Stato dell'editor: scena, undo, cursore, pennello.
 pub struct Editor<const W: usize, const H: usize, const N: usize, const U: usize> {
@@ -83,6 +84,8 @@ pub enum Key {
     Undo,
     NextBrush,
     PrevBrush,
+    /// Alterna il flag solido della cella.
+    Solid,
     Quit,
 }
 
@@ -103,6 +106,11 @@ impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H
             Key::Undo => {
                 self.scene.undo(&mut self.hist);
             }
+            Key::Solid => {
+                let (x, y) = (self.cx, self.cy);
+                let v = self.scene.solid.get(x, y).unwrap_or(0);
+                self.scene.solid.set(x, y, 1 - v.min(1));
+            }
             Key::Quit => {}
             Key::NextBrush => self.brush = (self.brush + 1) % PALETTE.len() as u8,
             Key::PrevBrush => self.brush = (self.brush + PALETTE.len() as u8 - 1) % PALETTE.len() as u8,
@@ -117,6 +125,13 @@ impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H
                 let v = self.scene.tiles.cells[y][x] as usize;
                 let col = PALETTE[v % PALETTE.len()];
                 c.rect(x * ts, y * ts, ts - 1, ts - 1, col);
+            }
+        }
+        for y in 0..H {
+            for x in 0..W {
+                if self.scene.solid.cells[y][x] != 0 {
+                    c.rect(x * ts + ts / 3, y * ts + ts / 3, ts / 3, ts / 3, SOLID_COLOR);
+                }
             }
         }
         for s in self.scene.sprites.iter().flatten() {
@@ -149,6 +164,15 @@ mod tests {
         assert_eq!(e.scene.tiles.get(3, 0), Some(1));
         e.handle(Key::Undo);
         assert_eq!(e.scene.tiles.get(3, 0), Some(0));
+    }
+
+    #[test]
+    fn solid_toggles() {
+        let mut e = E::new(Scene::default());
+        e.handle(Key::Solid);
+        assert_eq!(e.scene.solid.get(0, 0), Some(1));
+        e.handle(Key::Solid);
+        assert_eq!(e.scene.solid.get(0, 0), Some(0));
     }
 
     #[test]
