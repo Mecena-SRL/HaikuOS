@@ -6,3 +6,4 @@ pub mod inflate;
 pub mod text;
 pub mod zip;
 pub mod formats;
+pub mod pdf;

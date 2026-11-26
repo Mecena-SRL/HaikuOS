@@ -52,8 +52,9 @@ Limite: il GBA non ha memoria per ZIP e XML completi. La compatibilità piena pa
 - `office/src/formats.rs`: lettura del testo di `.docx` e `.odt`; scrittura di un docx e un odt minimi di solo testo.
 - Verifica: LibreOffice apre i nostri docx e odt e ne estrae il testo corretto. Il nostro lettore legge docx e odt creati da LibreOffice.
 - Da verificare: caratteri accentati (il file di test usa UTF-8 nei byte, non Latin-1; resta da controllare sul font GBA e sulle suite Apple).
-- PDF in sola lettura: solo font semplici (WinAnsi). Font incorporati con Identity-H (quasi tutti i PDF di LibreOffice) richiedono il ToUnicode: rinviato.
-- `.pages`: non ancora verificato.
+- `office/src/pdf.rs`: PDF in sola lettura. Flussi FlateDecode, font semplici (1 byte per codice) e Type0/Identity-H (2 byte), con ToUnicode (bfchar, bfrange). Verificato su un PDF creato da LibreOffice e su uno scritto a mano.
+- Limiti del PDF (**da verificare**): niente cifratura, niente oggetti compressi in ObjStm, niente ricerca tramite xref (si scandisce il file), CMap con array `[...]` non supportate.
+- `.pages`: rinviato. Non esiste una specifica pubblica di Apple. Ricavarla da progetti di reverse engineering non basta per "verifica della specifica". Soluzione per gli utenti Pages: salvare come Word, poi aprire il docx.
 
 ## 4. Modulo testo (`office/src/text.rs`)
 
