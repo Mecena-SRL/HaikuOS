@@ -47,16 +47,18 @@ pub struct Sprite {
     pub y: u16,
 }
 
-/// Una scena: sfondo a tile + al massimo `N` sprite.
+/// Una scena: sfondo a tile, livello "solido" (collisioni) e al massimo `N` sprite.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Scene<const W: usize, const H: usize, const N: usize> {
     pub tiles: Grid<W, H>,
+    /// 1 = la tile blocca il passaggio, 0 = libera.
+    pub solid: Grid<W, H>,
     pub sprites: [Option<Sprite>; N],
 }
 
 impl<const W: usize, const H: usize, const N: usize> Default for Scene<W, H, N> {
     fn default() -> Self {
-        Self { tiles: Grid::default(), sprites: [None; N] }
+        Self { tiles: Grid::default(), solid: Grid::default(), sprites: [None; N] }
     }
 }
 
@@ -142,17 +144,19 @@ impl<const W: usize, const H: usize, const N: usize> Scene<W, H, N> {
 
     /// Dimensione del formato di salvataggio.
     pub const fn encoded_len() -> usize {
-        4 + W * H + N * 6
+        4 + 2 * W * H + N * 6
     }
 
-    /// Salva in `out`: magic, tile per righe, sprite a 6 byte ciascuno.
+    /// Salva in `out`: magic, tile, livello solido (righe), sprite a 6 byte ciascuno.
     pub fn encode(&self, out: &mut [u8]) -> Option<usize> {
         let out = out.get_mut(..Self::encoded_len())?;
         out[..4].copy_from_slice(&MAGIC);
         let mut p = 4;
-        for row in self.tiles.cells.iter() {
-            out[p..p + W].copy_from_slice(row);
-            p += W;
+        for grid in [&self.tiles, &self.solid] {
+            for row in grid.cells.iter() {
+                out[p..p + W].copy_from_slice(row);
+                p += W;
+            }
         }
         for slot in self.sprites.iter() {
             let rec = match slot {
@@ -176,9 +180,11 @@ impl<const W: usize, const H: usize, const N: usize> Scene<W, H, N> {
         }
         let mut s = Self::default();
         let mut p = 4;
-        for row in s.tiles.cells.iter_mut() {
-            row.copy_from_slice(&buf[p..p + W]);
-            p += W;
+        for grid in [&mut s.tiles, &mut s.solid] {
+            for row in grid.cells.iter_mut() {
+                row.copy_from_slice(&buf[p..p + W]);
+                p += W;
+            }
         }
         for slot in s.sprites.iter_mut() {
             let r = &buf[p..p + 6];
@@ -195,7 +201,7 @@ impl<const W: usize, const H: usize, const N: usize> Scene<W, H, N> {
     }
 }
 
-pub const MAGIC: [u8; 4] = *b"HGS1";
+pub const MAGIC: [u8; 4] = *b"HGS2";
 
 #[cfg(test)]
 mod tests {
@@ -239,6 +245,17 @@ mod tests {
         assert_eq!(n, S::encoded_len());
         assert_eq!(S::decode(&buf[..n]), Some(s));
         assert_eq!(S::decode(&buf[..n - 1]), None);
+    }
+
+    #[test]
+    fn solid_layer_roundtrip() {
+        let mut s = S::default();
+        s.solid.set(1, 1, 1);
+        let mut buf = [0u8; 256];
+        let n = s.encode(&mut buf).unwrap();
+        let back = S::decode(&buf[..n]).unwrap();
+        assert_eq!(back.solid.get(1, 1), Some(1));
+        assert_eq!(back, s);
     }
 
     #[test]

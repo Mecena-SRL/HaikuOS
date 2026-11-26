@@ -87,6 +87,7 @@ impl Platform for TermPlatform {
                 'u' => Some(Key::Undo),
                 ']' => Some(Key::NextBrush),
                 '[' => Some(Key::PrevBrush),
+                'x' => Some(Key::Solid),
                 'q' => Some(Key::Quit),
                 _ => None,
             }).collect();
