@@ -11,7 +11,7 @@
 | Verifica pacchetti | SHA-256 del payload prima dell'installazione | fatto (`devtools/src/pkg.rs`) |
 | Package manager | Indice, risoluzione dipendenze, installazione atomica | fatto (`devtools/src/pm.rs`) |
 | Build runner | Piano per architettura ed esecuzione dei comandi, in ordine | fatto (`devtools/src/build.rs`, CLI `hdev build <arch> <dir>...`) |
-| IDE | Editor, albero progetto, errori di build, avvio in emulatore | nucleo fatto (`devtools/src/ide.rs`: buffer con annulla); GUI e progetto da fare |
+| IDE | Editor, albero progetto, errori di build, avvio in emulatore | nucleo fatto (`ide.rs`: buffer con annulla; `project.rs`: elenco file, load/save); GUI da fare, la finestra la fornisce il desktop |
 
 Il codice dell'OS resta `no_std`. `devtools/` gira sull'host e non entra nel sistema.
 
