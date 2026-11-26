@@ -23,6 +23,8 @@ pub struct Package {
     pub archs: Vec<String>,
     #[serde(default)]
     pub deps: Vec<String>,
+    /// Comando di compilazione (eseguito con `sh -c`). Assente = nessun passo.
+    pub build: Option<String>,
 }
 
 impl Manifest {

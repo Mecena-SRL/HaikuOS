@@ -10,7 +10,7 @@
 | Ordine di build | Compila dipendenze prima dei pacchetti, rileva cicli e dipendenze mancanti | fatto (`devtools/src/graph.rs`) |
 | Verifica pacchetti | SHA-256 del payload prima dell'installazione | fatto (`devtools/src/pkg.rs`) |
 | Package manager | Indice + archivio + installazione atomica | da fare |
-| Build runner | Esegue i comandi di compilazione nell'ordine dato, per ogni architettura | da fare |
+| Build runner | Piano per architettura ed esecuzione dei comandi, in ordine | fatto (`devtools/src/build.rs`, CLI `hdev build <arch> <dir>...`) |
 | IDE | Editor, albero progetto, errori di build, avvio in emulatore | da fare (dopo il GUI desktop) |
 
 Il codice dell'OS resta `no_std`. `devtools/` gira sull'host e non entra nel sistema.
@@ -23,6 +23,7 @@ name = "calc"
 version = "0.1.0"
 archs = ["gba", "x86_64"]   # obbligatorio: regola di portabilità
 deps = ["ui"]
+build = "make calc"          # opzionale: comando eseguito con sh -c
 ```
 
 Regole:
