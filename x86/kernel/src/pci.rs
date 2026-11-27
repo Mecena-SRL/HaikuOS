@@ -6,7 +6,7 @@ use crate::io::{inl, outl};
 const ADDR: u16 = 0xCF8;
 const DATA: u16 = 0xCFC;
 
-fn read(bus: u8, dev: u8, func: u8, reg: u8) -> u32 {
+pub fn read(bus: u8, dev: u8, func: u8, reg: u8) -> u32 {
     let addr = 0x8000_0000u32
         | (bus as u32) << 16
         | (dev as u32 & 0x1F) << 11
@@ -18,9 +18,20 @@ fn read(bus: u8, dev: u8, func: u8, reg: u8) -> u32 {
     }
 }
 
+/// Scrive un registro di configurazione (32 bit) del bus 0.
+pub fn write(dev: u8, func: u8, reg: u8, val: u32) {
+    let addr = 0x8000_0000u32 | (dev as u32 & 0x1F) << 11 | (func as u32 & 0x7) << 8 | (reg as u32 & 0xFC);
+    unsafe {
+        outl(ADDR, addr);
+        outl(DATA, val);
+    }
+}
+
 /// Un dispositivo trovato: classe e sottoclasse PCI (es. 0x01/0x06 = AHCI).
 #[derive(Clone, Copy)]
 pub struct Dev {
+    pub dev: u8,
+    pub func: u8,
     pub vendor: u16,
     pub class: u8,
     pub sub: u8,
@@ -43,6 +54,8 @@ pub fn scan(mut f: impl FnMut(Dev)) {
             }
             let cls = read(0, dev, func, 0x08);
             f(Dev {
+                dev,
+                func,
                 vendor: (id & 0xFFFF) as u16,
                 class: (cls >> 24) as u8,
                 sub: (cls >> 16) as u8,
