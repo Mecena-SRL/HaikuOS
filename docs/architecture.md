@@ -159,6 +159,8 @@ Stato su ARM64 (`arm64/`, QEMU virt, verificato):
 - **Timer con interrupt:** timer fisico EL1 (PPI 30) a 100 ms, verificato con 3 tick.
 - **Framebuffer UEFI (GOP):** l'app UEFI trova il GOP, disegna lo sfondo del tema 0 e un riquadro accento. Verificato in QEMU con `ramfb`: 800x600, 120000 pixel accento esatti.
 - **Desktop su GOP:** sfondo, barra con titolo, finestra, 9 icone con etichette (font 3x5 del GBA, `gba/src/font.rs`). Formati RGB8, BGR8 e maschere (16/24/32 bit). Verificato in QEMU: formato 32 bit, 9 icone a 6400 pixel esatti. Il 16 bit è verificato solo con test sull'host (`arm64/uefi/scripts/test-host.sh`), non con firmware reale.
-- **Non ancora:** app interattive (serve input tastiera UEFI), hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
+- **Tastiera e launcher:** input UEFI (SimpleTextInput, polling). `d a s w` muovono la selezione, Invio apre, `x` chiude, `q` esce. Verificato in QEMU con tasti sul seriale.
+- **Prima app:** il launcher apre una finestra con il nome dell'app. Nessuna app vera ancora (CALC, TERM, ecc. da fare).
+- **Non ancora:** app vere, hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
 
 Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.
