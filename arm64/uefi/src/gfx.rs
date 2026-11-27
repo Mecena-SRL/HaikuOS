@@ -132,6 +132,8 @@ pub struct View {
 /// Indici delle icone con contenuto: TERM e CALC.
 pub const TERM_INDEX: usize = 1;
 pub const CALC_INDEX: usize = 2;
+/// Indice dell'icona ORA (orologio).
+pub const CLOCK_INDEX: usize = 6;
 
 /// Testo delle app con contenuto: `body[0]` e `body[1]` sono due righe (CALC: display; TERM: output e prompt).
 pub fn draw_desktop(f: &Fb, v: View, body: [&str; 2]) {
@@ -153,6 +155,9 @@ pub fn draw_desktop(f: &Fb, v: View, body: [&str; 2]) {
                 let (a, b) = (fit(body[0], n), tail(body[1], n));
                 f.text(wx + 8, wy + bar + 8, a, ts, BG);
                 f.text(wx + 8, wy + bar + 8 + 6 * ts, b, ts, BG);
+            } else if i == CLOCK_INDEX {
+                let sc = ((ww - 16) / 32).min(ts * 3).max(1);
+                f.text(wx + 8, wy + bar + 8, body[0], sc, BG);
             } else {
                 f.text(wx + 8, wy + bar + 8, APPS[i], ts * 2, BG);
             }
