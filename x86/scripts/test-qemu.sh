@@ -3,10 +3,11 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+cp build/haikuos.img build/sata.img
 rm -f build/serial.log build/screen.ppm build/qmp.sock
 
 timeout 20 qemu-system-x86_64 \
-  -drive file=build/haikuos.img,format=raw,if=ide,index=0,media=disk \
+  -drive file=build/haikuos.img,format=raw,if=ide,index=0,media=disk -device ahci,id=ahci0 -drive file=build/sata.img,format=raw,if=none,id=sata0 -device ide-hd,drive=sata0,bus=ahci0.0 \
   -m 128M -display none -vga std -no-reboot \
   -serial file:build/serial.log \
   -qmp unix:build/qmp.sock,server,nowait &
@@ -29,7 +30,7 @@ echo "--- seriale ---"
 cat build/serial.log
 echo "--- verifica ---"
 fail=0
-for pat in "HaikuOS 0.1" "firma 0x55AA presente" "file system HAIKUFS1 letto" "Benvenuto in HaikuOS" "PCI: "; do
+for pat in "HaikuOS 0.1" "firma 0x55AA presente" "file system HAIKUFS1 letto" "Benvenuto in HaikuOS" "PCI: " "AHCI: "; do
   if grep -q "$pat" build/serial.log; then echo "OK    $pat"; else echo "FALLITO $pat"; fail=1; fi
 done
 exit $fail

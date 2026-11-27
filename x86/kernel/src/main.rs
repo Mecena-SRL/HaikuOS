@@ -13,6 +13,7 @@ mod fs;
 mod mem;
 mod io;
 mod pci;
+mod ahci;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
@@ -91,6 +92,10 @@ pub extern "C" fn kmain() -> ! {
     console::puts("[ok] PCI: ");
     console::put_dec(n);
     console::puts(" dispositivi\n");
+    let sata = ahci::probe();
+    console::puts("[ok] AHCI: ");
+    console::put_dec(sata);
+    console::puts(" dischi SATA\n");
     match fbo {
         Some(f) => {
             kprintln!("[ok] framebuffer VBE con desktop");
