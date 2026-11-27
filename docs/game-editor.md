@@ -17,3 +17,8 @@ Prossimi passi: interfaccia grafica sul framebuffer, formato sprite con palette,
 - `editor/src/platform.rs`: trait `Platform` (dimensioni, buffer, tasti, present) e `run()`. Ogni backend lo implementa: host (`edit`), framebuffer HaikuOS, GBA.
 - Il trait ha un tipo pixel associato: `u32` ARGB sull'host, `u16` BGR555 sul GBA (Mode 3 a 240x160, senza copie).
 - Scena v2 (`HGS2`): tile + livello solido (collisioni, tasto `x` nell'edit). Il solido non è annullabile con undo (da fare).
+
+## Identità e desktop (`ui/`, `haiku-ui`)
+- Palette, logo 5-7-5, icone, sfondo e splash. Tutto disegnato da forme, in proporzione alla risoluzione (`unit` = 1/120 del lato minore): nessuna immagine da scalare.
+- Anteprima: `cargo run -p haiku-ui --example render -- <cartella> 3840 2160`.
+- Usa lo stesso `Canvas` dell'editor: quando arriva il driver framebuffer, il desktop gira senza modifiche.
