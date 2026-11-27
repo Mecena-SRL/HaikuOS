@@ -1,14 +1,18 @@
-//! Applicazione UEFI di HaikuOS (ARM64): trova il framebuffer GOP, disegna lo sfondo e stampa su ConOut.
+//! Applicazione UEFI di HaikuOS (ARM64): trova il GOP, disegna il desktop e stampa su ConOut.
 #![no_std]
 #![no_main]
 
+mod gfx;
+
 use core::ffi::c_void;
 use core::panic::PanicInfo;
+use gfx::{Fb, Layout};
 
 // EFI_SYSTEM_TABLE: BootServices a 96, ConOut a 64. SIMPLE_TEXT_OUTPUT_PROTOCOL: OutputString a 8.
-// EFI_BOOT_SERVICES: LocateProtocol a 0x140.
+// EFI_BOOT_SERVICES: LocateProtocol a 0x140, Stall a 0xF8.
 type OutputString = extern "efiapi" fn(*mut c_void, *const u16) -> usize;
 type LocateProtocol = extern "efiapi" fn(*const Guid, *mut c_void, *mut *mut c_void) -> usize;
+type Stall = extern "efiapi" fn(usize) -> usize;
 
 #[repr(C)]
 struct Guid {
@@ -26,9 +30,6 @@ const GOP_GUID: Guid = Guid {
     d4: [0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a],
 };
 
-const BG: u32 = 0x08_10_31; // tema 0 di HaikuOS (RRGGBB)
-const ACCENT: u32 = 0xFF_84_00;
-
 fn con_out_print(st: *mut c_void, msg: &[u16]) {
     unsafe {
         let con_out = *((st as *const u8).add(64) as *const *mut c_void);
@@ -45,7 +46,7 @@ fn wide(s: &str, buf: &mut [u16; 96]) {
     buf[s.len()] = 0;
 }
 
-/// Scrive `n` in decimale in coda a `buf[at..]`, ritorna la nuova posizione (senza zero finale).
+/// Scrive `n` in decimale da `at`, ritorna la posizione successiva (senza zero finale).
 fn push_dec(buf: &mut [u16; 96], mut at: usize, mut n: u32) -> usize {
     let mut tmp = [0u8; 10];
     let mut i = tmp.len();
@@ -64,17 +65,6 @@ fn push_dec(buf: &mut [u16; 96], mut at: usize, mut n: u32) -> usize {
     at
 }
 
-/// Disegna sfondo e un rettangolo accento. `rgb_order` = true per formato RGB (byte R,G,B).
-unsafe fn draw(fb: *mut u32, w: u32, h: u32, ppl: u32, rgb_order: bool) {
-    let px = |c: u32| if rgb_order { ((c & 0xFF) << 16) | (c & 0xFF00) | (c >> 16) } else { c };
-    for y in 0..h {
-        for x in 0..w {
-            let c = if x >= w / 4 && x < w / 4 * 3 && y >= h / 4 && y < h / 4 * 3 { ACCENT } else { BG };
-            fb.add((y * ppl + x) as usize).write_volatile(px(c));
-        }
-    }
-}
-
 #[no_mangle]
 pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
     let mut buf = [0u16; 96];
@@ -88,26 +78,49 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
             return 0;
         }
         // EFI_GRAPHICS_OUTPUT_PROTOCOL: Mode a 24. Mode: Info a 8, FrameBufferBase a 24.
+        // Info: H a 4, V a 8, PixelFormat a 12, PixelInformation (maschere R,G,B) a 16..28, PixelsPerScanLine a 32.
         let mode = *((gop as *const u8).add(24) as *const *const u8);
         let info = *(mode.add(8) as *const *const u8);
         let (w, h) = (*(info.add(4) as *const u32), *(info.add(8) as *const u32));
-        let fmt = *(info.add(12) as *const u32); // 0 = RGB, 1 = BGR
+        let fmt = *(info.add(12) as *const u32);
         let ppl = *(info.add(32) as *const u32);
-        let fb = *(mode.add(24) as *const u64) as *mut u32;
-        draw(fb, w, h, ppl, fmt == 0);
-
+        let layout = match fmt {
+            0 => Layout::RGB8,
+            1 => Layout::BGR8,
+            2 => {
+                let m = |o: usize| *(info.add(o) as *const u32);
+                Layout::from_masks(m(16), m(20), m(24))
+            }
+            _ => {
+                wide("[errore] GOP senza accesso diretto al framebuffer\r\n", &mut buf);
+                con_out_print(st, &buf);
+                return 0;
+            }
+        };
+        let fb = Fb {
+            base: *(mode.add(24) as *const u64) as *mut u8,
+            w,
+            h,
+            ppl,
+            layout,
+        };
+        // Messaggi prima del disegno: il firmware scrive il testo sullo stesso schermo.
         wide("HaikuOS 0.1 - UEFI ARM64\r\n", &mut buf);
         con_out_print(st, &buf);
-        wide("[ok] GOP ", &mut buf);
-        let mut at = push_dec(&mut buf, 9, w);
+        wide("[ok] desktop GOP ", &mut buf);
+        let mut at = push_dec(&mut buf, 17, w);
         buf[at] = b'x' as u16;
         at = push_dec(&mut buf, at + 1, h);
-        buf[at] = b'\r' as u16;
-        buf[at + 1] = b'\n' as u16;
-        buf[at + 2] = 0;
+        buf[at] = b' ' as u16;
+        at = push_dec(&mut buf, at + 1, layout.bytes * 8);
+        buf[at..at + 5].copy_from_slice(&[b' ' as u16, b'b' as u16, b'i' as u16, b't' as u16, b'\r' as u16]);
+        buf[at + 5] = b'\n' as u16;
+        buf[at + 6] = 0;
         con_out_print(st, &buf);
-        // Attesa di 30 s (BootServices.Stall, offset 0xF8): il firmware non ridisegna lo schermo.
-        let stall = *(bs.add(0xF8) as *const extern "efiapi" fn(usize) -> usize);
+        gfx::draw_desktop(&fb);
+
+        // Attesa di 30 s (Stall): il firmware non ridisegna lo schermo.
+        let stall = *(bs.add(0xF8) as *const Stall);
         stall(30_000_000);
     }
     0 // EFI_SUCCESS
