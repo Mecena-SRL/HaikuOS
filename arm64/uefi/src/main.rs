@@ -3,6 +3,8 @@
 #![no_main]
 
 mod calc;
+mod docs;
+mod editor;
 mod gfx;
 mod rtc;
 mod term;
@@ -11,6 +13,7 @@ mod input;
 use core::ffi::c_void;
 use core::panic::PanicInfo;
 use calc::{Calc, Op};
+use editor::Editor;
 use term::Term;
 use gfx::{Fb, Layout, View};
 
@@ -143,12 +146,8 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         let stall = *(bs.add(0xF8) as *const Stall);
         let n = gfx::APPS.len();
         let mut v = View { sel: Some(0), open: None };
-        let mut calc = Calc::new();
-        let mut term = Term::new();
-        let mut out = [0u8; 24];
-        let mut last_tick = 0u32;
-        let mut theme = 0usize;
-        gfx::draw_desktop(&fb, v, ["", ""], theme);
+        let mut st_app = Apps::new();
+        gfx::draw_desktop(&fb, v, &[""], st_app.theme);
         log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
         loop {
             match input::read_key(st) {
@@ -163,8 +162,7 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             b'w' => v.sel = Some((sel + n - 3) % n),
                             b'\r' => {
                                 v.open = Some(sel);
-                                calc = Calc::new();
-                                term = Term::new();
+                                st_app.open(sel);
                                 log("[ok] app aperta: ");
                                 log(gfx::APPS[sel]);
                                 log("\n");
@@ -181,63 +179,28 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             }
                             _ => {}
                         },
-                        Some(app) if app == gfx::CALC_INDEX => match ch {
-                            b'0'..=b'9' => calc.digit(ch - b'0'),
-                            b'+' => calc.op(Op::Add),
-                            b'-' => calc.op(Op::Sub),
-                            b'*' => calc.op(Op::Mul),
-                            b'/' => calc.op(Op::Div),
-                            b'=' | b'\r' => {
-                                calc.equals();
-                                let len = calc.format(&mut out);
-                                log("[ok] CALC = ");
-                                log(core::str::from_utf8(&out[..len]).unwrap_or("?"));
-                                log("\n");
-                            }
-                            b'c' => calc = Calc::new(),
-                            b'x' => {
-                                v.open = None;
-                                log("[ok] app chiusa\n");
-                            }
-                            _ => {}
-                        },
-                        Some(app) if app == gfx::SET_INDEX => match ch {
-                            b'\r' => {
-                                theme = (theme + 1) % 3;
-                                log("[ok] SET: ");
-                                log(THEME_NAMES[theme]);
-                                log("\n");
-                            }
-                            b'x' => {
-                                v.open = None;
-                                log("[ok] app chiusa\n");
-                            }
-                            _ => {}
-                        },
-                        Some(app) if app == gfx::TERM_INDEX => {
-                            if term.key(ch) {
-                                log("[ok] TERM: ");
-                                log(term.output());
-                                log("\n");
-                            }
-                            if term.exit {
-                                v.open = None;
-                                log("[ok] app chiusa\n");
-                            }
-                        }
-                        Some(_) => {
-                            if ch == b'x' {
+                        Some(app) => {
+                            let close = match app {
+                                gfx::CALC_INDEX => st_app.calc_key(ch),
+                                gfx::TERM_INDEX => st_app.term_key(ch),
+                                gfx::SET_INDEX => st_app.set_key(ch),
+                                gfx::FILE_INDEX => st_app.file_key(ch, &mut v),
+                                gfx::READ_INDEX | gfx::DOC_INDEX => st_app.reader_key(ch),
+                                gfx::EDIT_INDEX => st_app.edit_key(ch),
+                                _ => ch == b'x',
+                            };
+                            if close {
                                 v.open = None;
                                 log("[ok] app chiusa\n");
                             }
                         }
                     }
-                    draw_all(&fb, v, &calc, &term, theme);
+                    draw_all(&fb, v, &st_app);
                 }
                 None => {
-                    if v.open == Some(gfx::CLOCK_INDEX) && rtc::now() != last_tick {
-                        last_tick = rtc::now();
-                        draw_all(&fb, v, &calc, &term, theme);
+                    if v.open == Some(gfx::CLOCK_INDEX) && rtc::now() != st_app.last_tick {
+                        st_app.last_tick = rtc::now();
+                        draw_all(&fb, v, &st_app);
                     }
                     stall(10_000);
                 }
@@ -252,26 +215,182 @@ fn panic(_: &PanicInfo) -> ! {
     loop {}
 }
 
-/// Disegna il desktop con lo stato corrente di calcolatrice, terminale e orologio.
-fn draw_all(fb: &Fb, v: View, calc: &Calc, term: &Term, theme: usize) {
+/// Stato delle app: una istanza per ciascuna, conservata finché HaikuOS è in esecuzione.
+struct Apps {
+    calc: Calc,
+    term: Term,
+    ed: Editor,
+    file_sel: usize,
+    doc: usize,
+    scroll: usize,
+    theme: usize,
+    last_tick: u32,
+}
+
+const THEME_NAMES: [&str; 3] = ["TEMA 0", "TEMA 1", "TEMA 2"];
+const FILE_SEL: [&str; 2] = ["> INTRO", "> OFFICE"];
+const FILE_PLAIN: [&str; 2] = ["  INTRO", "  OFFICE"];
+const WEB_LINES: [&str; 3] = ["WEB", "NESSUNA RETE", "DRIVER DA FARE"];
+
+impl Apps {
+    fn new() -> Self {
+        Apps { calc: Calc::new(), term: Term::new(), ed: Editor::new(), file_sel: 0, doc: 0, scroll: 0, theme: 0, last_tick: 0 }
+    }
+
+    /// Apertura dall'icona `sel`: azzera lo stato dell'app.
+    fn open(&mut self, sel: usize) {
+        match sel {
+            gfx::CALC_INDEX => self.calc = Calc::new(),
+            gfx::TERM_INDEX => self.term = Term::new(),
+            gfx::EDIT_INDEX => self.ed = Editor::new(),
+            gfx::DOC_INDEX => {
+                self.doc = 1;
+                self.scroll = 0;
+            }
+            gfx::READ_INDEX => {
+                self.doc = 0;
+                self.scroll = 0;
+            }
+            _ => {}
+        }
+    }
+
+    fn calc_key(&mut self, ch: u8) -> bool {
+        match ch {
+            b'0'..=b'9' => self.calc.digit(ch - b'0'),
+            b'+' => self.calc.op(Op::Add),
+            b'-' => self.calc.op(Op::Sub),
+            b'*' => self.calc.op(Op::Mul),
+            b'/' => self.calc.op(Op::Div),
+            b'=' | b'\r' => {
+                self.calc.equals();
+                let mut out = [0u8; 24];
+                let len = self.calc.format(&mut out);
+                log("[ok] CALC = ");
+                log(core::str::from_utf8(&out[..len]).unwrap_or("?"));
+                log("\n");
+            }
+            b'c' => self.calc = Calc::new(),
+            b'x' => return true,
+            _ => {}
+        }
+        false
+    }
+
+    fn term_key(&mut self, ch: u8) -> bool {
+        if self.term.key(ch) {
+            log("[ok] TERM: ");
+            log(self.term.output());
+            log("\n");
+        }
+        self.term.exit
+    }
+
+    fn set_key(&mut self, ch: u8) -> bool {
+        match ch {
+            b'\r' => {
+                self.theme = (self.theme + 1) % 3;
+                log("[ok] SET: ");
+                log(THEME_NAMES[self.theme]);
+                log("\n");
+            }
+            b'x' => return true,
+            _ => {}
+        }
+        false
+    }
+
+    fn file_key(&mut self, ch: u8, v: &mut View) -> bool {
+        match ch {
+            b'w' | b's' => self.file_sel = 1 - self.file_sel,
+            b'\r' => {
+                self.doc = self.file_sel;
+                self.scroll = 0;
+                v.open = Some(gfx::READ_INDEX);
+                log("[ok] READ: ");
+                log(docs::TITLES[self.doc]);
+                log("\n");
+            }
+            b'x' => return true,
+            _ => {}
+        }
+        false
+    }
+
+    fn reader_key(&mut self, ch: u8) -> bool {
+        let len = docs::TEXTS[self.doc].len();
+        match ch {
+            b'w' => self.scroll = self.scroll.saturating_sub(1),
+            b's' => {
+                if self.scroll + 1 < len {
+                    self.scroll += 1;
+                }
+            }
+            b'x' => return true,
+            _ => {}
+        }
+        false
+    }
+
+    fn edit_key(&mut self, ch: u8) -> bool {
+        if ch == 0x11 {
+            log("[ok] EDIT: ");
+            log(self.ed.text());
+            log("\n");
+            return true;
+        }
+        self.ed.key(ch);
+        false
+    }
+}
+
+/// Disegna il desktop con lo stato di tutte le app.
+fn draw_all(fb: &Fb, v: View, a: &Apps) {
     let mut out = [0u8; 24];
-    let clen = calc.format(&mut out);
+    let clen = a.calc.format(&mut out);
     let calc_txt = core::str::from_utf8(&out[..clen]).unwrap_or("");
     let mut prompt = [0u8; 2 + term::MAX];
     prompt[0] = b':';
     prompt[1] = b' ';
-    let pl = term.line().len();
-    prompt[2..2 + pl].copy_from_slice(term.line().as_bytes());
+    let pl = a.term.line().len();
+    prompt[2..2 + pl].copy_from_slice(a.term.line().as_bytes());
     let prompt_txt = core::str::from_utf8(&prompt[..2 + pl]).unwrap_or("");
     let clock = rtc::hms(rtc::now());
     let clock_txt = core::str::from_utf8(&clock).unwrap_or("");
-    let body = match v.open {
-        Some(app) if app == gfx::TERM_INDEX => [term.output(), prompt_txt],
-        Some(app) if app == gfx::CLOCK_INDEX => [clock_txt, ""],
-        Some(app) if app == gfx::SET_INDEX => [THEME_NAMES[theme % 3], "INVIO CAMBIA"],
-        _ => [calc_txt, ""],
+    let mut ed_lines: [&str; 10] = [""; 10];
+    let mut rows: [&str; 1] = [""];
+    let body: &[&str] = match v.open {
+        None => &rows,
+        Some(gfx::CALC_INDEX) => {
+            rows[0] = calc_txt;
+            &rows
+        }
+        Some(gfx::TERM_INDEX) => {
+            let t = [a.term.output(), prompt_txt];
+            return gfx::draw_desktop(fb, v, &t, a.theme);
+        }
+        Some(gfx::CLOCK_INDEX) => {
+            rows[0] = clock_txt;
+            &rows
+        }
+        Some(gfx::SET_INDEX) => {
+            let t = [THEME_NAMES[a.theme], "INVIO CAMBIA"];
+            return gfx::draw_desktop(fb, v, &t, a.theme);
+        }
+        Some(gfx::FILE_INDEX) => {
+            let t = [
+                if a.file_sel == 0 { FILE_SEL[0] } else { FILE_PLAIN[0] },
+                if a.file_sel == 1 { FILE_SEL[1] } else { FILE_PLAIN[1] },
+            ];
+            return gfx::draw_desktop(fb, v, &t, a.theme);
+        }
+        Some(gfx::READ_INDEX) | Some(gfx::DOC_INDEX) => &docs::TEXTS[a.doc][a.scroll..],
+        Some(gfx::EDIT_INDEX) => {
+            let k = a.ed.last_lines(&mut ed_lines, 12);
+            &ed_lines[..k]
+        }
+        Some(gfx::WEB_INDEX) => &WEB_LINES,
+        Some(_) => &rows,
     };
-    gfx::draw_desktop(fb, v, body, theme);
+    gfx::draw_desktop(fb, v, body, a.theme);
 }
-
-const THEME_NAMES: [&str; 3] = ["TEMA 0", "TEMA 1", "TEMA 2"];
