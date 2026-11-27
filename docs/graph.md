@@ -11,6 +11,8 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `sysapps/` | OS, `no_std` | - | browser ed editor di script |
 | `sim/` | host | - | simulatore monolite, agente, filtro messaggi |
 | `gba/` | OS, Game Boy Advance | - | ROM GBA |
+| `x86/` | OS, x86-64 | - | loader Multiboot2 (CPUID, framebuffer 15/16/24/32 bit), kernel `no_std`, test QEMU |
+| `arm64/` | OS, ARM64 | - | kernel `no_std` su QEMU virt: EL1, seriale PL011, timer generico (polling), MMU identità (2 GB, blocchi da 1 GB) |
 | `gui/` | host | - | desktop e window manager |
 | `office/src/ods.rs` | host, no_std | formats | ODS in sola lettura, test inline |
 | `sim/` (formati) | - | - | rimossi: duplicavano `office/` |
@@ -21,6 +23,8 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 
 ## Stato
 
+- `x86/`: CPU (long mode, SSE2) e framebuffer generico (#204 unita). 16 bit non verificato in QEMU.
+- `arm64/`: avvio EL1, seriale PL011 (#205 unita). Timer generico (polling) e MMU identità: questa PR. Non ancora: GIC, interrupt, UEFI, hardware reale.
 - `devtools/`: manifest, ordine di build, verifica SHA-256 (#158 unita).
 - Build runner: `build.rs` + `hdev` (#162 unita).
 - Package manager: `pm.rs` (indice, risoluzione, installazione atomica; questa PR).
