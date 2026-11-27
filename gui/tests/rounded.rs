@@ -28,6 +28,6 @@ fn window_corners_are_cut_and_edges_stay() {
     let mut b = Round(Buf::new(240, 160));
     draw(&mut b, &s);
     assert_eq!(b.0.at(f.x, f.y), Tok::T0, "angolo smussato");
-    assert_eq!(b.0.at(f.x + 6, f.y), Tok::T3, "bordo superiore");
-    assert_eq!(b.0.at(f.x, f.y + 6), Tok::T3, "bordo sinistro");
+    assert_eq!(b.0.at(f.x + 6, f.y), Tok::T2, "barra del titolo attiva sul bordo");
+    assert_eq!(b.0.at(f.x, f.y + TITLE_H + 2), Tok::T1, "corpo sul bordo sinistro: nessun bordo");
 }

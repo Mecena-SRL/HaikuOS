@@ -15,11 +15,11 @@ fn gba_and_rgb_describe_the_same_colors() {
 
 #[test]
 fn measures_match_bible() {
-    assert_eq!((BAR_H, TITLE_H, CLOSE, ICON), (12, 10, 8, 16));
+    assert_eq!((BAR_H, TITLE_H, CLOSE, ICON), (12, 8, 8, 16));
     assert_eq!((GRID_X, GRID_Y, PITCH_X, PITCH_Y, COLS), (8, 24, 48, 40, 4));
     assert_eq!(icon_cell(5), Rect::new(8 + 48, 24 + 40, 16, 16));
     let f = Rect::new(10, 20, 100, 60);
-    assert_eq!(close_button(f), Rect::new(10 + 100 - 10, 21, 8, 8));
+    assert_eq!(close_button(f), Rect::new(10 + 100 - 1 - 8, 20, 8, 8));
 }
 
 #[test]
