@@ -16,7 +16,7 @@ QMP=/tmp/haikuos-uefi-qmp.sock; rm -f "$QMP"
 timeout 60 qemu-system-aarch64 -M virt -cpu cortex-a72 -m 256M -nographic -bios "$FW" \
   -device ramfb -qmp unix:"$QMP",server,nowait \
   -drive if=none,id=esp,format=raw,file=esp.img -device virtio-blk-device,drive=esp > build-uefi.log 2>&1 &
-sleep 9
+sleep 10
 python3 - "$QMP" <<'PY'
 import json, socket, sys
 s = socket.socket(socket.AF_UNIX); s.connect(sys.argv[1])
