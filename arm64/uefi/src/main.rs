@@ -5,6 +5,7 @@
 mod calc;
 mod docs;
 mod editor;
+mod fs;
 mod gfx;
 mod rtc;
 mod term;
@@ -14,6 +15,7 @@ use core::ffi::c_void;
 use core::panic::PanicInfo;
 use calc::{Calc, Op};
 use editor::Editor;
+use fs::{Entry, Fs};
 use term::Term;
 use gfx::{Fb, Layout, View};
 
@@ -47,6 +49,14 @@ struct Guid {
     d3: u16,
     d4: [u8; 8],
 }
+
+// EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID {964e5b22-6459-11d2-8e39-00a0c969723b}
+const SFS_GUID: Guid = Guid {
+    d1: 0x964e_5b22,
+    d2: 0x6459,
+    d3: 0x11d2,
+    d4: [0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
+};
 
 // EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID {9042a9de-23dc-4a38-96fb-7aded080516a}
 const GOP_GUID: Guid = Guid {
@@ -146,7 +156,9 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         let stall = *(bs.add(0xF8) as *const Stall);
         let n = gfx::APPS.len();
         let mut v = View { sel: Some(0), open: None };
-        let mut st_app = Apps::new();
+        let mut sfs: *mut c_void = core::ptr::null_mut();
+        let fs = if locate(&SFS_GUID, core::ptr::null_mut(), &mut sfs) == 0 { Fs::open(sfs) } else { None };
+        let mut st_app = Apps::new(fs);
         gfx::draw_desktop(&fb, v, &[""], st_app.theme);
         log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
         loop {
@@ -163,6 +175,9 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             b'\r' => {
                                 v.open = Some(sel);
                                 st_app.open(sel);
+                                if sel == gfx::FILE_INDEX {
+                                    st_app.refresh();
+                                }
                                 log("[ok] app aperta: ");
                                 log(gfx::APPS[sel]);
                                 log("\n");
@@ -220,7 +235,13 @@ struct Apps {
     calc: Calc,
     term: Term,
     ed: Editor,
+    fs: Option<Fs>,
+    entries: [Entry; 8],
+    n_entries: usize,
     file_sel: usize,
+    file_name: Entry,
+    file_buf: [u8; 2048],
+    file_len: usize,
     doc: usize,
     scroll: usize,
     theme: usize,
@@ -228,13 +249,40 @@ struct Apps {
 }
 
 const THEME_NAMES: [&str; 3] = ["TEMA 0", "TEMA 1", "TEMA 2"];
-const FILE_SEL: [&str; 2] = ["> INTRO", "> OFFICE"];
-const FILE_PLAIN: [&str; 2] = ["  INTRO", "  OFFICE"];
 const WEB_LINES: [&str; 3] = ["WEB", "NESSUNA RETE", "DRIVER DA FARE"];
 
 impl Apps {
-    fn new() -> Self {
-        Apps { calc: Calc::new(), term: Term::new(), ed: Editor::new(), file_sel: 0, doc: 0, scroll: 0, theme: 0, last_tick: 0 }
+    fn new(fs: Option<Fs>) -> Self {
+        Apps {
+            calc: Calc::new(),
+            term: Term::new(),
+            ed: Editor::new(),
+            fs,
+            entries: [Entry::EMPTY; 8],
+            n_entries: 0,
+            file_sel: 0,
+            file_name: Entry::EMPTY,
+            file_buf: [0; 2048],
+            file_len: 0,
+            doc: 0,
+            scroll: 0,
+            theme: 0,
+            last_tick: 0,
+        }
+    }
+
+    /// Rilegge l'elenco dei file della radice.
+    fn refresh(&mut self) {
+        self.n_entries = match &self.fs {
+            Some(fs) => fs.list(&mut self.entries),
+            None => 0,
+        };
+        self.file_sel = self.file_sel.min(self.n_entries.saturating_sub(1));
+    }
+
+    /// Testo del file aperto (vuoto se nessun file).
+    fn file_text(&self) -> &str {
+        core::str::from_utf8(&self.file_buf[..self.file_len]).unwrap_or("?")
     }
 
     /// Apertura dall'icona `sel`: azzera lo stato dell'app.
@@ -248,7 +296,8 @@ impl Apps {
                 self.scroll = 0;
             }
             gfx::READ_INDEX => {
-                self.doc = 0;
+                self.file_name = Entry::EMPTY;
+                self.file_len = 0;
                 self.scroll = 0;
             }
             _ => {}
@@ -301,14 +350,21 @@ impl Apps {
     }
 
     fn file_key(&mut self, ch: u8, v: &mut View) -> bool {
+        let n = self.n_entries;
         match ch {
-            b'w' | b's' => self.file_sel = 1 - self.file_sel,
-            b'\r' => {
-                self.doc = self.file_sel;
+            b'w' if n > 0 => self.file_sel = (self.file_sel + n - 1) % n,
+            b's' if n > 0 => self.file_sel = (self.file_sel + 1) % n,
+            b'\r' if n > 0 => {
+                let e = self.entries[self.file_sel];
+                self.file_len = match &self.fs {
+                    Some(fs) => fs.read(&e.name[..e.len], &mut self.file_buf),
+                    None => 0,
+                };
+                self.file_name = e;
                 self.scroll = 0;
                 v.open = Some(gfx::READ_INDEX);
                 log("[ok] READ: ");
-                log(docs::TITLES[self.doc]);
+                log(e.as_str());
                 log("\n");
             }
             b'x' => return true,
@@ -318,7 +374,11 @@ impl Apps {
     }
 
     fn reader_key(&mut self, ch: u8) -> bool {
-        let len = docs::TEXTS[self.doc].len();
+        let len = if self.file_name.len > 0 {
+            self.file_text().split('\n').count()
+        } else {
+            docs::TEXTS[self.doc].len()
+        };
         match ch {
             b'w' => self.scroll = self.scroll.saturating_sub(1),
             b's' => {
@@ -333,6 +393,14 @@ impl Apps {
     }
 
     fn edit_key(&mut self, ch: u8) -> bool {
+        if ch == 0x13 {
+            let ok = match &self.fs {
+                Some(fs) => fs.write(b"NOTA.TXT", self.ed.text().as_bytes()),
+                None => false,
+            };
+            log(if ok { "[ok] EDIT: salvato NOTA.TXT\n" } else { "[errore] EDIT: salvataggio\n" });
+            return false;
+        }
         if ch == 0x11 {
             log("[ok] EDIT: ");
             log(self.ed.text());
@@ -358,6 +426,7 @@ fn draw_all(fb: &Fb, v: View, a: &Apps) {
     let clock = rtc::hms(rtc::now());
     let clock_txt = core::str::from_utf8(&clock).unwrap_or("");
     let mut ed_lines: [&str; 10] = [""; 10];
+    let mut rl: [&str; 10] = [""; 10];
     let mut rows: [&str; 1] = [""];
     let body: &[&str] = match v.open {
         None => &rows,
@@ -378,13 +447,37 @@ fn draw_all(fb: &Fb, v: View, a: &Apps) {
             return gfx::draw_desktop(fb, v, &t, a.theme);
         }
         Some(gfx::FILE_INDEX) => {
-            let t = [
-                if a.file_sel == 0 { FILE_SEL[0] } else { FILE_PLAIN[0] },
-                if a.file_sel == 1 { FILE_SEL[1] } else { FILE_PLAIN[1] },
-            ];
-            return gfx::draw_desktop(fb, v, &t, a.theme);
+            let mut rows = [[0u8; 16]; 8];
+            let mut k = 0;
+            for (r, row) in rows.iter_mut().enumerate().take(a.n_entries) {
+                let name = a.entries[r].as_str().as_bytes();
+                row[0] = if r == a.file_sel { b'>' } else { b' ' };
+                row[1] = b' ';
+                row[2..2 + name.len()].copy_from_slice(name);
+                k = 2 + name.len();
+            }
+            let _ = k;
+            let mut lines: [&str; 8] = [""; 8];
+            for (r, row) in rows.iter().enumerate().take(a.n_entries) {
+                let end = row.iter().position(|&b| b == 0).unwrap_or(row.len());
+                lines[r] = core::str::from_utf8(&row[..end]).unwrap_or("");
+            }
+            if a.n_entries == 0 {
+                lines[0] = "NESSUN FILE";
+                return gfx::draw_desktop(fb, v, &lines[..1], a.theme);
+            }
+            return gfx::draw_desktop(fb, v, &lines[..a.n_entries], a.theme);
         }
-        Some(gfx::READ_INDEX) | Some(gfx::DOC_INDEX) => &docs::TEXTS[a.doc][a.scroll..],
+        Some(gfx::READ_INDEX) if a.file_name.len == 0 => &["APRI UN FILE", "DAL MENU FILE"],
+        Some(gfx::READ_INDEX) => {
+            let mut k = 0;
+            for line in a.file_text().split('\n').skip(a.scroll).take(10) {
+                rl[k] = line;
+                k += 1;
+            }
+            &rl[..k]
+        }
+        Some(gfx::DOC_INDEX) => &docs::TEXTS[1][a.scroll..],
         Some(gfx::EDIT_INDEX) => {
             let k = a.ed.last_lines(&mut ed_lines, 12);
             &ed_lines[..k]
