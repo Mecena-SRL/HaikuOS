@@ -2,11 +2,13 @@
 #![no_std]
 #![no_main]
 
+mod calc;
 mod gfx;
 mod input;
 
 use core::ffi::c_void;
 use core::panic::PanicInfo;
+use calc::{Calc, Op};
 use gfx::{Fb, Layout, View};
 
 // EFI_SYSTEM_TABLE: BootServices a 96, ConOut a 64. SIMPLE_TEXT_OUTPUT_PROTOCOL: OutputString a 8.
@@ -138,35 +140,64 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         let stall = *(bs.add(0xF8) as *const Stall);
         let n = gfx::APPS.len();
         let mut v = View { sel: Some(0), open: None };
-        gfx::draw_desktop(&fb, v);
+        let mut calc = Calc::new();
+        let mut out = [0u8; 24];
+        gfx::draw_desktop(&fb, v, "");
         log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
         loop {
             match input::read_key(st) {
                 Some(k) => {
                     let ch = k.unicode as u8;
                     let sel = v.sel.unwrap_or(0);
-                    match (v.open, ch) {
-                        (None, b'd') => v.sel = Some((sel + 1) % n),
-                        (None, b'a') => v.sel = Some((sel + n - 1) % n),
-                        (None, b's') => v.sel = Some((sel + 3) % n),
-                        (None, b'w') => v.sel = Some((sel + n - 3) % n),
-                        (None, b'\r') => {
-                            v.open = Some(sel);
-                            log("[ok] app aperta: ");
-                            log(gfx::APPS[sel]);
-                            log("\n");
+                    match v.open {
+                        None => match ch {
+                            b'd' => v.sel = Some((sel + 1) % n),
+                            b'a' => v.sel = Some((sel + n - 1) % n),
+                            b's' => v.sel = Some((sel + 3) % n),
+                            b'w' => v.sel = Some((sel + n - 3) % n),
+                            b'\r' => {
+                                v.open = Some(sel);
+                                calc = Calc::new();
+                                log("[ok] app aperta: ");
+                                log(gfx::APPS[sel]);
+                                log("\n");
+                            }
+                            b'q' => {
+                                log("[ok] uscita\n");
+                                break;
+                            }
+                            _ => {}
+                        },
+                        Some(app) if app == gfx::CALC_INDEX => match ch {
+                            b'0'..=b'9' => calc.digit(ch - b'0'),
+                            b'+' => calc.op(Op::Add),
+                            b'-' => calc.op(Op::Sub),
+                            b'*' => calc.op(Op::Mul),
+                            b'/' => calc.op(Op::Div),
+                            b'=' | b'\r' => {
+                                calc.equals();
+                                let len = calc.format(&mut out);
+                                log("[ok] CALC = ");
+                                log(core::str::from_utf8(&out[..len]).unwrap_or("?"));
+                                log("\n");
+                            }
+                            b'c' => calc = Calc::new(),
+                            b'x' => {
+                                v.open = None;
+                                log("[ok] app chiusa\n");
+                            }
+                            _ => {}
+                        },
+                        Some(_) => {
+                            if ch == b'x' {
+                                v.open = None;
+                                log("[ok] app chiusa\n");
+                            }
                         }
-                        (Some(_), b'x') => {
-                            v.open = None;
-                            log("[ok] app chiusa\n");
-                        }
-                        (None, b'q') => {
-                            log("[ok] uscita\n");
-                            break;
-                        }
-                        _ => {}
                     }
-                    gfx::draw_desktop(&fb, v);
+                    let len = calc.format(&mut out);
+                    let text = core::str::from_utf8(&out[..len]).unwrap_or("");
+                    gfx::draw_desktop(&fb, v, text);
                 }
                 None => {
                     stall(10_000);
