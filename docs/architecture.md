@@ -161,6 +161,7 @@ Stato su ARM64 (`arm64/`, QEMU virt, verificato):
 - **Desktop su GOP:** sfondo, barra con titolo, finestra, 9 icone con etichette (font 3x5 del GBA, `gba/src/font.rs`). Formati RGB8, BGR8 e maschere (16/24/32 bit). Verificato in QEMU: formato 32 bit, 9 icone a 6400 pixel esatti. Il 16 bit è verificato solo con test sull'host (`arm64/uefi/scripts/test-host.sh`), non con firmware reale.
 - **Tastiera e launcher:** input UEFI (SimpleTextInput, polling). `d a s w` muovono la selezione, Invio apre, `x` chiude, `q` esce. Verificato in QEMU con tasti sul seriale.
 - **Prima app (CALC):** quattro operazioni su interi con segno, logica in `arm64/uefi/src/calc.rs` (test sull'host). Tasti: cifre, `+ - * /`, `=` o Invio, `c` azzera, `x` chiude. Verificato in QEMU: `12+30=` mostra 42. Le app restanti sono quelle sopra.
-- **Non ancora:** app vere, hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
+- **File system:** `arm64/uefi/src/fs.rs` usa SimpleFileSystem del firmware (FAT sulla ESP). FILE elenca i file della radice, Invio li apre in READ, EDIT salva con Ctrl-S in `NOTA.TXT`. Verificato in QEMU: READ mostra `LEEME.TXT`, `NOTA.TXT` contiene il testo salvato. Il test esclude il riquadro in alto a sinistra (FILE/TERM/CALC): il firmware stampa messaggi BdsDxe sopra su ramfb.
+- **Non ancora:** rete (WEB è un segnaposto), hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
 
 Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.
