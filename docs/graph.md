@@ -12,6 +12,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `sim/` | host | - | simulatore monolite, agente, filtro messaggi |
 | `gba/` | OS, Game Boy Advance | - | ROM GBA |
 | `x86/` | OS, x86-64 | - | loader Multiboot2 (CPUID, framebuffer 15/16/24/32 bit), kernel `no_std`, test QEMU |
+| `arm64/uefi/` | OS, ARM64 UEFI | - | app UEFI (`BOOTAA64.EFI`), stampa su ConOut, test QEMU_EFI |
 | `arm64/` | OS, ARM64 | - | kernel `no_std` su QEMU virt: EL1, seriale PL011, timer generico (polling), MMU identità (2 GB, blocchi da 1 GB) |
 | `gui/` | host | - | desktop e window manager |
 | `office/src/ods.rs` | host, no_std | formats | ODS in sola lettura, test inline |
@@ -24,7 +25,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 ## Stato
 
 - `x86/`: CPU (long mode, SSE2) e framebuffer generico (#204 unita). 16 bit non verificato in QEMU.
-- `arm64/`: avvio EL1, seriale PL011 (#205 unita). Timer generico (polling), MMU identità (#206 unita). GICv2 e interrupt UART per la tastiera: questa PR. Non ancora: UEFI, timer con interrupt, hardware reale.
+- `arm64/`: avvio EL1, seriale PL011 (#205 unita). Timer generico (polling), MMU identità (#206 unita). GICv2 e interrupt UART per la tastiera (#207 unita). `arm64/uefi/`: app UEFI verificata in QEMU: questa PR. Non ancora: timer con interrupt, GOP, hardware reale.
 - `devtools/`: manifest, ordine di build, verifica SHA-256 (#158 unita).
 - Build runner: `build.rs` + `hdev` (#162 unita).
 - Package manager: `pm.rs` (indice, risoluzione, installazione atomica; questa PR).
