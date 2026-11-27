@@ -6,6 +6,7 @@ mod calc;
 mod docs;
 mod editor;
 mod fs;
+mod net;
 mod gfx;
 mod rtc;
 mod term;
@@ -56,6 +57,14 @@ const SFS_GUID: Guid = Guid {
     d2: 0x6459,
     d3: 0x11d2,
     d4: [0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
+};
+
+// EFI_SIMPLE_NETWORK_PROTOCOL_GUID {a19832b9-ac25-11d3-9a2d-0090273fc14d}
+const SNP_GUID: Guid = Guid {
+    d1: 0xa198_32b9,
+    d2: 0xac25,
+    d3: 0x11d3,
+    d4: [0x9a, 0x2d, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d],
 };
 
 // EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID {9042a9de-23dc-4a38-96fb-7aded080516a}
@@ -160,6 +169,8 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         let fs = if locate(&SFS_GUID, core::ptr::null_mut(), &mut sfs) == 0 { Fs::open(sfs) } else { None };
         let mut st_app = Apps::new(fs);
         gfx::draw_desktop(&fb, v, &[""], st_app.theme);
+        // Dopo il primo disegno: l'inizializzazione SNP può essere lenta in emulazione.
+        st_app.nic = net::detect(|out| locate(&SNP_GUID, core::ptr::null_mut(), out));
         log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
         loop {
             match input::read_key(st) {
@@ -181,6 +192,17 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                                 log("[ok] app aperta: ");
                                 log(gfx::APPS[sel]);
                                 log("\n");
+                                if sel == gfx::WEB_INDEX {
+                                    match st_app.nic {
+                                        Some(n) => {
+                                            let mut b = [0u8; 17];
+                                            log("[ok] RETE: MAC ");
+                                            log(net::mac_str(&n.mac, &mut b));
+                                            log("\n");
+                                        }
+                                        None => log("[ok] RETE: nessuna scheda\n"),
+                                    }
+                                }
                                 if sel == gfx::CLOCK_INDEX {
                                     let t = rtc::hms(rtc::now());
                                     log("[ok] ORA: ");
@@ -236,6 +258,7 @@ struct Apps {
     term: Term,
     ed: Editor,
     fs: Option<Fs>,
+    nic: Option<net::Nic>,
     entries: [Entry; 8],
     n_entries: usize,
     file_sel: usize,
@@ -249,7 +272,7 @@ struct Apps {
 }
 
 const THEME_NAMES: [&str; 3] = ["TEMA 0", "TEMA 1", "TEMA 2"];
-const WEB_LINES: [&str; 3] = ["WEB", "NESSUNA RETE", "DRIVER DA FARE"];
+const WEB_LINES: [&str; 2] = ["WEB", "NESSUNA RETE"];
 
 impl Apps {
     fn new(fs: Option<Fs>) -> Self {
@@ -258,6 +281,7 @@ impl Apps {
             term: Term::new(),
             ed: Editor::new(),
             fs,
+            nic: None,
             entries: [Entry::EMPTY; 8],
             n_entries: 0,
             file_sel: 0,
@@ -426,6 +450,8 @@ fn draw_all(fb: &Fb, v: View, a: &Apps) {
     let clock = rtc::hms(rtc::now());
     let clock_txt = core::str::from_utf8(&clock).unwrap_or("");
     let mut ed_lines: [&str; 10] = [""; 10];
+    let mut web: [&str; 5] = [""; 5];
+    let mut web_mac = [0u8; 21];
     let mut rl: [&str; 10] = [""; 10];
     let mut rows: [&str; 1] = [""];
     let body: &[&str] = match v.open {
@@ -482,7 +508,21 @@ fn draw_all(fb: &Fb, v: View, a: &Apps) {
             let k = a.ed.last_lines(&mut ed_lines, 12);
             &ed_lines[..k]
         }
-        Some(gfx::WEB_INDEX) => &WEB_LINES,
+        Some(gfx::WEB_INDEX) => match a.nic {
+            None => &WEB_LINES,
+            Some(n) => {
+                let mut mb = [0u8; 17];
+                let m = net::mac_str(&n.mac, &mut mb);
+                web_mac[..4].copy_from_slice(b"MAC ");
+                web_mac[4..21].copy_from_slice(m.as_bytes());
+                web[0] = "WEB";
+                web[1] = "SCHEDA: SNP";
+                web[2] = core::str::from_utf8(&web_mac).unwrap_or("");
+                web[3] = if n.up { "ENLACE SU" } else { "ENLACE GIU" };
+                web[4] = "HTTP DA FARE";
+                &web
+            }
+        },
         Some(_) => &rows,
     };
     gfx::draw_desktop(fb, v, body, a.theme);

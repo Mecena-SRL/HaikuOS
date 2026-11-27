@@ -162,6 +162,7 @@ Stato su ARM64 (`arm64/`, QEMU virt, verificato):
 - **Tastiera e launcher:** input UEFI (SimpleTextInput, polling). `d a s w` muovono la selezione, Invio apre, `x` chiude, `q` esce. Verificato in QEMU con tasti sul seriale.
 - **Prima app (CALC):** quattro operazioni su interi con segno, logica in `arm64/uefi/src/calc.rs` (test sull'host). Tasti: cifre, `+ - * /`, `=` o Invio, `c` azzera, `x` chiude. Verificato in QEMU: `12+30=` mostra 42. Le app restanti sono quelle sopra.
 - **File system:** `arm64/uefi/src/fs.rs` usa SimpleFileSystem del firmware (FAT sulla ESP). FILE elenca i file della radice, Invio li apre in READ, EDIT salva con Ctrl-S in `NOTA.TXT`. Verificato in QEMU: READ mostra `LEEME.TXT`, `NOTA.TXT` contiene il testo salvato. Il test esclude il riquadro in alto a sinistra (FILE/TERM/CALC): il firmware stampa messaggi BdsDxe sopra su ramfb.
-- **Non ancora:** rete (WEB è un segnaposto), hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
+- **Rete:** `arm64/uefi/src/net.rs` usa EFI_SIMPLE_NETWORK_PROTOCOL del firmware (driver NIC già nel firmware): trova la scheda, la avvia e legge MAC e collegamento. WEB mostra lo stato. Verificato in QEMU con `virtio-net` (MAC 52:54:00:12:34:56). Ancora niente stack TCP/IP né HTTP.
+- **Non ancora:** stack TCP/IP e HTTP, hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
 
 Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.
