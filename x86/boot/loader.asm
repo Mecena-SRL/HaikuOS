@@ -11,6 +11,10 @@ mb2_start:
     dd mb2_end - mb2_start
     dd -(0xE85250D6 + 0 + (mb2_end - mb2_start))
     align 8
+    dw 5, 1                                        ; framebuffer (opzionale): 0,0,0 = modo scelto da gfxpayload
+    dd 20
+    dd 0, 0, 0
+    align 8
     dw 0, 0                                        ; fine tag
     dd 8
 mb2_end:
@@ -19,6 +23,33 @@ global _start
 _start:
     cli
     mov esp, 0x90000
+    push ebx                                       ; ebx = info Multiboot, la CPUID lo sovrascrive
+    ; Controllo CPU: CPUID presente, long mode (LM) e SSE2. Altrimenti messaggio e stop.
+    pushfd
+    pop eax
+    mov ecx, eax
+    xor eax, 1 << 21                               ; il bit ID deve poter cambiare
+    push eax
+    popfd
+    pushfd
+    pop eax
+    push ecx
+    popfd
+    xor eax, ecx
+    jz nocpu
+    mov eax, 0x80000000
+    cpuid
+    cmp eax, 0x80000001                            ; foglia estesa massima
+    jb nocpu
+    mov eax, 0x80000001
+    cpuid
+    test edx, 1 << 29                              ; LM
+    jz nocpu
+    mov eax, 1
+    cpuid
+    test edx, 1 << 26                              ; SSE2
+    jz nocpu
+    pop ebx
     mov esi, ebx                                   ; ebx = puntatore alle info Multiboot
     add esi, 8                                     ; salta total_size e reserved
     mov edi, [ebx]
@@ -54,7 +85,13 @@ _start:
     mov [0x614], eax
     movzx eax, byte [esi + 28]
     mov [0x618], eax
-    mov dword [0x600], 0x56424531                  ; magic VBE (riconosciuto da fb.rs)
+    mov al, [esi + 29]                             ; tipo: 1 = RGB (fb.rs accetta solo questo)
+    mov [0x622], al
+    mov eax, [esi + 32]                            ; rpos, rsize, gpos, gsize (0x61C..0x61F)
+    mov [0x61C], eax
+    mov ax, [esi + 36]                             ; bpos, bsize (0x620..0x621)
+    mov [0x620], ax
+    mov dword [0x600], 0x56424531                 ; magic VBE (riconosciuto da fb.rs)
     jmp .next
 ; tag 6: entry_size @8 (24), voci da @16 (base u64, len u64, tipo u32, riservato u32)
 .mmap:
@@ -156,6 +193,26 @@ halt:
     hlt
     jmp halt
 
+nocpu:                                            ; messaggio su VGA testo e seriale COM1, poi stop
+    mov edi, 0xB8000
+    mov esi, nocpu_msg
+.pr:
+    lodsb
+    test al, al
+    jz halt
+    mov bl, al
+    mov ah, 0x4F
+    stosw
+    mov dx, 0x3FD                                  ; attende THR libero (LSR bit 5)
+.w:
+    in al, dx
+    test al, 0x20
+    jz .w
+    mov al, bl
+    mov dx, 0x3F8
+    out dx, al
+    jmp .pr
+
 bits 64
 lm64:
     mov ax, 0x10
@@ -167,6 +224,7 @@ lm64:
     jmp rax
 
 section .data
+nocpu_msg: db "HAIKUOS: CPU NON SUPPORTATA (serve x86-64 con SSE2)", 0
 align 8
 gdt:
     dq 0
