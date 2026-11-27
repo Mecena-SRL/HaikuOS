@@ -10,7 +10,7 @@ rm -f "$LOG"
   -kernel target/aarch64-unknown-none/release/haiku-arm64 > "$LOG" 2>&1
 echo "--- seriale ---"; cat "$LOG"
 fail=0
-for pat in "HaikuOS 0.1 - kernel ARM64" "EL1" "timer generico: [0-9]* Hz" "MMU attiva" "GIC e UART RX" "RX:K"; do
+for pat in "HaikuOS 0.1 - kernel ARM64" "EL1" "timer generico: [0-9]* Hz" "MMU attiva" "GIC e UART RX" "RX:K" "timer con interrupt: 3 tick"; do
   if grep -qE "$pat" "$LOG"; then echo "OK    $pat"; else echo "FALLITO $pat"; fail=1; fi
 done
 exit $fail
