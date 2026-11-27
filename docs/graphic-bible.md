@@ -101,7 +101,7 @@ Glifi: FILE, TERM, CALC, WEB, EDIT, SET, ORA, READ. **Da verificare** su schermo
 
 - Stesse 4 tinte, stessi ruoli, stessa struttura.
 - Scala intera: nessuna interpolazione, nessun pixel mezzo.
-- Il Mac non aggiunge elementi: se un elemento c'è su GBA, c'è anche su Mac.
+- Il Mac non aggiunge elementi rispetto a GBA, salvo quelli elencati nella sezione 12 (solo schermi grandi, decisi con Ivan).
 
 ## 10. Da non fare
 
@@ -109,6 +109,16 @@ Glifi: FILE, TERM, CALC, WEB, EDIT, SET, ORA, READ. **Da verificare** su schermo
 - Testo minuscolo su GBA.
 - Icone o finestre fuori dalla griglia.
 - Valori di colore scritti a mano nel codice: usare i token.
+
+## 12. Tiling e menu globale (solo schermi grandi)
+
+Decisi con Ivan. Non si applicano al GBA, che resta a finestra piena.
+
+- **Menu globale (stile Mac):** la barra superiore mostra a sinistra il menu del programma attivo (nome e voci). Il nome del sistema resta a sinistra della barra; il menu globale segue. Solo voci che il programma espone; nessuna voce di sistema aggiunta. Testo T0, fondo T3.
+- **Tiling:** finestre disposte in colonne scorrevoli su una striscia; i programmi restano nella loro superficie. Finestre di dialogo restano fluttuanti. Nessun riquadro con bordo nuovo: solo il bordo T3 già previsto (sez. 6).
+- **Tocco e tastiera:** il tiling si comanda da tastiera; il clic sulla finestra la rende attiva.
+- **Regola:** dove il tiling è attivo, la massimizzazione (`toggle_max`) resta come stato a tutto schermo.
+- **Da verificare:** larghezza minima di colonna, comportamento del menu globale con più finestre, uso reale su x86 e Mac.
 
 ## 11. Stato di applicazione
 
