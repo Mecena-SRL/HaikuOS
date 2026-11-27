@@ -5,6 +5,9 @@
 use core::arch::{asm, global_asm};
 use core::panic::PanicInfo;
 
+mod mmu;
+mod timer;
+
 const UART_DR: *mut u32 = 0x0900_0000 as *mut u32;
 const UART_FR: *const u32 = 0x0900_0018 as *const u32;
 const FR_TXFF: u32 = 1 << 5;
@@ -49,6 +52,22 @@ fn puts(s: &str) {
     }
 }
 
+fn put_dec(mut n: u64) {
+    let mut buf = [0u8; 20];
+    let mut i = buf.len();
+    loop {
+        i -= 1;
+        buf[i] = b'0' + (n % 10) as u8;
+        n /= 10;
+        if n == 0 {
+            break;
+        }
+    }
+    for &b in &buf[i..] {
+        putc(b);
+    }
+}
+
 fn halt() -> ! {
     loop {
         unsafe { asm!("wfe") }
@@ -66,6 +85,17 @@ pub extern "C" fn kmain() -> ! {
         halt();
     }
     puts("[ok] seriale PL011 e EL1\n");
+    let ticks = timer::busy_wait_ms(100);
+    puts("[ok] timer generico: ");
+    put_dec(timer::freq());
+    puts(" Hz, 100 ms = ");
+    put_dec(ticks);
+    puts(" tick\n");
+    if mmu::enable() {
+        puts("[ok] MMU attiva (identita, 2 GB)\n");
+    } else {
+        puts("[errore] MMU non attiva\n");
+    }
     puts("Sistema fermo.\n");
     halt()
 }
