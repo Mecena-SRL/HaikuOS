@@ -152,7 +152,8 @@ fn wallpaper_is_wordmark_bottom_right_in_t3() {
     let s = Shell::new(&ICONS, 320, 240);
     let mut b = common::Buf::new(320, 240);
     haiku_gui::render::draw(&mut b, &s);
-    assert_eq!(b.at(0, 239), Tok::T0, "sfondo piatto");
+    assert_eq!(b.at(0, 239), Tok::T2, "colline in T2 in basso");
+    assert_eq!(b.at(0, BAR_H + 1), Tok::T0, "cielo in T0, sotto la barra");
     assert!(b.texts.iter().any(|t| t == "HAIKUOS"));
 }
 

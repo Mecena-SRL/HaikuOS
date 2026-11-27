@@ -212,9 +212,30 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
     }
 }
 
+/// Sfondo a colline (scelta di Ivan): onde triangolari in T2 dal 70% in giù.
+fn hills<C: Canvas>(c: &mut C, w: i32, h: i32) {
+    let (base, amp, period) = (h * 7 / 10, h / 8, (w / 2).max(2));
+    for x in 0..w {
+        let t = x % period;
+        let tri = if t * 2 < period { t * 2 } else { (period - t) * 2 };
+        let top = base - amp * tri / period;
+        c.fill(Rect::new(x, top, 1, h - top), T2);
+    }
+}
+
+/// Smussa gli angoli di un pulsante 8×8 con un pixel T0 (solo x86, bibbia §13).
+fn corners<C: Canvas>(c: &mut C, r: Rect) {
+    if c.rounded() {
+        for (x, y) in [(r.x, r.y), (r.x + r.w - 1, r.y), (r.x, r.y + r.h - 1), (r.x + r.w - 1, r.y + r.h - 1)] {
+            c.fill(Rect::new(x, y, 1, 1), T0);
+        }
+    }
+}
+
 pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
     c.fill(Rect::new(0, 0, s.w, s.h), T0);
-    // Sfondo: marchio "HAIKUOS" in basso a destra, solo T3 (bibbia §3, da verificare).
+    hills(c, s.w, s.h);
+    // Sfondo: marchio "HAIKUOS" in basso a destra, in T3 sopra le colline.
     c.text(s.w - 7 * (FONT_W + 1) - 2, s.h - FONT_H - 2, "HAIKUOS", T3);
     let active = s.wm.active();
     let ty = (BAR_H - FONT_H) / 2;
@@ -292,6 +313,9 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         c.fill(close_button(f), cl);
         c.fill(max_button(f), mx);
         c.fill(min_button(f), mn);
+        for r in [close_button(f), max_button(f), min_button(f)] {
+            corners(c, r);
+        }
         c.fill(body(f), T1);
         draw_app(c, s, w.app, content(f));
         if c.rounded() {
