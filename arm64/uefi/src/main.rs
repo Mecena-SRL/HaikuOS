@@ -7,6 +7,7 @@ mod docs;
 mod editor;
 mod fs;
 mod net;
+mod tcp;
 mod gfx;
 mod rtc;
 mod term;
@@ -224,6 +225,7 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                                 gfx::FILE_INDEX => st_app.file_key(ch, &mut v),
                                 gfx::READ_INDEX | gfx::DOC_INDEX => st_app.reader_key(ch),
                                 gfx::EDIT_INDEX => st_app.edit_key(ch),
+                                gfx::WEB_INDEX => st_app.web_key(ch),
                                 _ => ch == b'x',
                             };
                             if close {
@@ -259,6 +261,9 @@ struct Apps {
     ed: Editor,
     fs: Option<Fs>,
     nic: Option<net::Nic>,
+    web_buf: [u8; 1024],
+    web_len: usize,
+    web_status: &'static str,
     entries: [Entry; 8],
     n_entries: usize,
     file_sel: usize,
@@ -282,6 +287,9 @@ impl Apps {
             ed: Editor::new(),
             fs,
             nic: None,
+            web_buf: [0; 1024],
+            web_len: 0,
+            web_status: "PREMI G PER SCARICARE",
             entries: [Entry::EMPTY; 8],
             n_entries: 0,
             file_sel: 0,
@@ -397,6 +405,43 @@ impl Apps {
         false
     }
 
+    fn web_text(&self) -> &str {
+        core::str::from_utf8(&self.web_buf[..self.web_len]).unwrap_or("")
+    }
+
+    /// WEB: G scarica http://10.0.2.2:8000/ (host), X chiude.
+    fn web_key(&mut self, ch: u8) -> bool {
+        match ch {
+            b'g' => match self.nic {
+                None => {
+                    self.web_status = "NESSUNA RETE";
+                    self.web_len = 0;
+                }
+                Some(n) => match tcp::http_get(&n, 8000, "/", &mut self.web_buf) {
+                    Ok(len) => {
+                        let (code, off) = tcp::split_http(&self.web_buf[..len]);
+                        self.web_buf.copy_within(off..len, 0);
+                        self.web_len = len - off;
+                        self.web_status = if code == 200 { "HTTP 200 OK" } else { "HTTP ERRORE" };
+                        log(if code == 200 { "[ok] WEB: HTTP 200\n" } else { "[ok] WEB: HTTP ERRORE\n" });
+                        log(self.web_text());
+                        log("\n");
+                    }
+                    Err(e) => {
+                        self.web_len = 0;
+                        self.web_status = e;
+                        log("[ok] WEB: ERRORE ");
+                        log(e);
+                        log("\n");
+                    }
+                },
+            },
+            b'x' => return true,
+            _ => {}
+        }
+        false
+    }
+
     fn reader_key(&mut self, ch: u8) -> bool {
         let len = if self.file_name.len > 0 {
             self.file_text().split('\n').count()
@@ -450,7 +495,7 @@ fn draw_all(fb: &Fb, v: View, a: &Apps) {
     let clock = rtc::hms(rtc::now());
     let clock_txt = core::str::from_utf8(&clock).unwrap_or("");
     let mut ed_lines: [&str; 10] = [""; 10];
-    let mut web: [&str; 5] = [""; 5];
+    let mut web: [&str; 10] = [""; 10];
     let mut web_mac = [0u8; 21];
     let mut rl: [&str; 10] = [""; 10];
     let mut rows: [&str; 1] = [""];
@@ -519,8 +564,13 @@ fn draw_all(fb: &Fb, v: View, a: &Apps) {
                 web[1] = "SCHEDA: SNP";
                 web[2] = core::str::from_utf8(&web_mac).unwrap_or("");
                 web[3] = if n.up { "ENLACE SU" } else { "ENLACE GIU" };
-                web[4] = "HTTP DA FARE";
-                &web
+                web[4] = a.web_status;
+                let mut k = 5;
+                for line in a.web_text().split('\n').take(4) {
+                    web[k] = line.trim_end_matches('\r');
+                    k += 1;
+                }
+                &web[..k]
             }
         },
         Some(_) => &rows,

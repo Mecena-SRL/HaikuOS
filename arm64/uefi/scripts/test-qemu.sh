@@ -13,12 +13,17 @@ mcopy -i esp.img "$EFI" ::/EFI/BOOT/BOOTAA64.EFI
 printf 'ciao dal file system\r\n' > leeme.txt
 mcopy -i esp.img leeme.txt ::/LEEME.TXT
 rm -f leeme.txt
+# Server HTTP sul host: il guest lo raggiunge come 10.0.2.2:8000 (QEMU user networking).
+WWW=$(mktemp -d); printf 'HAIKU WEB OK\n' > "$WWW/index.html"
+python3 -m http.server 8000 --bind 127.0.0.1 -d "$WWW" >/dev/null 2>&1 &
+HTTPD=$!
 FW=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd
 QMP=/tmp/haikuos-uefi-qmp.sock; rm -f "$QMP"
-( sleep 7; printf '\r'; sleep 1; printf '\r'; sleep 1; printf 'x'; sleep 1; printf 'sd\r'; sleep 1; printf 'ciao'; sleep 1; printf '\x13'; sleep 1; printf '\x11'; sleep 2; printf 'a'; sleep 1; printf '\r'; sleep 2; printf 'x'; sleep 1; printf 'q'; sleep 4 ) | \
+( sleep 7; printf '\r'; sleep 1; printf '\r'; sleep 1; printf 'x'; sleep 1; printf 'sd\r'; sleep 1; printf 'ciao'; sleep 1; printf '\x13'; sleep 1; printf '\x11'; sleep 2; printf 'a'; sleep 1; printf '\r'; sleep 2; printf 'g'; sleep 5; printf 'x'; sleep 1; printf 'q'; sleep 4 ) | \
 timeout 60 qemu-system-aarch64 -M virt -cpu cortex-a72 -m 256M -nographic -bios "$FW" \
   -device ramfb -netdev user,id=n0 -device virtio-net-device,netdev=n0 -qmp unix:"$QMP",server,nowait \
   -drive if=none,id=esp,format=raw,file=esp.img -device virtio-blk-device,drive=esp > build-uefi.log 2>&1 &
+QPID=$!
 sleep 15
 python3 - "$QMP" <<'PY'
 import json, socket, sys
@@ -27,10 +32,11 @@ f = s.makefile("rw"); f.readline()
 for cmd in ({"execute": "qmp_capabilities"}, {"execute": "screendump", "arguments": {"filename": "shot.ppm"}}):
     f.write(json.dumps(cmd) + "\n"); f.flush(); f.readline()
 PY
-wait
+wait $QPID
+kill $HTTPD 2>/dev/null
 echo "--- seriale ---"; grep -a "HaikuOS\|\[ok\]\|errore" build-uefi.log | head -12
 fail=0
-for pat in "HaikuOS 0.1 - UEFI ARM64" "desktop GOP [0-9]+x[0-9]+ [0-9]+ bit" "app aperta: FILE" "READ: LEEME.TXT" "app aperta: EDIT" "EDIT: ciao" "app aperta: WEB" "RETE: MAC 52:54:00" "uscita"; do
+for pat in "HaikuOS 0.1 - UEFI ARM64" "desktop GOP [0-9]+x[0-9]+ [0-9]+ bit" "app aperta: FILE" "READ: LEEME.TXT" "app aperta: EDIT" "EDIT: ciao" "app aperta: WEB" "RETE: MAC 52:54:00" "WEB: HTTP 200" "HAIKU WEB OK" "uscita"; do
   if grep -aqE "$pat" build-uefi.log; then echo "OK    $pat"; else echo "FALLITO $pat"; fail=1; fi
 done
 # Salvataggio EDIT (Ctrl-S): NOTA.TXT deve contenere il testo scritto.
