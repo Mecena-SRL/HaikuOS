@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$(mktemp -d)"
-for f in gfx calc; do
+for f in gfx calc term rtc; do
   rustc --edition 2021 --test "$ROOT/src/$f.rs" -o "$OUT/${f}_test"
   "$OUT/${f}_test"
 done

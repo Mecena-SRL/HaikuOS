@@ -4,6 +4,7 @@
 
 mod calc;
 mod gfx;
+mod rtc;
 mod term;
 mod input;
 
@@ -145,7 +146,7 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         let mut calc = Calc::new();
         let mut term = Term::new();
         let mut out = [0u8; 24];
-        let mut prompt = [0u8; 2 + term::MAX];
+        let mut last_tick = 0u32;
         gfx::draw_desktop(&fb, v, ["", ""]);
         log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
         loop {
@@ -166,6 +167,12 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                                 log("[ok] app aperta: ");
                                 log(gfx::APPS[sel]);
                                 log("\n");
+                                if sel == gfx::CLOCK_INDEX {
+                                    let t = rtc::hms(rtc::now());
+                                    log("[ok] ORA: ");
+                                    log(core::str::from_utf8(&t).unwrap_or("?"));
+                                    log(" UTC\n");
+                                }
                             }
                             b'q' => {
                                 log("[ok] uscita\n");
@@ -211,21 +218,13 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             }
                         }
                     }
-                    let clen = calc.format(&mut out);
-                    let calc_txt = core::str::from_utf8(&out[..clen]).unwrap_or("");
-                    prompt[0] = b':';
-                    prompt[1] = b' ';
-                    let pl = term.line().len();
-                    prompt[2..2 + pl].copy_from_slice(term.line().as_bytes());
-                    let prompt_txt = core::str::from_utf8(&prompt[..2 + pl]).unwrap_or("");
-                    let body = if v.open == Some(gfx::TERM_INDEX) {
-                        [term.output(), prompt_txt]
-                    } else {
-                        [calc_txt, ""]
-                    };
-                    gfx::draw_desktop(&fb, v, body);
+                    draw_all(&fb, v, &calc, &term);
                 }
                 None => {
+                    if v.open == Some(gfx::CLOCK_INDEX) && rtc::now() != last_tick {
+                        last_tick = rtc::now();
+                        draw_all(&fb, v, &calc, &term);
+                    }
                     stall(10_000);
                 }
             }
@@ -237,4 +236,25 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
 #[panic_handler]
 fn panic(_: &PanicInfo) -> ! {
     loop {}
+}
+
+/// Disegna il desktop con lo stato corrente di calcolatrice, terminale e orologio.
+fn draw_all(fb: &Fb, v: View, calc: &Calc, term: &Term) {
+    let mut out = [0u8; 24];
+    let clen = calc.format(&mut out);
+    let calc_txt = core::str::from_utf8(&out[..clen]).unwrap_or("");
+    let mut prompt = [0u8; 2 + term::MAX];
+    prompt[0] = b':';
+    prompt[1] = b' ';
+    let pl = term.line().len();
+    prompt[2..2 + pl].copy_from_slice(term.line().as_bytes());
+    let prompt_txt = core::str::from_utf8(&prompt[..2 + pl]).unwrap_or("");
+    let clock = rtc::hms(rtc::now());
+    let clock_txt = core::str::from_utf8(&clock).unwrap_or("");
+    let body = match v.open {
+        Some(app) if app == gfx::TERM_INDEX => [term.output(), prompt_txt],
+        Some(app) if app == gfx::CLOCK_INDEX => [clock_txt, ""],
+        _ => [calc_txt, ""],
+    };
+    gfx::draw_desktop(fb, v, body);
 }
