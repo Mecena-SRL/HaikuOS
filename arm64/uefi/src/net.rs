@@ -18,6 +18,7 @@ const STATE_INITIALIZED: u32 = 2;
 pub struct Nic {
     pub mac: [u8; 6],
     pub up: bool,
+    pub snp: *mut c_void,
 }
 
 /// Cerca la scheda SNP, la avvia se serve e legge MAC e collegamento.
@@ -44,7 +45,54 @@ pub unsafe fn detect(locate: impl FnOnce(*mut *mut c_void) -> usize) -> Option<N
     core::ptr::copy_nonoverlapping(mode.add(552), mac.as_mut_ptr(), 6);
     let supported = *mode.add(651) != 0;
     let present = *mode.add(652) != 0;
-    Some(Nic { mac, up: !supported || present })
+    Some(Nic { mac, up: !supported || present, snp })
+}
+
+type Transmit = extern "efiapi" fn(*mut c_void, usize, usize, *const u8, *const u8, *const u8, *const u16) -> usize;
+type GetStatus = extern "efiapi" fn(*mut c_void, *mut u32, *mut *mut c_void) -> usize;
+type Receive = extern "efiapi" fn(*mut c_void, *mut usize, *mut usize, *mut u8, *mut u8, *mut u8, *mut u16) -> usize;
+
+/// Invia un frame Ethernet completo (intestazione inclusa). SNP Transmit a 96.
+pub fn send(nic: &Nic, frame: &[u8]) {
+    unsafe {
+        let tx = *((nic.snp as *const u8).add(96) as *const Transmit);
+        tx(nic.snp, 0, frame.len(), frame.as_ptr(), core::ptr::null(), core::ptr::null(), core::ptr::null());
+        // Riciclo dei buffer di trasmissione completati (GetStatus a 88), altrimenti la coda si blocca.
+        let gs = *((nic.snp as *const u8).add(88) as *const GetStatus);
+        loop {
+            let mut irq: u32 = 0;
+            let mut done: *mut c_void = core::ptr::null_mut();
+            gs(nic.snp, &mut irq, &mut done);
+            if done.is_null() {
+                break;
+            }
+        }
+    }
+}
+
+/// Riceve un frame se c'è, senza attendere. SNP Receive a 104.
+pub fn recv(nic: &Nic, buf: &mut [u8]) -> Option<usize> {
+    unsafe {
+        let rx = *((nic.snp as *const u8).add(104) as *const Receive);
+        let mut hdr: usize = 0;
+        let mut len = buf.len();
+        let ptr = buf.as_mut_ptr();
+        if rx(nic.snp, &mut hdr, &mut len, ptr, core::ptr::null_mut(), core::ptr::null_mut(), core::ptr::null_mut()) == 0 {
+            Some(len)
+        } else {
+            None
+        }
+    }
+}
+
+/// Millisecondi dal contatore generico ARM (CNTPCT_EL0 / CNTFRQ_EL0).
+pub fn now_ms() -> u64 {
+    let (c, f): (u64, u64);
+    unsafe {
+        core::arch::asm!("mrs {}, cntpct_el0", out(reg) c);
+        core::arch::asm!("mrs {}, cntfrq_el0", out(reg) f);
+    }
+    c * 1000 / f
 }
 
 /// MAC come "52:54:00:12:34:56" in `out`.
