@@ -20,6 +20,8 @@ DEEPSEEK_API_KEY=... target/debug/recompiler <sorgente.c> <test.rs> <cartella_ou
 
 Offline (test): `RECOMP_MOCK=<file_risposta> ...` usa una risposta fissa al posto dell'API.
 
+Test del percorso HTTP senza rete: `fixtures/fake_api.py` (server locale su 127.0.0.1:8765, chiave di test `testkey`) con `RECOMP_URL=http://127.0.0.1:8765/chat/completions DEEPSEEK_API_KEY=testkey`. Verificato: OK al tentativo 1.
+
 Fixture: `tools/recompiler/fixtures/` (djb2: C, test, risposta buona e risposta errata).
 
 ## Host supportati
