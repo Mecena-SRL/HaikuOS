@@ -25,7 +25,7 @@ fn bar_background_icons_and_window_colors() {
     let f = s.wm.top().unwrap().frame;
     let mut b = Buf::new(240, 160);
     draw(&mut b, &s);
-    assert_eq!(b.at(f.x, f.y), Tok::T3, "bordo");
+    assert_eq!(b.at(f.x + f.w / 2, f.y + f.h - 1), Tok::T1, "nessun bordo: il corpo arriva al bordo");
     assert_eq!(b.at(f.x + 2, f.y + 2), Tok::T2, "titolo attivo");
     assert_eq!(b.at(cb(f), cb_y(f)), Tok::T0, "pulsante chiudi");
     let c = content(f);

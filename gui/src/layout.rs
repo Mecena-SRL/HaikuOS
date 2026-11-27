@@ -1,7 +1,7 @@
 //! Misure in unità logiche = 1 px GBA (bibbia §5). Scala intera fuori da qui.
 
 pub const BAR_H: i32 = 12;
-pub const TITLE_H: i32 = 10;
+pub const TITLE_H: i32 = 8;
 pub const CLOSE: i32 = 8;
 pub const ICON: i32 = 16;
 pub const GRID_X: i32 = 8;
@@ -61,13 +61,13 @@ pub fn icon_cell(i: usize) -> Rect {
     Rect::new(GRID_X + col * PITCH_X, GRID_Y + row * PITCH_Y, ICON, ICON)
 }
 
-/// Pulsante chiudi: 8×8, a 1 px dal bordo destro, nella barra del titolo.
+/// Pulsante chiudi: 8×8, a 1 px dal bordo destro, nella barra del titolo (senza bordo).
 pub fn close_button(frame: Rect) -> Rect {
-    Rect::new(frame.x + frame.w - 2 - CLOSE, frame.y + 1, CLOSE, CLOSE)
+    Rect::new(frame.x + frame.w - 1 - CLOSE, frame.y, CLOSE, CLOSE)
 }
 
 pub fn title_bar(frame: Rect) -> Rect {
-    Rect::new(frame.x + 1, frame.y + 1, frame.w - 2, TITLE_H)
+    Rect::new(frame.x, frame.y, frame.w, TITLE_H)
 }
 
 /// Pulsante riduci: a sinistra del massimizza, stesso passo di 2 px.
@@ -100,9 +100,9 @@ pub fn menu_rect(rows: usize) -> Rect {
     Rect::new(0, BAR_H, MENU_LIST_W, MENU_ROW * (rows as i32 + 1))
 }
 
-/// Corpo finestra: sotto la barra del titolo, dentro il bordo di 1 px.
+/// Corpo finestra: sotto la barra del titolo. Nessun bordo (bibbia §13).
 pub fn body(frame: Rect) -> Rect {
-    Rect::new(frame.x + 1, frame.y + 1 + TITLE_H, frame.w - 2, frame.h - 2 - TITLE_H)
+    Rect::new(frame.x, frame.y + TITLE_H, frame.w, frame.h - TITLE_H)
 }
 
 /// Area dove il programma disegna: corpo con margine di 4 px.
