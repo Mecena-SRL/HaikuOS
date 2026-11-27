@@ -73,7 +73,7 @@ Unità logica = 1 px GBA. Tutte le misure sono in unità logiche.
 - Titolo **attivo**: fondo T2, testo T0.
 - Titolo **inattivo**: fondo T1, testo T0. Pulsanti riduci, massimizza, chiudi: quadrati 8×8 T0 (x86).
 - Corpo: fondo T1. Il programma disegna solo qui dentro.
-- Angoli: retti su GBA. Su x86, smussati con raggio 4 px (fondo T0). Niente ombre (decisione di design). **Da verificare** a schermo.
+- Angoli: retti su GBA. Su x86, smussati con raggio 4 px (fondo T0). Ombra morbida sotto la finestra (scelta di Ivan, 27/11/2026). **Da verificare** a schermo.
 - **x86**: titolo attivo nel colore dell'app (A(app)), titolo inattivo T1; icona 8×8 logica a sinistra del titolo; pulsanti colorati (A(9..11)). Barra delle applicazioni: il pulsante attivo prende lo stesso colore.
 
 ## 7. Barra superiore
@@ -153,4 +153,9 @@ Scelte di Ivan. Ogni voce vale su tutte le piattaforme, salvo dove scritto.
 | Selettori (liste) | A tendina |
 | Notifiche | Banner in alto, scompare da solo |
 | Cursore | Freccia bianca con bordo |
-| Icone | A: tessere piene con segni scuri (già nel codice, `gui/src/icons.rs`) |
+| Icone | Pieno e grosso: forme piene su argilla, segni scuri. **Da implementare** (le attuali sono in `gui/src/icons.rs`) |
+| Barra del titolo | Sottile: un filo colorato sopra la finestra |
+| Bordo finestra | Nessuno |
+| Pulsanti finestra | Simboli `-`, `+`, `x` |
+| Angoli e ombre | Smussati, con ombra morbida |
+| Apertura finestra | Morbida, 5 passi. Anteprima: <https://claude.ai/artifact/Pi753FZic4hHYJ967TnKtB> |
