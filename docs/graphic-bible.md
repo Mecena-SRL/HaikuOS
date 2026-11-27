@@ -135,3 +135,22 @@ Decisi con Ivan. Non si applicano al GBA, che resta a finestra piena.
 - File: `docs/brand/logo.svg` (vettoriale, sfondo trasparente).
 - Significato: un monolite piccolo al centro, quattro settori per i programmi, uno sempre libero (tratteggiato). Il bordo è l'hardware.
 - Colori: solo i quattro token della palette (sezione 3), più il bordo SKY. Nessun marchio di terzi.
+
+## 13. Decisioni sugli elementi (27/11/2026)
+
+Scelte di Ivan. Ogni voce vale su tutte le piattaforme, salvo dove scritto.
+
+| Elemento | Scelta |
+|---|---|
+| Barra superiore | In alto, sottile (sezione 7) |
+| Sfondo | Colline geometriche, sole, cielo (sezione 3 per i colori) |
+| Splash | Logo e barra di caricamento |
+| Font | Vettoriale su x86 e Mac. **GBA resta 3×5 maiuscole**: il vettoriale non è fattibile lì. **Da verificare** |
+| Pulsanti | Smussati (raggio 4 px su x86, come le finestre) |
+| Barra di scorrimento | Sottile, senza frecce |
+| Campi di testo | Riquadro sottile attorno al campo |
+| Avvio applicazioni | Griglia intera, aperta dal menu globale in alto. Niente dock |
+| Selettori (liste) | A tendina |
+| Notifiche | Banner in alto, scompare da solo |
+| Cursore | Freccia bianca con bordo |
+| Icone | **Da confermare**: proposta A (tessera piena, segni scuri) |
