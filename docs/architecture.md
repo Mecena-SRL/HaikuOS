@@ -154,6 +154,7 @@ Stato su ARM64 (`arm64/`, QEMU virt, verificato):
 - **Avvio:** kernel a 0x40080000 in EL1, stack e BSS, seriale PL011 (0x09000000). Fuori da EL1 stampa un errore e si ferma.
 - **Timer:** contatore generico in polling (62,5 MHz su QEMU), nessun interrupt.
 - **MMU:** identità, 0..1 GB device (UART), 1..2 GB RAM normale, blocchi da 1 GB. Attiva con cache.
-- **Non ancora:** GIC, interrupt, framebuffer (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
+- **GIC e tastiera:** GICv2 e interrupt UART (IRQ 33). Su QEMU virt la "tastiera" è l'ingresso seriale: ogni carattere arriva con interrupt.
+- **Non ancora:** timer con interrupt, framebuffer (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
 
 Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.
