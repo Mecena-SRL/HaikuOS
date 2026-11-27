@@ -9,10 +9,10 @@ Stile scelto da Ivan: **pochi colori**, 4 tinte forti, retro. Tavolozza (15 bit,
 
 | Tinta | Uso | RGB (5 bit) |
 |---|---|---|
-| T0 | sfondo | (1, 2, 6) |
-| T1 | corpo finestra, icona trasparente | (31, 31, 31) |
-| T2 | titolo finestra, icone | (31, 16, 0) |
-| T3 | barra superiore | (0, 20, 31) |
+| T0 | sfondo | (2, 4, 7) |
+| T1 | corpo finestra, icona trasparente | (30, 29, 28) |
+| T2 | titolo finestra, icone | (27, 15, 12) |
+| T3 | barra superiore | (29, 25, 17) |
 
 Un desktop a finestre, pensato prima per GBA (240×160, 15 bit) e poi esteso a schermi più grandi e al touch. Regola unica: **i programmi disegnano nella loro superficie, il compositor decide cosa si vede**.
 

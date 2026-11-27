@@ -31,20 +31,20 @@ impl Tok {
     /// Formato GBA 15 bit: r | g<<5 | b<<10. `A(_)` non esiste su GBA: vale T2.
     pub const fn gba(self) -> u16 {
         match self {
-            Tok::T0 => 1 | (2 << 5) | (6 << 10),
-            Tok::T1 => 31 | (31 << 5) | (31 << 10),
-            Tok::T2 | Tok::A(_) => 31 | (16 << 5),
-            Tok::T3 => (20 << 5) | (31 << 10),
+            Tok::T0 => 2 | (4 << 5) | (7 << 10),
+            Tok::T1 => 30 | (29 << 5) | (28 << 10),
+            Tok::T2 | Tok::A(_) => 27 | (15 << 5) | (12 << 10),
+            Tok::T3 => 29 | (25 << 5) | (17 << 10),
         }
     }
 
     /// sRGB 0xRRGGBB per schermi grandi (x86 framebuffer, Mac).
     pub const fn rgb(self) -> u32 {
         match self {
-            Tok::T0 => 0x08_10_31,
-            Tok::T1 => 0xFF_FF_FF,
-            Tok::T2 => 0xFF_84_00,
-            Tok::T3 => 0x00_A5_FF,
+            Tok::T0 => 0x10_21_39,
+            Tok::T1 => 0xF7_EF_E7,
+            Tok::T2 => 0xDE_7B_63,
+            Tok::T3 => 0xEF_CE_8C,
             Tok::A(k) => ACCENTS[k as usize % ACCENTS.len()],
         }
     }
