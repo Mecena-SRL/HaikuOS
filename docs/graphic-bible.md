@@ -153,4 +153,4 @@ Scelte di Ivan. Ogni voce vale su tutte le piattaforme, salvo dove scritto.
 | Selettori (liste) | A tendina |
 | Notifiche | Banner in alto, scompare da solo |
 | Cursore | Freccia bianca con bordo |
-| Icone | **Da confermare**: proposta A (tessera piena, segni scuri) |
+| Icone | A: tessere piene con segni scuri (già nel codice, `gui/src/icons.rs`) |
