@@ -14,6 +14,13 @@ Quindi ogni scelta si divide in due:
 
 Le scelte sotto sono pensate per B, prendendo idee (non codice) dalle opzioni esistenti.
 
+## 0b. Stato nel repo (allineato a `docs/graphic-bible.md`, `docs/desktop-concept.md`, `gui/`)
+
+- **Già esiste:** barra superiore 12 px in T3 con orologio a destra; finestre fluttuanti con titolo, chiudi, riduci, massimizza (`gui/src/wm.rs`); menu HAIKUOS con ricerca (`gui/src/shell.rs`); pannello con pulsanti per finestra; compositor che decide cosa si vede (i programmi disegnano solo nella loro superficie).
+- **Regole vincolanti da rispettare:** 4 colori (T0..T3), niente ombre o animazioni decorative, "il Mac non aggiunge elementi: se un elemento c'è su GBA, c'è anche su Mac".
+- **Non esiste:** tiling, dock separato, menu globale macOS.
+- **Conseguenza:** le raccomandazioni sotto valgono solo se accettate come nuove funzioni. Ogni nuovo elemento (dock, menu globale, tiling) va deciso con Ivan e poi aggiunto alla bibbia grafica.
+
 ---
 
 ## 1. Filosofia del desktop
@@ -37,7 +44,7 @@ Le scelte sotto sono pensate per B, prendendo idee (non codice) dalle opzioni es
 | COSMIC | Rust | GPL-3 | Desktop completo, 1.0 nel 2025 | Grande: troppo per noi |
 | i3 / dwm | C | BSD / MIT | Minimo, maturo | Solo X11 |
 
-**Raccomandazione:** **niri** come modello (Rust, scorrevole, piccolo). Non riusarlo tal quale: è un compositor Wayland. Ne prendiamo la logica di layout.
+**Raccomandazione:** nessun compositor esterno da riusare (sono tutti Wayland). Prendere solo idee: **niri** come modello di layout (Rust, scorrevole, piccolo). Il nostro `gui/src/wm.rs` resta la base: finestre fluttuanti già presenti.
 
 ## 3. Tiling
 
@@ -47,7 +54,7 @@ Le scelte sotto sono pensate per B, prendendo idee (non codice) dalle opzioni es
 | Colonne scorrevoli (niri) | Adatta a qualsiasi schermo | Si perde la vista d'insieme |
 | Tiling manuale + fluttuanti | Flessibile | Più stati da gestire |
 
-**Raccomandazione:** colonne scorrevoli, con app fluttuanti per finestre di dialogo. Sul Game Boy Advance il tiling non serve: una sola app a tutto schermo.
+**Raccomandazione:** nessun tiling per ora. Il WM attuale è a finestre fluttuanti: è già coerente con la bibbia grafica. Il tiling scorrevole è una funzione nuova da proporre dopo la base. Sul GBA non serve: una sola app a tutto schermo (vedi `docs/desktop-concept.md`, sez. 5).
 
 ## 4. Dock (stile macOS)
 
@@ -58,7 +65,7 @@ Le scelte sotto sono pensate per B, prendendo idee (non codice) dalle opzioni es
 | Dash to Dock (GNOME) | Maturo | Legato a GNOME |
 | Dock nostro (processo separato) | Su misura, piccolo | Da scrivere |
 
-**Raccomandazione:** dock nostro, piccolo, come processo separato che legge la lista app dal monolite. Il monolite non sa nulla dell'interfaccia (vedi `docs/architecture.md`, sez. 3).
+**Raccomandazione:** nessun dock nuovo. La barra dei programmi del pannello (`gui/src/shell.rs`) fa già il suo lavoro. Un dock separato costerebbe un elemento in più, contro la regola "il Mac non aggiunge elementi". Se Ivan lo vuole, va deciso come eccezione.
 
 ## 5. Barra in alto (stile macOS)
 
@@ -68,7 +75,7 @@ Le scelte sotto sono pensate per B, prendendo idee (non codice) dalle opzioni es
 | Quickshell / Astal (LGPL/GPL) | Barre fatte in QML o TypeScript, belle | Dipendenze da gestire |
 | Barra nostra | Controllo totale | Da scrivere |
 
-**Raccomandazione:** barra nostra con menu globale e orologio, come processo separato. Il menu mostra solo ciò che l'app attiva espone.
+**Raccomandazione:** tenere la barra attuale (12 px, T3, orologio a destra, come da `docs/graphic-bible.md` sez. 7). Il menu globale della app attiva è un elemento nuovo: da decidere con Ivan.
 
 ## 6. App a schermo intero
 
@@ -76,18 +83,18 @@ Le scelte sotto sono pensate per B, prendendo idee (non codice) dalle opzioni es
 - Con i "spazi" (workspace) scorrevoli, ogni app a tutto schermo occupa uno spazio suo (come macOS Spaces).
 - Lo schermo intero deve essere un **permesso** che il monolite concede e può revocare (coerente con la sez. 4 di `docs/architecture.md`).
 
-**Raccomandazione:** schermo intero come stato del compositor; il monolite verifica il permesso. Sul GBA è l'unico modo.
+**Raccomandazione:** usare la massimizzazione già presente (`toggle_max` in `gui/src/wm.rs`). Lo schermo intero vero (la barra si nasconde) è una funzione nuova: come stato del compositor, con permesso del monolite. Sul GBA è già l'unico modo.
 
 ---
 
 ## 7. Domande aperte per Ivan
 
-1. **Base dello stack grafico:** A (riusare Wayland/Linux come compatibilità) oppure B (protocollo nostro)?
-   - **B, protocollo nostro** – più lavoro, più coerente con la filosofia del progetto. *(consigliato)*
+1. **Base dello stack grafico:** A (riusare Wayland/Linux come compatibilità) oppure B (protocollo nostro, già in uso: i programmi disegnano nella loro superficie)?
+   - **B, protocollo nostro** – coerente con il repo e con la filosofia. *(consigliato)*
    - **A, compatibilità Wayland** – si ha subito un desktop, ma si eredita la complessità di Linux.
-2. **Stile di default:** macOS-like con tiling nascosto, oppure tiling scorrevole con barra macOS?
-   - **Tiling scorrevole + barra macOS** – più leggero e unico. *(consigliato)*
-   - **Macchina macOS pura** – più familiare, meno innovativo.
+2. **Nuovi elementi (menu globale, dock, tiling, schermo intero):** aggiungerli, o restare con la barra e il WM attuali?
+   - **Restare con quelli attuali, aggiungere solo lo schermo intero** – rispetta la regola "pochi elementi". *(consigliato)*
+   - **Aggiungere menu globale e tiling** – più innovativo, ma va cambiata la bibbia grafica.
 3. **Primo schermo da supportare:** solo grande (PC/ARM64) o anche GBA fin da subito?
    - **Prima grande, poi GBA** – si valida la logica dove c'è spazio. *(consigliato)*
 
