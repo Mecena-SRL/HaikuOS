@@ -227,3 +227,15 @@ fn reader_chooses_file_with_left_right() {
     s.key(Key::Left);
     assert_eq!(s.files.sel, 0);
 }
+
+#[test]
+fn notice_banner_shows_and_clears_on_input() {
+    let mut s = Shell::new(&ICONS, 320, 240);
+    s.notify("Download completato");
+    let mut b = common::Buf::new(320, 240);
+    haiku_gui::render::draw(&mut b, &s);
+    assert!(b.texts.iter().any(|t| t == "Download completato"));
+    assert_eq!(s.notice(), "Download completato");
+    s.press(160, 200);
+    assert_eq!(s.notice(), "");
+}

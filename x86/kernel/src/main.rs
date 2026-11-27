@@ -164,7 +164,7 @@ pub extern "C" fn kmain() -> ! {
                 if dirty {
                     let mut c = f.canvas(shell.theme as usize);
                     haiku_gui::render::draw(&mut c, &shell);
-                    c.fill(haiku_gui::layout::Rect::new(cx, cy, 2, 2), haiku_gui::Tok::T1);
+                    haiku_gui::render::pointer(&mut c, cx, cy);
                     f.flush();
                 }
             }
