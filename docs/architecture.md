@@ -157,6 +157,7 @@ Stato su ARM64 (`arm64/`, QEMU virt, verificato):
 - **GIC e tastiera:** GICv2 e interrupt UART (IRQ 33). Su QEMU virt la "tastiera" è l'ingresso seriale: ogni carattere arriva con interrupt.
 - **UEFI:** `arm64/uefi/` (`aarch64-unknown-uefi`), avvio con firmware QEMU_EFI in QEMU virt: stampa su ConOut e ritorna. Verificato.
 - **Timer con interrupt:** timer fisico EL1 (PPI 30) a 100 ms, verificato con 3 tick.
-- **Non ancora:** framebuffer UEFI (GOP), hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
+- **Framebuffer UEFI (GOP):** l'app UEFI trova il GOP, disegna lo sfondo del tema 0 e un riquadro accento. Verificato in QEMU con `ramfb`: 800x600, 120000 pixel accento esatti.
+- **Non ancora:** hardware reale e firmware reale; disegno del desktop; GOP con formato a 16 bit non verificato. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
 
 Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.
