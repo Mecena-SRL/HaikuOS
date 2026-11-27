@@ -56,14 +56,19 @@ type Receive = extern "efiapi" fn(*mut c_void, *mut usize, *mut usize, *mut u8, 
 pub fn send(nic: &Nic, frame: &[u8]) {
     unsafe {
         let tx = *((nic.snp as *const u8).add(96) as *const Transmit);
-        tx(nic.snp, 0, frame.len(), frame.as_ptr(), core::ptr::null(), core::ptr::null(), core::ptr::null());
-        // Riciclo dei buffer di trasmissione completati (GetStatus a 88), altrimenti la coda si blocca.
+        // Riciclo dei buffer completati (GetStatus a 88), altrimenti la coda si blocca. Riprova se la coda è piena.
         let gs = *((nic.snp as *const u8).add(88) as *const GetStatus);
-        loop {
-            let mut irq: u32 = 0;
-            let mut done: *mut c_void = core::ptr::null_mut();
-            gs(nic.snp, &mut irq, &mut done);
-            if done.is_null() {
+        for _ in 0..100 {
+            let st = tx(nic.snp, 0, frame.len(), frame.as_ptr(), core::ptr::null(), core::ptr::null(), core::ptr::null());
+            loop {
+                let mut irq: u32 = 0;
+                let mut done: *mut c_void = core::ptr::null_mut();
+                gs(nic.snp, &mut irq, &mut done);
+                if done.is_null() {
+                    break;
+                }
+            }
+            if st == 0 {
                 break;
             }
         }

@@ -218,7 +218,10 @@ pub fn http_get(nic: &Nic, rport: u16, path: &str, out: &mut [u8]) -> Result<usi
         rn += b.len();
     }
     tcp_send(&c, F_PSH | F_ACK, &req[..rn]);
+    let req_seq = c.seq;
     c.seq = c.seq.wrapping_add(rn as u32);
+    let mut req_t = net::now_ms();
+    let mut got_data = false;
     // 4. Risposta fino a FIN (o silenzio di 5 s)
     let mut stored = 0usize;
     let mut last = net::now_ms();
@@ -226,6 +229,13 @@ pub fn http_get(nic: &Nic, rport: u16, path: &str, out: &mut [u8]) -> Result<usi
         let now = net::now_ms();
         if now - last > 5000 {
             return if stored > 0 { Ok(stored) } else { Err("TIMEOUT") };
+        }
+        // Richiesta persa: la rimanda finché non arriva il primo dato.
+        if !got_data && now - req_t > 1500 {
+            let mut r = Conn { nic: c.nic, gmac: c.gmac, rport: c.rport, seq: req_seq, ack: c.ack };
+            r.seq = req_seq;
+            tcp_send(&r, F_PSH | F_ACK, &req[..rn]);
+            req_t = now;
         }
         let n = match net::recv(nic, &mut f) {
             Some(n) => n,
@@ -237,6 +247,9 @@ pub fn http_get(nic: &Nic, rport: u16, path: &str, out: &mut [u8]) -> Result<usi
             return Err("RESET");
         }
         let plen = e - s;
+        if plen > 0 {
+            got_data = true;
+        }
         if seq != c.ack {
             if plen > 0 {
                 tcp_send(&c, F_ACK, &[]);
