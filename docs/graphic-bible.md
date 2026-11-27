@@ -129,3 +129,9 @@ Decisi con Ivan. Non si applicano al GBA, che resta a finestra piena.
 - Fase 5 (x86, `gui/src/render.rs`, `x86/kernel/src/fb.rs`): accenti a 32 bit, icone vere 32×32, titoli colorati con icona, pulsanti colorati. Mouse: PS/2 in polling, verificato con `x86/scripts/mouse-qemu.py` (clic su FILE apre la finestra; posizione calibrata a mano, **da verificare** su hardware). Font: Spleen 5×8 (BSD-2, `x86/kernel/LICENSE-spleen.txt`), **da verificare** a schermo con altri font. Da verificare: contrasto del testo T0 sugli accenti A(1..8) su schermo reale.
 - Fase 1 (icone, `gui/src/icons.rs`): glifi 16×16 per GBA e x86. Da fare: versione 32×32 x86; `gba/host` screenshot. **Da verificare**.
 - Da verificare su hardware GBA: leggibilità del 3×5 su schermo reale, contrasto T2 su T1, tempi di ridisegno.
+
+## 12. Logo
+
+- File: `docs/brand/logo.svg` (vettoriale, sfondo trasparente).
+- Significato: un monolite piccolo al centro, quattro settori per i programmi, uno sempre libero (tratteggiato). Il bordo è l'hardware.
+- Colori: solo i quattro token della palette (sezione 3), più il bordo SKY. Nessun marchio di terzi.
