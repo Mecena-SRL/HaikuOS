@@ -149,4 +149,9 @@ Stato su x86-64 (ISO, verificato in QEMU):
 - **Fallback:** framebuffer non valido o modo non RGB → resta il testo VGA. Nessun modo grafico non verificato.
 - **Verificato:** 800x600x24 e 1280x800x32 (QEMU). 16 bit e GPU reali: **da verificare**.
 
+Stato su ARM64 (`arm64/`, QEMU virt, verificato):
+
+- **Avvio:** kernel a 0x40080000 in EL1, stack e BSS, seriale PL011 (0x09000000). Fuori da EL1 stampa un errore e si ferma.
+- **Non ancora:** GIC, timer, MMU, framebuffer (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
+
 Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.
