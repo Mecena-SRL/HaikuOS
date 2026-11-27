@@ -5,8 +5,78 @@
 use core::arch::{asm, global_asm};
 use core::panic::PanicInfo;
 
+mod gic;
 mod mmu;
 mod timer;
+mod uart;
+
+
+// Tabella dei vettori EL1 (2 KB, voci da 128 byte). Solo IRQ da SP_EL1 (voce 0x280) è usata.
+global_asm!(
+    ".balign 2048",
+    ".global vectors",
+    "vectors:",
+    ".balign 0x80", "b .",          // 0x000 sincrono SP0
+    ".balign 0x80", "b .",          // 0x080 IRQ SP0
+    ".balign 0x80", "b .",          // 0x100 FIQ SP0
+    ".balign 0x80", "b .",          // 0x180 SError SP0
+    ".balign 0x80", "b .",          // 0x200 sincrono SPx
+    ".balign 0x80", "b irq_entry",  // 0x280 IRQ SPx
+    ".balign 0x80", "b .",          // 0x300 FIQ SPx
+    ".balign 0x80", "b .",          // 0x380 SError SPx
+    "irq_entry:",
+    "stp x0, x1, [sp, #-16]!",
+    "stp x2, x3, [sp, #-16]!",
+    "stp x4, x5, [sp, #-16]!",
+    "stp x6, x7, [sp, #-16]!",
+    "stp x8, x9, [sp, #-16]!",
+    "stp x10, x11, [sp, #-16]!",
+    "stp x12, x13, [sp, #-16]!",
+    "stp x14, x15, [sp, #-16]!",
+    "stp x16, x17, [sp, #-16]!",
+    "stp x18, x30, [sp, #-16]!",
+    "bl irq_handler",
+    "ldp x18, x30, [sp], #16",
+    "ldp x16, x17, [sp], #16",
+    "ldp x14, x15, [sp], #16",
+    "ldp x12, x13, [sp], #16",
+    "ldp x10, x11, [sp], #16",
+    "ldp x8, x9, [sp], #16",
+    "ldp x6, x7, [sp], #16",
+    "ldp x4, x5, [sp], #16",
+    "ldp x2, x3, [sp], #16",
+    "ldp x0, x1, [sp], #16",
+    "eret",
+);
+
+extern "C" {
+    static vectors: u8;
+}
+
+#[no_mangle]
+extern "C" fn irq_handler() {
+    let iar = gic::ack();
+    let id = iar & 0x3FF;
+    if id == uart::IRQ {
+        uart::read_all(|c| {
+            puts("RX:");
+            putc(c);
+            puts("\n");
+        });
+        uart::clear_irq();
+    }
+    gic::eoi(iar);
+}
+
+fn irq_init() {
+    unsafe {
+        let v = core::ptr::addr_of!(vectors) as u64;
+        asm!("msr vbar_el1, {}", "isb", in(reg) v);
+    }
+    gic::enable_irq(uart::IRQ);
+    uart::rx_irq_on();
+    unsafe { asm!("msr daifclr, #2") }
+}
 
 const UART_DR: *mut u32 = 0x0900_0000 as *mut u32;
 const UART_FR: *const u32 = 0x0900_0018 as *const u32;
@@ -96,8 +166,11 @@ pub extern "C" fn kmain() -> ! {
     } else {
         puts("[errore] MMU non attiva\n");
     }
-    puts("Sistema fermo.\n");
-    halt()
+    irq_init();
+    puts("[ok] GIC e UART RX con interrupt: scrivi nel seriale\n");
+    loop {
+        unsafe { asm!("wfi") }
+    }
 }
 
 #[panic_handler]
