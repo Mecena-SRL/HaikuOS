@@ -14,8 +14,8 @@ printf 'ciao dal file system\r\n' > leeme.txt
 mcopy -i esp.img leeme.txt ::/LEEME.TXT
 rm -f leeme.txt
 # Server HTTP sul host: il guest lo raggiunge come 10.0.2.2:8000 (QEMU user networking).
-mkdir -p www && printf 'HAIKU WEB OK\n' > www/index.html
-python3 -m http.server 8000 --bind 127.0.0.1 -d www >/dev/null 2>&1 &
+WWW=$(mktemp -d); printf 'HAIKU WEB OK\n' > "$WWW/index.html"
+python3 -m http.server 8000 --bind 127.0.0.1 -d "$WWW" >/dev/null 2>&1 &
 HTTPD=$!
 FW=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd
 QMP=/tmp/haikuos-uefi-qmp.sock; rm -f "$QMP"
