@@ -24,10 +24,10 @@ Formato GBA: `r | g<<5 | b<<10` (5 bit per canale). Mac: sRGB esadecimale, conve
 
 | Token | Ruolo | GBA (15 bit) | Mac |
 |---|---|---|---|
-| **T0** | Sfondo; testo su barra e su titolo attivo | (1, 2, 6) | `#081031` |
-| **T1** | Superfici: corpo finestra, testo normale, icona selezionata | (31, 31, 31) | `#FFFFFF` |
-| **T2** | Accento: titolo finestra attiva, icone | (31, 16, 0) | `#FF8400` |
-| **T3** | Barra superiore, bordi finestra | (0, 20, 31) | `#00A5FF` |
+| **T0** | Sfondo; testo su barra e su titolo attivo | (2, 4, 7) | `#102139` |
+| **T1** | Superfici: corpo finestra, testo normale, icona selezionata | (30, 29, 28) | `#F7EFE7` |
+| **T2** | Accento: titolo finestra attiva, icone | (27, 15, 12) | `#DE7B63` |
+| **T3** | Barra superiore, bordi finestra | (29, 25, 17) | `#EFCE8C` |
 
 Neutri ammessi solo su Mac: nessuno per ora. Se servono (es. testo disabilitato), si aggiungono qui e nel codice insieme.
 
