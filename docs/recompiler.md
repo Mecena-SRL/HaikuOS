@@ -22,6 +22,14 @@ Offline (test): `RECOMP_MOCK=<file_risposta> ...` usa una risposta fissa al post
 
 Fixture: `tools/recompiler/fixtures/` (djb2: C, test, risposta buona e risposta errata).
 
+## Host supportati
+
+Il tool è pensato per girare su **Fedora KDE** e **macOS**. Richiede solo `cargo` (rustup) e `curl`, presenti su entrambi. Nessun percorso specifico di sistema.
+
+- Fedora: `sudo dnf install curl` e `rustup` (una volta).
+- macOS: `curl` è già presente; `rustup` da rustup.rs.
+- **Da verificare** su entrambi: il test `cargo test` delle fixture non è ancora stato eseguito fuori da Linux.
+
 ## Stato
 
 - Verificato: pipeline con risposta fissa. Risposta buona: OK al primo tentativo. Risposta errata (overflow non gestito): rifiutata dopo 3 tentativi, exit 1.
