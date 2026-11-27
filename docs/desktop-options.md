@@ -98,6 +98,11 @@ Le scelte sotto sono pensate per B, prendendo idee (non codice) dalle opzioni es
 3. **Primo schermo da supportare:** solo grande (PC/ARM64) o anche GBA fin da subito?
    - **Prima grande, poi GBA** – si valida la logica dove c'è spazio. *(consigliato)*
 
+## 7b. Decisioni prese (da Ivan)
+
+- Stack grafico: **protocollo nostro**.
+- Tiling e menu globale stile Mac: **sì**, solo schermi grandi. Dettagli in `docs/graphic-bible.md` sez. 12.
+
 ## 8. Prossimi passi (proposta)
 
 1. Scegliere le domande sopra.
