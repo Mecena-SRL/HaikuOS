@@ -139,3 +139,14 @@ Questi sono obiettivi, non funzionalità esistenti.
 - **Compressione e cifratura in RAM:** dati compressi e cifrati in memoria, per i sistemi con poca RAM.
 - **Swap:** spostamento di pagine su un supporto più lento quando la RAM non basta.
 - **Portabilità a 64 bit e x86:** il nucleo è pensato per essere portabile, ma oggi gira solo sul GBA.
+
+## 12. Compatibilità CPU e GPU
+
+Stato su x86-64 (ISO, verificato in QEMU):
+
+- **CPU:** il loader controlla CPUID (long mode e SSE2). Se mancano, stampa `CPU NON SUPPORTATA` su seriale COM1 e VGA, poi si ferma. Nessun avvio parziale.
+- **Schermo:** il framebuffer GRUB (Multiboot2, richiesta opzionale) supporta 15, 16, 24 e 32 bit. I canali (posizione e dimensione) arrivano dal firmware e la conversione è generica. Il percorso veloce è solo per 32 bit standard.
+- **Fallback:** framebuffer non valido o modo non RGB → resta il testo VGA. Nessun modo grafico non verificato.
+- **Verificato:** 800x600x24 e 1280x800x32 (QEMU). 16 bit e GPU reali: **da verificare**.
+
+Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.

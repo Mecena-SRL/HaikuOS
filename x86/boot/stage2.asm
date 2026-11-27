@@ -158,6 +158,13 @@ dispi_try:
     mov dword [0x0610], 800
     mov dword [0x0614], 5120
     mov dword [0x0618], 32
+    mov byte [0x061C], 16       ; canali BGRX a 32 bit: rpos, rsize, gpos, gsize, bpos, bsize
+    mov byte [0x061D], 8
+    mov byte [0x061E], 8
+    mov byte [0x061F], 8
+    mov byte [0x0620], 0
+    mov byte [0x0621], 8
+    mov byte [0x0622], 1        ; tipo RGB
 .fail:
     ret
 
@@ -189,6 +196,20 @@ vbe_try:
     mov [0x0614], eax
     movzx eax, byte [es:0x0719]
     mov [0x0618], eax
+    ; canali dal blocco VBE (0x1F..0x24): rpos, rsize, gpos, gsize, bpos, bsize
+    mov al, [es:0x0720]
+    mov [0x061C], al
+    mov al, [es:0x071F]
+    mov [0x061D], al
+    mov al, [es:0x0722]
+    mov [0x061E], al
+    mov al, [es:0x0721]
+    mov [0x061F], al
+    mov al, [es:0x0724]
+    mov [0x0620], al
+    mov al, [es:0x0723]
+    mov [0x0621], al
+    mov byte [0x0622], 1
     mov dword [0x0600], 0x56424531
 .fail:
     ret

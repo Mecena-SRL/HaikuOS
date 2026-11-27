@@ -1,4 +1,5 @@
-//! Framebuffer VBE lineare (impostato in stage2 a 640×480, 24 o 32 bit, salvato a 0x600).
+//! Framebuffer lineare RGB (da GRUB/Multiboot2 o da stage2), salvato a 0x600.
+//! Formati: 15, 16, 24 e 32 bit con posizione e dimensione dei canali letti dal firmware.
 //! Il sistema grafico lavora a 320×240 logici: ogni pixel logico diventa 2×2 (bibbia §9).
 use haiku_gui::layout::Rect;
 use haiku_gui::render::Canvas;
@@ -35,21 +36,27 @@ pub struct Fb {
     pub h: i32,
     /// Pixel fisico per pixel logico: circa 640 colonne logiche su qualsiasi schermo.
     pub scale: i32,
+    /// Canali: [rpos, rsize, gpos, gsize, bpos, bsize] (come li scrive il loader).
+    rgb: [u8; 6],
 }
 
-/// Legge la configurazione VBE; None se stage2 non ha impostato un modo grafico.
+/// Legge la configurazione grafica; None se non c'è un modo RGB valido (si resta sul testo).
 pub fn init() -> Option<Fb> {
     unsafe {
         let rd = |o: usize| core::ptr::read_volatile((INFO + o) as *const u32);
-        if rd(0) != MAGIC {
+        let rb = |o: usize| core::ptr::read_volatile((INFO + o) as *const u8);
+        if rd(0) != MAGIC || rb(0x22) != 1 {
             return None;
         }
         let w = rd(12) as i32;
         let h = rd(16) as i32;
         let (pitch, bpp) = (rd(20) as usize, rd(24) as usize);
-        // Solo 24 o 32 bit, e riga almeno larga quanto i pixel: altrimenti testo.
+        let rgb = [rb(0x1C), rb(0x1D), rb(0x1E), rb(0x1F), rb(0x20), rb(0x21)];
+        // Canali validi (1..=8 bit, dentro il pixel) e riga almeno larga quanto i pixel.
+        let ok_ch = |p: u8, s: u8| (1..=8).contains(&s) && p as usize + s as usize <= bpp;
         if w <= 0 || h <= 0 || (w as usize) * (h as usize) * 4 > BACK_MAX
-            || (bpp != 24 && bpp != 32) || pitch < w as usize * (bpp / 8)
+            || !matches!(bpp, 15 | 16 | 24 | 32) || pitch < w as usize * ((bpp + 7) / 8)
+            || !ok_ch(rgb[0], rgb[1]) || !ok_ch(rgb[2], rgb[3]) || !ok_ch(rgb[4], rgb[5])
         {
             return None;
         }
@@ -57,12 +64,19 @@ pub fn init() -> Option<Fb> {
             base: rd(8) as usize,
             back: BACK,
             w,
-            h: rd(16) as i32,
+            h,
             pitch,
             bpp,
             scale: scale_for(w),
+            rgb,
         })
     }
+}
+
+/// Converte un colore 0xRRGGBB nel formato del pixel (canali ridotti alla dimensione reale).
+fn pack(rgb: &[u8; 6], c: u32) -> u32 {
+    let ch = |v: u32, pos: u8, size: u8| ((v & 0xFF) >> (8 - size)) << pos;
+    ch(c >> 16, rgb[0], rgb[1]) | ch(c >> 8, rgb[2], rgb[3]) | ch(c, rgb[4], rgb[5])
 }
 
 /// Scala intera: larghezza logica vicina a 640 (1024→2, 1280→2, 1920→3, 640→1).
@@ -95,20 +109,22 @@ impl Fb {
     /// Copia il buffer di lavoro sulla scheda video in un solo passo (niente sfarfallio).
     pub fn flush(&self) {
         let (w, h) = (self.w as usize, self.h as usize);
+        let nb = (self.bpp + 7) / 8;
+        // Percorso veloce: 32 bit con canali standard (B, G, R).
+        let std32 = self.bpp == 32 && self.rgb == [16, 8, 8, 8, 0, 8];
         unsafe {
             for y in 0..h {
                 let src = (self.back + y * w * 4) as *const u32;
                 let dst = self.base + y * self.pitch;
-                if self.bpp == 32 {
+                if std32 {
                     core::ptr::copy_nonoverlapping(src, dst as *mut u32, w);
-                } else {
-                    // 24 bit: byte in ordine B, G, R
-                    for x in 0..w {
-                        let c = core::ptr::read_volatile(src.add(x));
-                        let p = dst + x * 3;
-                        core::ptr::write_volatile(p as *mut u8, c as u8);
-                        core::ptr::write_volatile((p + 1) as *mut u8, (c >> 8) as u8);
-                        core::ptr::write_volatile((p + 2) as *mut u8, (c >> 16) as u8);
+                    continue;
+                }
+                for x in 0..w {
+                    let v = pack(&self.rgb, core::ptr::read_volatile(src.add(x)));
+                    let p = dst + x * nb;
+                    for i in 0..nb {
+                        core::ptr::write_volatile((p + i) as *mut u8, (v >> (8 * i)) as u8);
                     }
                 }
             }

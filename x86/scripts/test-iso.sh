@@ -27,7 +27,7 @@ echo "--- seriale ---"
 cat build/iso_serial.log
 echo "--- verifica ---"
 fail=0
-for pat in "HaikuOS 0.1" "avviato in long mode" "framebuffer VBE"; do
+for pat in "HaikuOS 0.1" "avviato in long mode" "\[ok\] framebuffer"; do
   if grep -q "$pat" build/iso_serial.log; then echo "OK    $pat"; else echo "FALLITO $pat"; fail=1; fi
 done
 exit $fail
