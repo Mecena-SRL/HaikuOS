@@ -137,6 +137,7 @@ pub extern "C" fn kmain() -> ! {
                         cx = (cx + acc.0 / 2).clamp(0, lw - 1);
                         cy = (cy + acc.1 / 2).clamp(0, lh - 1);
                         acc = (acc.0 % 2, acc.1 % 2);
+                        let left_prev_frame = left_prev;
                         if left && !left_prev {
                             shell.press(cx, cy);
                         } else if left {
@@ -145,7 +146,8 @@ pub extern "C" fn kmain() -> ! {
                             shell.release();
                         }
                         left_prev = left;
-                        dirty = true;
+                        // Ridisegna solo se il cursore o un pulsante è cambiato davvero.
+                        dirty |= dx != 0 || dy != 0 || left != left_prev_frame;
                     }
                     None => {}
                 }
