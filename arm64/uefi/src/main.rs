@@ -147,7 +147,8 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         let mut term = Term::new();
         let mut out = [0u8; 24];
         let mut last_tick = 0u32;
-        gfx::draw_desktop(&fb, v, ["", ""]);
+        let mut theme = 0usize;
+        gfx::draw_desktop(&fb, v, ["", ""], theme);
         log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
         loop {
             match input::read_key(st) {
@@ -200,6 +201,19 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             }
                             _ => {}
                         },
+                        Some(app) if app == gfx::SET_INDEX => match ch {
+                            b'\r' => {
+                                theme = (theme + 1) % 3;
+                                log("[ok] SET: ");
+                                log(THEME_NAMES[theme]);
+                                log("\n");
+                            }
+                            b'x' => {
+                                v.open = None;
+                                log("[ok] app chiusa\n");
+                            }
+                            _ => {}
+                        },
                         Some(app) if app == gfx::TERM_INDEX => {
                             if term.key(ch) {
                                 log("[ok] TERM: ");
@@ -218,12 +232,12 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             }
                         }
                     }
-                    draw_all(&fb, v, &calc, &term);
+                    draw_all(&fb, v, &calc, &term, theme);
                 }
                 None => {
                     if v.open == Some(gfx::CLOCK_INDEX) && rtc::now() != last_tick {
                         last_tick = rtc::now();
-                        draw_all(&fb, v, &calc, &term);
+                        draw_all(&fb, v, &calc, &term, theme);
                     }
                     stall(10_000);
                 }
@@ -239,7 +253,7 @@ fn panic(_: &PanicInfo) -> ! {
 }
 
 /// Disegna il desktop con lo stato corrente di calcolatrice, terminale e orologio.
-fn draw_all(fb: &Fb, v: View, calc: &Calc, term: &Term) {
+fn draw_all(fb: &Fb, v: View, calc: &Calc, term: &Term, theme: usize) {
     let mut out = [0u8; 24];
     let clen = calc.format(&mut out);
     let calc_txt = core::str::from_utf8(&out[..clen]).unwrap_or("");
@@ -254,7 +268,10 @@ fn draw_all(fb: &Fb, v: View, calc: &Calc, term: &Term) {
     let body = match v.open {
         Some(app) if app == gfx::TERM_INDEX => [term.output(), prompt_txt],
         Some(app) if app == gfx::CLOCK_INDEX => [clock_txt, ""],
+        Some(app) if app == gfx::SET_INDEX => [THEME_NAMES[theme % 3], "INVIO CAMBIA"],
         _ => [calc_txt, ""],
     };
-    gfx::draw_desktop(fb, v, body);
+    gfx::draw_desktop(fb, v, body, theme);
 }
+
+const THEME_NAMES: [&str; 3] = ["TEMA 0", "TEMA 1", "TEMA 2"];
