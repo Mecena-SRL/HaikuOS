@@ -1,5 +1,0 @@
-HaikuOS 0.1 - kernel ARM64
-[ok] seriale PL011 e EL1
-[ok] timer generico: 62500000 Hz, 100 ms = 6252707 tick
-[ok] MMU attiva (identita, 2 GB)
-Sistema fermo.
