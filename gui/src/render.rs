@@ -248,6 +248,30 @@ fn notice<C: Canvas>(c: &mut C, s: &Shell) {
     c.text(x + 6, BAR_H + 4, msg, T0);
 }
 
+/// Simbolo del pulsante 8×8: `-` (riduci), `+` (massimizza), `x` (chiudi). Bibbia §13.
+fn glyph<C: Canvas>(c: &mut C, r: Rect, sym: char, col: Tok) {
+    match sym {
+        '-' => c.fill(Rect::new(r.x + 1, r.y + 3, 6, 2), col),
+        '+' => {
+            c.fill(Rect::new(r.x + 1, r.y + 3, 6, 2), col);
+            c.fill(Rect::new(r.x + 3, r.y + 1, 2, 6), col);
+        }
+        _ => {
+            for i in 1..7 {
+                c.fill(Rect::new(r.x + i, r.y + i, 1, 1), col);
+                c.fill(Rect::new(r.x + 7 - i, r.y + i, 1, 1), col);
+            }
+        }
+    }
+}
+
+/// Ombra morbida sotto la finestra (solo x86, bibbia §13): un bordo T0 di 2 px fuori dal bordo.
+fn shadow<C: Canvas>(c: &mut C, f: Rect) {
+    if c.rounded() {
+        c.fill(Rect::new(f.x + 2, f.y + 2, f.w, f.h), T0);
+    }
+}
+
 /// Smussa gli angoli di un pulsante 8×8 con un pixel T0 (solo x86, bibbia §13).
 fn corners<C: Canvas>(c: &mut C, r: Rect) {
     if c.rounded() {
@@ -319,6 +343,7 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
             continue;
         }
         let f = w.frame;
+        shadow(c, f);
         c.fill(f, T3);
         let tb = title_bar(f);
         let rich = c.rich();
@@ -338,6 +363,10 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         c.fill(close_button(f), cl);
         c.fill(max_button(f), mx);
         c.fill(min_button(f), mn);
+        let sc = if rich { T0 } else { T1 };
+        glyph(c, close_button(f), 'x', sc);
+        glyph(c, max_button(f), '+', sc);
+        glyph(c, min_button(f), '-', sc);
         for r in [close_button(f), max_button(f), min_button(f)] {
             corners(c, r);
         }
