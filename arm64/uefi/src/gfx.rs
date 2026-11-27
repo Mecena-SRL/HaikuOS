@@ -111,6 +111,16 @@ pub const ICONS: [u32; 9] = [
     0xE8_A3_3D, 0x4F_C3_C1, 0xE0_7A_5F, 0x8E_7D_BE, 0xF2_CC_8F, 0x81_B2_9A, 0xEF_47_6F, 0x06_D6_A0, 0xFF_D1_66,
 ];
 
+/// Primi `n` caratteri di `s`.
+fn fit(s: &str, n: usize) -> &str {
+    &s[..s.len().min(n)]
+}
+
+/// Ultimi `n` caratteri di `s` (per il prompt, che deve restare visibile mentre si scrive).
+fn tail(s: &str, n: usize) -> &str {
+    &s[s.len().saturating_sub(n)..]
+}
+
 /// Stato visibile del desktop: icona selezionata e app aperta (la finestra mostra il suo nome).
 #[derive(Clone, Copy, Default)]
 pub struct View {
@@ -119,11 +129,12 @@ pub struct View {
 }
 
 /// Desktop: sfondo, barra, finestra a destra della griglia, 9 icone con etichette.
-/// Indice dell'icona CALC (la sola app con contenuto finora).
+/// Indici delle icone con contenuto: TERM e CALC.
+pub const TERM_INDEX: usize = 1;
 pub const CALC_INDEX: usize = 2;
 
-/// `screen` è il testo mostrato dalla calcolatrice quando è aperta.
-pub fn draw_desktop(f: &Fb, v: View, screen: &str) {
+/// Testo delle app con contenuto: `body[0]` e `body[1]` sono due righe (CALC: display; TERM: output e prompt).
+pub fn draw_desktop(f: &Fb, v: View, body: [&str; 2]) {
     f.rect(0, 0, f.w, f.h, BG);
     let bar = (f.h / 20).max(12);
     f.rect(0, 0, f.w, bar, BAR);
@@ -137,12 +148,14 @@ pub fn draw_desktop(f: &Fb, v: View, screen: &str) {
         None => f.text(wx + 8, wy + (bar - 5 * ts) / 2, "BENVENUTO", ts, BG),
         Some(i) => {
             f.text(wx + 8, wy + (bar - 5 * ts) / 2, "APERTA", ts, BG);
-            if i == CALC_INDEX {
-                f.text(wx + 8, wy + bar + 8, screen, ts, BG);
+            if i == CALC_INDEX || i == TERM_INDEX {
+                let n = ((ww - 16) / (4 * ts)) as usize;
+                let (a, b) = (fit(body[0], n), tail(body[1], n));
+                f.text(wx + 8, wy + bar + 8, a, ts, BG);
+                f.text(wx + 8, wy + bar + 8 + 6 * ts, b, ts, BG);
             } else {
                 f.text(wx + 8, wy + bar + 8, APPS[i], ts * 2, BG);
             }
-            f.text(wx + 8, wy + wh - 5 * ts - 8, "X CHIUDI", ts, BG);
         }
     }
     let cell = (f.w / 10).clamp(32, 96);
@@ -207,7 +220,7 @@ mod tests {
     fn prova(l: Layout, w: u32, h: u32, ppl: u32) {
         let mut buf = vec![0u8; (ppl * h * l.bytes) as usize];
         let f = Fb { base: buf.as_mut_ptr(), w, h, ppl, layout: l };
-        draw_desktop(&f, View::default(), "");
+        draw_desktop(&f, View::default(), ["", ""]);
         let cell = (w / 10).clamp(32, 96) as usize;
         for &c in ICONS.iter() {
             assert_eq!(conta(&buf, l, w, h, ppl, c), cell * cell, "icona {:06X}", c);

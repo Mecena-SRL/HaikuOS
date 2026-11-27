@@ -4,11 +4,13 @@
 
 mod calc;
 mod gfx;
+mod term;
 mod input;
 
 use core::ffi::c_void;
 use core::panic::PanicInfo;
 use calc::{Calc, Op};
+use term::Term;
 use gfx::{Fb, Layout, View};
 
 // EFI_SYSTEM_TABLE: BootServices a 96, ConOut a 64. SIMPLE_TEXT_OUTPUT_PROTOCOL: OutputString a 8.
@@ -141,8 +143,10 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         let n = gfx::APPS.len();
         let mut v = View { sel: Some(0), open: None };
         let mut calc = Calc::new();
+        let mut term = Term::new();
         let mut out = [0u8; 24];
-        gfx::draw_desktop(&fb, v, "");
+        let mut prompt = [0u8; 2 + term::MAX];
+        gfx::draw_desktop(&fb, v, ["", ""]);
         log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
         loop {
             match input::read_key(st) {
@@ -158,6 +162,7 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             b'\r' => {
                                 v.open = Some(sel);
                                 calc = Calc::new();
+                                term = Term::new();
                                 log("[ok] app aperta: ");
                                 log(gfx::APPS[sel]);
                                 log("\n");
@@ -188,6 +193,17 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             }
                             _ => {}
                         },
+                        Some(app) if app == gfx::TERM_INDEX => {
+                            if term.key(ch) {
+                                log("[ok] TERM: ");
+                                log(term.output());
+                                log("\n");
+                            }
+                            if term.exit {
+                                v.open = None;
+                                log("[ok] app chiusa\n");
+                            }
+                        }
                         Some(_) => {
                             if ch == b'x' {
                                 v.open = None;
@@ -195,9 +211,19 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
                             }
                         }
                     }
-                    let len = calc.format(&mut out);
-                    let text = core::str::from_utf8(&out[..len]).unwrap_or("");
-                    gfx::draw_desktop(&fb, v, text);
+                    let clen = calc.format(&mut out);
+                    let calc_txt = core::str::from_utf8(&out[..clen]).unwrap_or("");
+                    prompt[0] = b':';
+                    prompt[1] = b' ';
+                    let pl = term.line().len();
+                    prompt[2..2 + pl].copy_from_slice(term.line().as_bytes());
+                    let prompt_txt = core::str::from_utf8(&prompt[..2 + pl]).unwrap_or("");
+                    let body = if v.open == Some(gfx::TERM_INDEX) {
+                        [term.output(), prompt_txt]
+                    } else {
+                        [calc_txt, ""]
+                    };
+                    gfx::draw_desktop(&fb, v, body);
                 }
                 None => {
                     stall(10_000);
