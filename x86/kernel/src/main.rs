@@ -12,6 +12,7 @@ mod docs;
 mod fs;
 mod mem;
 mod io;
+mod pci;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
@@ -86,6 +87,10 @@ pub extern "C" fn kmain() -> ! {
     console::puts("[ok] RAM utilizzabile: ");
     console::put_dec((mem::usable() >> 20) as u32);
     console::puts(" MB\n");
+    let n = pci::report();
+    console::puts("[ok] PCI: ");
+    console::put_dec(n);
+    console::puts(" dispositivi\n");
     match fbo {
         Some(f) => {
             kprintln!("[ok] framebuffer VBE con desktop");
