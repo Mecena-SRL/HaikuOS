@@ -42,6 +42,9 @@ impl Layout {
     }
 }
 
+#[path = "../../../gba/src/font.rs"]
+mod font;
+
 /// Superficie di disegno sul framebuffer GOP. `base` deve puntare a una memoria valida di `ppl * h * bytes`.
 pub struct Fb {
     pub base: *mut u8,
@@ -73,6 +76,35 @@ impl Fb {
     }
 }
 
+impl Fb {
+    /// Testo maiuscolo con font 3x5 ingrandito di `scale` volte. Il bit più a sinistra è la colonna 0.
+    pub fn text(&self, x: u32, y: u32, s: &str, scale: u32, c: u32) {
+        let mut cx = x;
+        for b in s.bytes() {
+            for (ry, row) in font::glyph(b).iter().enumerate() {
+                for col in 0..font::GLYPH_W as u32 {
+                    if row & (0b100 >> col) != 0 {
+                        self.rect(cx + col * scale, y + ry as u32 * scale, scale, scale, c);
+                    }
+                }
+            }
+            cx += font::ADVANCE as u32 * scale;
+        }
+    }
+}
+
+/// Larghezza in pixel di `s` con il font a `scale` (senza lo spazio finale).
+pub fn text_width(s: &str, scale: u32) -> u32 {
+    if s.is_empty() {
+        0
+    } else {
+        (s.len() as u32 * font::ADVANCE as u32 - 1) * scale
+    }
+}
+
+/// Nomi delle nove app, nell'ordine delle icone (come nel desktop x86).
+pub const APPS: [&str; 9] = ["FILE", "TERM", "CALC", "WEB", "EDIT", "SET", "ORA", "READ", "DOC"];
+
 // Colori del tema 0 di HaikuOS (RRGGBB).
 pub const BG: u32 = 0x08_10_31;
 pub const BAR: u32 = 0x00_A5_FF;
@@ -88,14 +120,24 @@ pub fn draw_desktop(f: &Fb) {
     f.rect(0, 0, f.w, f.h, BG);
     let bar = (f.h / 20).max(12);
     f.rect(0, 0, f.w, bar, BAR);
-    f.rect(f.w / 4, f.h / 4, f.w / 2, f.h / 2, WINDOW);
-    f.rect(f.w / 4, f.h / 4, f.w / 2, bar, TITLE);
+    let ts = (bar / 6).max(1);
+    f.text(8, (bar - 5 * ts) / 2, "HAIKUOS", ts, BG);
+    // Finestra a destra della griglia di icone, così non copre le etichette.
+    let (wx, wy) = (f.w * 3 / 5, f.h / 4);
+    f.rect(wx, wy, f.w / 3, f.h / 2, WINDOW);
+    f.rect(wx, wy, f.w / 3, bar, TITLE);
+    f.text(wx + 8, wy + (bar - 5 * ts) / 2, "BENVENUTO", ts, BG);
     let cell = (f.w / 10).clamp(32, 96);
     let step = cell + cell / 2 + cell / 2;
     let margin = cell / 2;
+    let ls = (cell / 16).max(1);
     for (i, &c) in ICONS.iter().enumerate() {
         let (col, row) = ((i % 3) as u32, (i / 3) as u32);
-        f.rect(margin + col * step, bar + margin + row * step, cell, cell, c);
+        let (x, y) = (margin + col * step, bar + margin + row * step);
+        f.rect(x, y, cell, cell, c);
+        let label = APPS[i];
+        let lx = x + cell / 2 - text_width(label, ls) / 2;
+        f.text(lx, y + cell + ls * 2, label, ls, WINDOW);
     }
 }
 
@@ -144,6 +186,19 @@ mod tests {
         for &c in ICONS.iter() {
             assert_eq!(conta(&buf, l, w, h, ppl, c), cell * cell, "icona {:06X}", c);
         }
+    }
+
+    #[test]
+    fn testo_disegnato_con_font_3x5() {
+        let l = Layout::BGR8;
+        let (w, h, ppl) = (64u32, 16u32, 64u32);
+        let mut buf = vec![0u8; (ppl * h * l.bytes) as usize];
+        let f = Fb { base: buf.as_mut_ptr(), w, h, ppl, layout: l };
+        f.text(0, 0, "T", 2, 0xFFFFFF);
+        // Il glifo di T a scala 2: ogni pixel acceso diventa 2x2.
+        let accesi: u32 = font::glyph(b'T').iter().map(|r| r.count_ones()).sum();
+        assert_eq!(conta(&buf, l, w, h, ppl, 0xFFFFFF) as u32, accesi * 4);
+        assert_eq!(text_width("AB", 2), (2 * 4 - 1) * 2);
     }
 
     #[test]
