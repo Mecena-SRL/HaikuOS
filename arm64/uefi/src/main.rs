@@ -3,16 +3,34 @@
 #![no_main]
 
 mod gfx;
+mod input;
 
 use core::ffi::c_void;
 use core::panic::PanicInfo;
-use gfx::{Fb, Layout};
+use gfx::{Fb, Layout, View};
 
 // EFI_SYSTEM_TABLE: BootServices a 96, ConOut a 64. SIMPLE_TEXT_OUTPUT_PROTOCOL: OutputString a 8.
 // EFI_BOOT_SERVICES: LocateProtocol a 0x140, Stall a 0xF8.
 type OutputString = extern "efiapi" fn(*mut c_void, *const u16) -> usize;
 type LocateProtocol = extern "efiapi" fn(*const Guid, *mut c_void, *mut *mut c_void) -> usize;
 type Stall = extern "efiapi" fn(usize) -> usize;
+
+/// Log su seriale PL011 (il firmware scriverebbe sopra al desktop su ConOut).
+fn log(s: &str) {
+    for b in s.bytes() {
+        if b == b'\n' {
+            uart(b'\r');
+        }
+        uart(b);
+    }
+}
+
+fn uart(c: u8) {
+    unsafe {
+        while core::ptr::read_volatile(0x0900_0018 as *const u32) & (1 << 5) != 0 {}
+        core::ptr::write_volatile(0x0900_0000 as *mut u32, c as u32);
+    }
+}
 
 #[repr(C)]
 struct Guid {
@@ -117,11 +135,44 @@ pub extern "efiapi" fn efi_main(_image: *mut c_void, st: *mut c_void) -> usize {
         buf[at + 5] = b'\n' as u16;
         buf[at + 6] = 0;
         con_out_print(st, &buf);
-        gfx::draw_desktop(&fb);
-
-        // Attesa di 30 s (Stall): il firmware non ridisegna lo schermo.
         let stall = *(bs.add(0xF8) as *const Stall);
-        stall(30_000_000);
+        let n = gfx::APPS.len();
+        let mut v = View { sel: Some(0), open: None };
+        gfx::draw_desktop(&fb, v);
+        log("[ok] desktop: frecce con w a s d, Invio apre, x chiude, q esce\n");
+        loop {
+            match input::read_key(st) {
+                Some(k) => {
+                    let ch = k.unicode as u8;
+                    let sel = v.sel.unwrap_or(0);
+                    match (v.open, ch) {
+                        (None, b'd') => v.sel = Some((sel + 1) % n),
+                        (None, b'a') => v.sel = Some((sel + n - 1) % n),
+                        (None, b's') => v.sel = Some((sel + 3) % n),
+                        (None, b'w') => v.sel = Some((sel + n - 3) % n),
+                        (None, b'\r') => {
+                            v.open = Some(sel);
+                            log("[ok] app aperta: ");
+                            log(gfx::APPS[sel]);
+                            log("\n");
+                        }
+                        (Some(_), b'x') => {
+                            v.open = None;
+                            log("[ok] app chiusa\n");
+                        }
+                        (None, b'q') => {
+                            log("[ok] uscita\n");
+                            break;
+                        }
+                        _ => {}
+                    }
+                    gfx::draw_desktop(&fb, v);
+                }
+                None => {
+                    stall(10_000);
+                }
+            }
+        }
     }
     0 // EFI_SUCCESS
 }
