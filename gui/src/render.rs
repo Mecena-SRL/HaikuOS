@@ -223,6 +223,31 @@ fn hills<C: Canvas>(c: &mut C, w: i32, h: i32) {
     }
 }
 
+/// Puntatore a freccia: riempimento T1 con bordo T0 (bibbia §13).
+pub fn pointer<C: Canvas>(c: &mut C, x: i32, y: i32) {
+    for k in 0..12 {
+        c.fill(Rect::new(x, y + k, 2 + k * 2 / 3, 1), T0);
+    }
+    for k in 0..10 {
+        let w = k * 2 / 3;
+        if w > 0 {
+            c.fill(Rect::new(x + 1, y + k + 1, w, 1), T1);
+        }
+    }
+}
+
+/// Banner di notifica sotto la barra, centrato, T2 con testo T0 (bibbia §13).
+fn notice<C: Canvas>(c: &mut C, s: &Shell) {
+    let msg = s.notice();
+    if msg.is_empty() {
+        return;
+    }
+    let w = msg.len() as i32 * (FONT_W + 1) + 12;
+    let x = (s.w - w) / 2;
+    c.fill(Rect::new(x, BAR_H + 2, w, FONT_H + 4), T2);
+    c.text(x + 6, BAR_H + 4, msg, T0);
+}
+
 /// Smussa gli angoli di un pulsante 8×8 con un pixel T0 (solo x86, bibbia §13).
 fn corners<C: Canvas>(c: &mut C, r: Rect) {
     if c.rounded() {
@@ -323,6 +348,7 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         }
     }
 
+    notice(c, s);
     // Menu applicazioni: riga di ricerca, poi le voci che corrispondono; in cima a tutto.
     if s.menu {
         let rows = s.match_count().min(MENU_MAX);

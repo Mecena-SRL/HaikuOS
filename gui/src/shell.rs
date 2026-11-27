@@ -12,6 +12,8 @@ use crate::wm::Wm;
 pub const PER_PAGE: usize = 12;
 /// Lunghezza massima della ricerca nel menu.
 pub const QMAX: usize = 12;
+/// Lunghezza massima del banner di notifica.
+pub const NMAX: usize = 32;
 /// Voci mostrate nel menu.
 pub const MENU_MAX: usize = 10;
 
@@ -51,6 +53,9 @@ pub struct Shell {
     pub menu: bool,
     pub query: [u8; QMAX],
     pub qlen: usize,
+    /// Banner di notifica in alto (vuoto = nessun banner). Sparisce al prossimo clic o tasto.
+    pub notice: [u8; NMAX],
+    pub nlen: usize,
     /// Voce evidenziata nel menu (indice tra le voci filtrate).
     pub msel: usize,
     /// Trascinamento in corso: app, offset del puntatore dall'angolo della finestra.
@@ -95,6 +100,8 @@ impl Shell {
             menu: false,
             query: [0; QMAX],
             qlen: 0,
+            notice: [0; NMAX],
+            nlen: 0,
             msel: 0,
             drag: None,
             calc: Calc::new(),
@@ -391,6 +398,7 @@ impl Shell {
     /// Con una finestra aperta: B chiude, Select cambia finestra, il resto va all'app.
     /// Sul desktop: croce sceglie l'icona, A la apre.
     pub fn key(&mut self, k: Key) -> Event {
+        self.nlen = 0;
         if self.menu {
             let n = self.match_count();
             return match k {
@@ -467,7 +475,20 @@ impl Shell {
 
     /// Puntatore premuto (x86). Barra: menu e pulsanti finestra. Menu: voce. Finestre: pulsanti,
     /// trascinamento dal titolo, contenuto. Desktop: icone.
+    /// Mostra un banner di notifica (testo ASCII, troncato a `NMAX`).
+    pub fn notify(&mut self, msg: &str) {
+        let n = msg.len().min(NMAX);
+        self.notice[..n].copy_from_slice(&msg.as_bytes()[..n]);
+        self.nlen = n;
+    }
+
+    /// Testo del banner, vuoto se non c'è.
+    pub fn notice(&self) -> &str {
+        core::str::from_utf8(&self.notice[..self.nlen]).unwrap_or("")
+    }
+
     pub fn press(&mut self, x: i32, y: i32) -> Event {
+        self.nlen = 0;
         if y < BAR_H {
             if menu_button().contains(x, y) {
                 self.toggle_menu();
