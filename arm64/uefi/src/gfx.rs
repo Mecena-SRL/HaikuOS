@@ -138,8 +138,15 @@ pub const CALC_INDEX: usize = 2;
 /// Indice dell'icona ORA (orologio).
 pub const CLOCK_INDEX: usize = 6;
 
-/// Testo delle app con contenuto: `body[0]` e `body[1]` sono due righe (CALC: display; TERM: output e prompt).
-pub fn draw_desktop(f: &Fb, v: View, body: [&str; 2], theme: usize) {
+/// Indici delle app: FILE, WEB, EDIT, READ, DOC (le altre hanno già una funzione propria).
+pub const FILE_INDEX: usize = 0;
+pub const WEB_INDEX: usize = 3;
+pub const EDIT_INDEX: usize = 4;
+pub const READ_INDEX: usize = 7;
+pub const DOC_INDEX: usize = 8;
+
+/// Disegna il desktop. `body` sono le righe della finestra aperta (per CALC, TERM, READ, EDIT, ecc.).
+pub fn draw_desktop(f: &Fb, v: View, body: &[&str], theme: usize) {
     let [bg, window, title, bar_c] = THEMES[theme % THEMES.len()];
     f.rect(0, 0, f.w, f.h, bg);
     let bar = (f.h / 20).max(12);
@@ -154,17 +161,19 @@ pub fn draw_desktop(f: &Fb, v: View, body: [&str; 2], theme: usize) {
         None => f.text(wx + 8, wy + (bar - 5 * ts) / 2, "BENVENUTO", ts, bg),
         Some(i) => {
             f.text(wx + 8, wy + (bar - 5 * ts) / 2, "APERTA", ts, bg);
-            if i == CALC_INDEX || i == TERM_INDEX {
-                let n = ((ww - 16) / (4 * ts)) as usize;
-                let (a, b) = (fit(body[0], n), tail(body[1], n));
-                f.text(wx + 8, wy + bar + 8, a, ts, bg);
-                f.text(wx + 8, wy + bar + 8 + 6 * ts, b, ts, bg);
-            } else if i == SET_INDEX {
-                f.text(wx + 8, wy + bar + 8, body[0], ts * 2, bg);
-                f.text(wx + 8, wy + bar + 8 + 14 * ts, body[1], ts, bg);
-            } else if i == CLOCK_INDEX {
+            let n = ((ww - 16) / (4 * ts)) as usize;
+            if i == CLOCK_INDEX {
                 let sc = ((ww - 16) / 32).min(ts * 3).max(1);
-                f.text(wx + 8, wy + bar + 8, body[0], sc, bg);
+                f.text(wx + 8, wy + bar + 8, body.first().copied().unwrap_or(""), sc, bg);
+            } else if i == CALC_INDEX || i == TERM_INDEX || i == SET_INDEX || i == FILE_INDEX
+                || i == WEB_INDEX || i == EDIT_INDEX || i == READ_INDEX || i == DOC_INDEX
+            {
+                // Righe di testo: una ogni 6 px del font, finché entrano nella finestra.
+                let max_rows = ((wh - bar - 16) / (6 * ts)) as usize;
+                for (k, line) in body.iter().take(max_rows).enumerate() {
+                    let text = if i == TERM_INDEX && k == 1 { tail(line, n) } else { fit(line, n) };
+                    f.text(wx + 8, wy + bar + 8 + k as u32 * 6 * ts, text, ts, bg);
+                }
             } else {
                 f.text(wx + 8, wy + bar + 8, APPS[i], ts * 2, bg);
             }
@@ -232,7 +241,7 @@ mod tests {
     fn prova(l: Layout, w: u32, h: u32, ppl: u32) {
         let mut buf = vec![0u8; (ppl * h * l.bytes) as usize];
         let f = Fb { base: buf.as_mut_ptr(), w, h, ppl, layout: l };
-        draw_desktop(&f, View::default(), ["", ""], 0);
+        draw_desktop(&f, View::default(), &[""], 0);
         let cell = (w / 10).clamp(32, 96) as usize;
         for &c in ICONS.iter() {
             assert_eq!(conta(&buf, l, w, h, ppl, c), cell * cell, "icona {:06X}", c);
