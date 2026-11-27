@@ -4,6 +4,9 @@
 
 use core::arch::{asm, global_asm};
 use core::panic::PanicInfo;
+use core::sync::atomic::{AtomicU32, Ordering};
+
+static TICKS: AtomicU32 = AtomicU32::new(0);
 
 mod gic;
 mod mmu;
@@ -57,6 +60,10 @@ extern "C" {
 extern "C" fn irq_handler() {
     let iar = gic::ack();
     let id = iar & 0x3FF;
+    if id == timer::IRQ {
+        TICKS.fetch_add(1, Ordering::Relaxed);
+        timer::arm_tick(100);
+    }
     if id == uart::IRQ {
         uart::read_all(|c| {
             puts("RX:");
@@ -168,6 +175,12 @@ pub extern "C" fn kmain() -> ! {
     }
     irq_init();
     puts("[ok] GIC e UART RX con interrupt: scrivi nel seriale\n");
+    gic::enable_irq(timer::IRQ);
+    timer::arm_tick(100);
+    while TICKS.load(Ordering::Relaxed) < 3 {
+        unsafe { asm!("wfi") }
+    }
+    puts("[ok] timer con interrupt: 3 tick da 100 ms\n");
     loop {
         unsafe { asm!("wfi") }
     }

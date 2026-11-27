@@ -156,6 +156,7 @@ Stato su ARM64 (`arm64/`, QEMU virt, verificato):
 - **MMU:** identità, 0..1 GB device (UART), 1..2 GB RAM normale, blocchi da 1 GB. Attiva con cache.
 - **GIC e tastiera:** GICv2 e interrupt UART (IRQ 33). Su QEMU virt la "tastiera" è l'ingresso seriale: ogni carattere arriva con interrupt.
 - **UEFI:** `arm64/uefi/` (`aarch64-unknown-uefi`), avvio con firmware QEMU_EFI in QEMU virt: stampa su ConOut e ritorna. Verificato.
-- **Non ancora:** timer con interrupt, framebuffer UEFI (GOP), hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
+- **Timer con interrupt:** timer fisico EL1 (PPI 30) a 100 ms, verificato con 3 tick.
+- **Non ancora:** framebuffer UEFI (GOP), hardware reale e firmware reale. **Da verificare.** (virt non ha GOP; da fare con UEFI), boot UEFI su hardware reale. **Da verificare.**
 
 Regola: ogni architettura dichiara ciò che supporta. Ciò che manca si rifiuta in modo sicuro, senza avvio parziale.

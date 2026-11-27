@@ -25,7 +25,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 ## Stato
 
 - `x86/`: CPU (long mode, SSE2) e framebuffer generico (#204 unita). 16 bit non verificato in QEMU.
-- `arm64/`: avvio EL1, seriale PL011 (#205 unita). Timer generico (polling), MMU identità (#206 unita). GICv2 e interrupt UART per la tastiera (#207 unita). `arm64/uefi/`: app UEFI verificata in QEMU: questa PR. Non ancora: timer con interrupt, GOP, hardware reale.
+- `arm64/`: avvio EL1, seriale PL011 (#205 unita). Timer generico (polling), MMU identità (#206 unita). GICv2 e interrupt UART per la tastiera (#207 unita). `arm64/uefi/`: app UEFI verificata in QEMU: questa PR. Timer con interrupt (PPI 30): questa PR. Non ancora: GOP, hardware reale.
 - `devtools/`: manifest, ordine di build, verifica SHA-256 (#158 unita).
 - Build runner: `build.rs` + `hdev` (#162 unita).
 - Package manager: `pm.rs` (indice, risoluzione, installazione atomica; questa PR).
