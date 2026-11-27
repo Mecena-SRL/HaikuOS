@@ -119,7 +119,11 @@ pub struct View {
 }
 
 /// Desktop: sfondo, barra, finestra a destra della griglia, 9 icone con etichette.
-pub fn draw_desktop(f: &Fb, v: View) {
+/// Indice dell'icona CALC (la sola app con contenuto finora).
+pub const CALC_INDEX: usize = 2;
+
+/// `screen` è il testo mostrato dalla calcolatrice quando è aperta.
+pub fn draw_desktop(f: &Fb, v: View, screen: &str) {
     f.rect(0, 0, f.w, f.h, BG);
     let bar = (f.h / 20).max(12);
     f.rect(0, 0, f.w, bar, BAR);
@@ -133,7 +137,11 @@ pub fn draw_desktop(f: &Fb, v: View) {
         None => f.text(wx + 8, wy + (bar - 5 * ts) / 2, "BENVENUTO", ts, BG),
         Some(i) => {
             f.text(wx + 8, wy + (bar - 5 * ts) / 2, "APERTA", ts, BG);
-            f.text(wx + 8, wy + bar + 8, APPS[i], ts * 2, BG);
+            if i == CALC_INDEX {
+                f.text(wx + 8, wy + bar + 8, screen, ts, BG);
+            } else {
+                f.text(wx + 8, wy + bar + 8, APPS[i], ts * 2, BG);
+            }
             f.text(wx + 8, wy + wh - 5 * ts - 8, "X CHIUDI", ts, BG);
         }
     }
@@ -199,7 +207,7 @@ mod tests {
     fn prova(l: Layout, w: u32, h: u32, ppl: u32) {
         let mut buf = vec![0u8; (ppl * h * l.bytes) as usize];
         let f = Fb { base: buf.as_mut_ptr(), w, h, ppl, layout: l };
-        draw_desktop(&f, View::default());
+        draw_desktop(&f, View::default(), "");
         let cell = (w / 10).clamp(32, 96) as usize;
         for &c in ICONS.iter() {
             assert_eq!(conta(&buf, l, w, h, ppl, c), cell * cell, "icona {:06X}", c);
