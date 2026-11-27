@@ -29,7 +29,7 @@ echo "--- seriale ---"
 cat build/serial.log
 echo "--- verifica ---"
 fail=0
-for pat in "HaikuOS 0.1" "firma 0x55AA presente" "file system HAIKUFS1 letto" "Benvenuto in HaikuOS"; do
+for pat in "HaikuOS 0.1" "firma 0x55AA presente" "file system HAIKUFS1 letto" "Benvenuto in HaikuOS" "PCI: "; do
   if grep -q "$pat" build/serial.log; then echo "OK    $pat"; else echo "FALLITO $pat"; fail=1; fi
 done
 exit $fail
