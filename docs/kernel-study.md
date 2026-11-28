@@ -47,7 +47,11 @@ Priorità: **P1** serve alla prima versione; **P2** serve dopo; **P3** serve per
 - **Riga 8 (coda eventi):** già presente in `sim/src/input.rs` (coda fissa, conta gli scarti). Manca ancora il timestamp.
 - **Riga 9 (PS/2):** decodifica spostata in `ps2/` (crate `no_std`, senza I/O), usata dal kernel x86 in `x86/kernel/src/input.rs`. Test host in `ps2/src/lib.rs`.
 - **Correzione:** il pacchetto mouse sottraeva 256 ai valori negativi (dx=-2 diventava -258). Ora il byte è già con segno.
-- Righe 10, 11, 20, 21, 18 (P2/P3): non toccate.
+- **Riga 8 (coda eventi):** crate `evq/` (`haiku-evq`), coda generica a N slot con timestamp, scarti contati. Test host.
+- **Riga 10 (HID):** crate `hid/` (`haiku-hid`), parser puro del report descriptor in array fisso. Test con la tastiera boot.
+- **Riga 11 (xHCI):** crate `xhci/` (`haiku-xhci`), TRB a 16 byte, anello comandi con Link e bit di ciclo, lettura eventi. Nessun MMIO ancora.
+- Riga 9: già coperta da #287 (`ps2/`), nessuna modifica.
+- Righe 18, 20, 21 (P2/P3): non toccate.
 
 ## 3. Cosa scartiamo
 
