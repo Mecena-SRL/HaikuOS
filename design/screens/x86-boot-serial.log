@@ -1,0 +1,16 @@
+HaikuOS 0.1 - kernel x86-64 avviato in long mode
+[ok] seriale COM1 e VGA attivi
+[ok] framebuffer 800x600 bpp 24 pitch 2400
+[errore] disco ATA: settore 0 non letto
+[avviso] nessun disco: uso dati incorporati
+[ok] RAM utilizzabile: 511 MB
+[pci] altro
+[pci] altro
+[pci] IDE
+[pci] altro
+[pci] video
+[pci] rete
+[ok] PCI: 6 dispositivi
+[ahci] nessun controller AHCI
+[ok] AHCI: 0 dischi SATA
+[ok] framebuffer VBE con desktop
