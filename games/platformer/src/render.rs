@@ -90,6 +90,11 @@ pub struct Fb<'a> {
     /// Copertura di bordo e differenza interna della riga corrente (si azzerano a fine riga).
     cov: [u16; MAXW + 2],
     diff: [i32; MAXW + 2],
+    /// Area di vista in device px, unità 1/16: il resto viene tagliato da `bars`.
+    vx0: i32,
+    vx1: i32,
+    vy0: i32,
+    vy1: i32,
 }
 
 impl<'a> Fb<'a> {
@@ -99,7 +104,12 @@ impl<'a> Fb<'a> {
         let sc = (wi * 65536 / VIEW_W as i64).min(hi * 65536 / VIEW_H as i64);
         let ox = (wi - VIEW_W as i64 * sc / 65536) / 2;
         let oy = (hi - VIEW_H as i64 * sc / 65536) / 2;
-        Fb { buf, w: w as i32, h: h as i32, sc, ox: ox as i32, oy: oy as i32, cov: [0; MAXW + 2], diff: [0; MAXW + 2] }
+        Fb { buf, w: w as i32, h: h as i32, sc, ox: ox as i32, oy: oy as i32, cov: [0; MAXW + 2], diff: [0; MAXW + 2],
+            vx0: ox as i32 * 16,
+            vx1: (ox as i64 + VIEW_W as i64 * sc / 65536) as i32 * 16,
+            vy0: oy as i32,
+            vy1: (oy as i64 + VIEW_H as i64 * sc / 65536) as i32,
+        }
     }
 
     pub fn clear(&mut self, c: u32) {
@@ -185,7 +195,8 @@ impl<'a> Fb<'a> {
         let ymin = v.iter().map(|q| q.1).min().unwrap_or(0);
         let ymax = v.iter().map(|q| q.1).max().unwrap_or(0);
         let wd = self.w;
-        for row in (ymin >> 4).max(0)..((ymax + 15) >> 4).min(self.h) {
+        let (cx0, cx1) = (self.vx0, self.vx1.min(wd * 16));
+        for row in (ymin >> 4).max(self.vy0)..((ymax + 15) >> 4).min(self.vy1) {
             let (mut lo, mut hi) = (wd, -1);
             for k in 0..4 {
                 let sy = row * 16 + 2 + k * 4;
@@ -203,7 +214,7 @@ impl<'a> Fb<'a> {
                 }
                 xs[..m].sort_unstable();
                 for j in (0..m & !1).step_by(2) {
-                    let (xl, xr) = (xs[j].max(0), xs[j + 1].min(wd * 16));
+                    let (xl, xr) = (xs[j].max(cx0), xs[j + 1].min(cx1));
                     if xr <= xl {
                         continue;
                     }

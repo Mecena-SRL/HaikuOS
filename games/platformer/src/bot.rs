@@ -28,7 +28,7 @@ impl Bot {
         let pit = !g.lvl.solid(ahead, feet);
         let fungo = g.mobs.iter().any(|m| {
             let d = m.b.x - p.b.x;
-            m.alive && m.kind == MobKind::Fungo && d > 4 * SUB && d < 20 * SUB
+            m.alive && m.kind == MobKind::Fungo && d > 4 * SUB && d < 32 * SUB
         });
         let pit_soon = (1..=4).any(|k| !g.lvl.solid(ahead + k, feet));
         if p.on_ground && self.hold < 22 {
