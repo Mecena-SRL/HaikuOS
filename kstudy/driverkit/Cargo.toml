@@ -1,0 +1,11 @@
+[package]
+name = "driverkit"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Crate separato: no_std, nessuna dipendenza. Il driver gira sull'host (test)
+# e, in futuro, nel kernel tramite un adattatore `Bus` diverso.
+[dependencies]
+
+[workspace]
