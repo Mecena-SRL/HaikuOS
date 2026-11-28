@@ -82,3 +82,18 @@ Antialiasing sul canvas: `Canvas::blend(x, y, a, t)`. Di base è a soglia (pixel
 Limiti: al massimo 128 lati per glifo (quelli in eccesso sono scartati), `size ≤ 64`, stack di circa 3 KB per glifo.
 
 Test: `gui/tests/vfont.rs`. Demo: `cargo run --release --example vtext_demo -- 3840 2160 out.ppm`, immagini in `design/screens/vtext_*.png`.
+
+## 8. Animazioni (`gui/src/anim.rs`)
+
+Tutto a interi (ms, permille, µs), no_std, senza allocazione nel frame.
+
+| Tipo | Fa |
+|---|---|
+| `Ease`, `ease(e, t)` | easing su permille: Linear, InQuad, OutQuad, InOutQuad, OutCubic |
+| `Tween` | interpolazione `from`→`to` fra `start` e `start+dur` (ms) |
+| `Reactive` | valore con `set(target, now, dur, ease)`: riparte dal valore visualizzato, nessun salto |
+| `Slide` | transizione orizzontale tra due schermate: `offsets(now)` dà gli spostamenti |
+| `Shifted<C>` | vista di un `Canvas` spostata di `(dx, dy)`: si disegna una schermata come sempre |
+| `Budget` | registra µs per frame, conta gli sforamenti di `FRAME_US` (16 667 µs = 60 Hz) |
+
+Demo: `cargo run --release --features wide-font --example desktop_vector -- 1920 1080 out.ppm 500` disegna il frame a metà transizione e stampa il budget. Output: `design/screens/anim_transition_1920x1080.png`.
