@@ -7,7 +7,7 @@
 
 #![allow(dead_code)]
 
-use super::passwords::{Archivio, DIM_MAX};
+use super::passwords::{Archivio, Errore, DIM_MAX};
 use crate::ascon;
 
 pub const MAGIC: &[u8; 4] = b"HPW1";
@@ -94,13 +94,12 @@ pub fn apri(src: &[u8], password: &[u8], out: &mut Archivio) -> Result<(), Error
 pub const NOME: &[u8] = b"vault";
 /// Dimensione massima del file cifrato.
 pub const CAP: usize = INTESTAZIONE + DIM_MAX + TAG;
-/// Sale fisso: provvisorio, da sostituire con entropia reale (da fare).
-pub const SALE: [u8; 16] = *b"haikuos-vault-v1";
-const ALFABETO: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const ALFABETO: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%&*-_.+ 0123456789";
 /// Lunghezza massima della master password.
 pub const PW_MAX: usize = 16;
 
 /// Campo di inserimento della master password: su/giù cambia il carattere, A lo aggiunge, Select cancella.
+#[derive(Clone, Copy)]
 pub struct Ingresso {
     buf: [u8; PW_MAX],
     len: usize,
@@ -148,6 +147,56 @@ impl Ingresso {
     }
 }
 
+/// Sale casuale per una nuova cassaforte, dal seme di sistema (PRF Ascon). Unico per vault, non segreto.
+pub fn sale_da_seme(seme: u64) -> [u8; 16] {
+    let mut k = [0u8; 16];
+    k[..8].copy_from_slice(&seme.to_le_bytes());
+    let mut tag = [0u8; 16];
+    ascon::seal(&k, &[0; 16], b"haikuos-sale", &[], &mut tag);
+    tag
+}
+
+/// Sale e nonce dall'intestazione di un file cifrato (senza verificarlo).
+pub fn intestazione_di(src: &[u8]) -> Option<([u8; 16], [u8; 16])> {
+    if src.len() < INTESTAZIONE || &src[..4] != MAGIC {
+        return None;
+    }
+    let (mut sale, mut nonce) = ([0u8; 16], [0u8; 16]);
+    sale.copy_from_slice(&src[4..20]);
+    nonce.copy_from_slice(&src[20..36]);
+    Some((sale, nonce))
+}
+
+fn u64_da(n: &[u8; 16]) -> u64 {
+    let mut b = [0u8; 8];
+    b.copy_from_slice(&n[..8]);
+    u64::from_le_bytes(b)
+}
+
+/// Un campo di una voce in composizione.
+#[derive(Clone, Copy)]
+pub struct Campo {
+    dati: [u8; PW_MAX],
+    len: usize,
+}
+
+const CAMPO_VUOTO: Campo = Campo { dati: [0; PW_MAX], len: 0 };
+
+impl Campo {
+    pub fn bytes(&self) -> &[u8] {
+        &self.dati[..self.len]
+    }
+}
+
+/// Voce in composizione: tre campi (servizio, utente, segreto) e il campo corrente.
+/// `indice` è la voce da sostituire, `None` per una nuova.
+#[derive(Clone, Copy)]
+pub struct Modifica {
+    pub campi: [Campo; 3],
+    pub campo: usize,
+    pub indice: Option<usize>,
+}
+
 /// Stato della cassaforte nella finestra password.
 pub struct Cassa {
     pub aperta: bool,
@@ -159,6 +208,15 @@ pub struct Cassa {
     pub blob: [u8; CAP],
     pub blob_len: usize,
     pub da_salvare: bool,
+    /// Seme per il sale di una nuova cassaforte (impostato dal sistema a ogni passo).
+    pub seme: u64,
+    /// Voce in composizione, se c'è.
+    pub modifica: Option<Modifica>,
+    /// Master password dell'archivio aperto, per risalvarlo. Azzerata alla chiusura.
+    master: Ingresso,
+    sale: [u8; 16],
+    /// Contatore dei salvataggi: il nonce non si ripete mai con la stessa chiave.
+    contatore: u64,
 }
 
 impl Cassa {
@@ -171,6 +229,11 @@ impl Cassa {
             blob: [0; CAP],
             blob_len: 0,
             da_salvare: false,
+            seme: 0,
+            modifica: None,
+            master: Ingresso::new(),
+            sale: [0; 16],
+            contatore: 0,
         }
     }
 
@@ -179,28 +242,95 @@ impl Cassa {
     pub fn sblocca(&mut self, file: Option<&[u8]>) {
         match file {
             None => {
-                let a = Archivio::new();
-                match cifra(&a, self.ingresso.password(), &SALE, &[0; 16], &mut self.blob) {
-                    Ok(n) => {
-                        self.blob_len = n;
-                        self.da_salvare = true;
-                        self.archivio = a;
+                self.sale = sale_da_seme(self.seme);
+                self.contatore = 0;
+                self.archivio = Archivio::new();
+                self.master = self.ingresso;
+                if self.salva() {
+                    self.aperta = true;
+                    self.esito = b"";
+                } else {
+                    self.esito = b"ERRORE CREAZIONE";
+                }
+            }
+            Some(bytes) => match intestazione_di(bytes) {
+                None => self.esito = b"ARCHIVIO NON VALIDO",
+                Some((sale, nonce)) => match apri(bytes, self.ingresso.password(), &mut self.archivio) {
+                    Ok(()) => {
+                        self.sale = sale;
+                        self.contatore = u64_da(&nonce).wrapping_add(1);
+                        self.master = self.ingresso;
                         self.aperta = true;
                         self.esito = b"";
                     }
-                    Err(_) => self.esito = b"ERRORE CREAZIONE",
-                }
-            }
-            Some(bytes) => match apri(bytes, self.ingresso.password(), &mut self.archivio) {
-                Ok(()) => {
-                    self.aperta = true;
-                    self.esito = b"";
-                }
-                Err(ErroreVault::Password) => self.esito = b"PASSWORD ERRATA",
-                Err(_) => self.esito = b"ARCHIVIO NON VALIDO",
+                    Err(ErroreVault::Password) => self.esito = b"PASSWORD ERRATA",
+                    Err(_) => self.esito = b"ARCHIVIO NON VALIDO",
+                },
             },
         }
         self.ingresso.azzera();
+    }
+
+    /// Cifra l'archivio attuale in `blob` con un nuovo nonce. `false` se fallisce.
+    fn salva(&mut self) -> bool {
+        let mut nonce = [0u8; 16];
+        nonce[..8].copy_from_slice(&self.contatore.to_le_bytes());
+        match cifra(&self.archivio, self.master.password(), &self.sale, &nonce, &mut self.blob) {
+            Ok(n) => {
+                self.blob_len = n;
+                self.da_salvare = true;
+                self.contatore = self.contatore.wrapping_add(1);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Avvia la composizione di una voce nuova (`None`) o da sostituire (`Some(indice)`).
+    pub fn inizia(&mut self, indice: Option<usize>) {
+        self.modifica = Some(Modifica { campi: [CAMPO_VUOTO; 3], campo: 0, indice });
+        self.ingresso.azzera();
+        self.esito = b"";
+    }
+
+    /// Annulla la composizione in corso.
+    pub fn annulla(&mut self) {
+        self.modifica = None;
+        self.ingresso.azzera();
+    }
+
+    /// Conferma il campo corrente. Dopo l'ultimo campo inserisce o sostituisce la voce e salva.
+    pub fn avanti(&mut self) {
+        let Some(mut m) = self.modifica else { return };
+        let pw = self.ingresso.password();
+        let mut c = CAMPO_VUOTO;
+        c.dati[..pw.len()].copy_from_slice(pw);
+        c.len = pw.len();
+        m.campi[m.campo] = c;
+        m.campo += 1;
+        self.ingresso.azzera();
+        if m.campo < 3 {
+            self.modifica = Some(m);
+            return;
+        }
+        let [s, u, p] = &m.campi;
+        let r = match m.indice {
+            None => self.archivio.aggiungi(s.bytes(), u.bytes(), p.bytes()).map(|_| ()),
+            Some(i) => self.archivio.sostituisci(i, s.bytes(), u.bytes(), p.bytes()),
+        };
+        self.modifica = None;
+        self.esito = match r {
+            Ok(()) => {
+                if self.salva() {
+                    b""
+                } else {
+                    b"ERRORE SALVATAGGIO"
+                }
+            }
+            Err(Errore::Pieno) => b"ARCHIVIO PIENO",
+            Err(Errore::ServizioVuoto) => b"SERVIZIO VUOTO",
+            Err(_) => b"VOCE NON VALIDA",
+        };
     }
 
     /// Chiude l'archivio e azzera i dati in chiaro.
@@ -208,6 +338,8 @@ impl Cassa {
         self.aperta = false;
         self.archivio = Archivio::new();
         self.ingresso.azzera();
+        self.master.azzera();
+        self.modifica = None;
         self.esito = b"";
     }
 }
@@ -329,6 +461,47 @@ mod tests {
             }
             c.ingresso.aggiungi();
         }
+    }
+
+    #[test]
+    fn voce_inserita_e_modificata_persistono() {
+        let mut c = Cassa::new();
+        c.seme = 42;
+        digita(&mut c, b"K1");
+        c.sblocca(None);
+        c.inizia(None);
+        digita(&mut c, b"Mail");
+        c.avanti();
+        digita(&mut c, b"anna");
+        c.avanti();
+        digita(&mut c, b"seg1");
+        c.avanti();
+        assert_eq!(c.archivio.len(), 1);
+        assert!(c.da_salvare && c.esito.is_empty());
+        c.inizia(Some(0));
+        digita(&mut c, b"Banca");
+        c.avanti();
+        digita(&mut c, b"x");
+        c.avanti();
+        digita(&mut c, b"1234");
+        c.avanti();
+        assert_eq!(c.archivio.voce(0).unwrap().servizio(), b"Banca");
+        let salvato = c.blob[..c.blob_len].to_vec();
+        c.chiudi();
+        digita(&mut c, b"K1");
+        c.sblocca(Some(&salvato));
+        assert!(c.aperta);
+        assert_eq!(c.archivio.voce(0).unwrap().segreto(), b"1234");
+    }
+
+    #[test]
+    fn sale_diverso_per_seme_diverso() {
+        assert_ne!(sale_da_seme(1), sale_da_seme(2));
+        let mut c = Cassa::new();
+        c.seme = 7;
+        digita(&mut c, b"K1");
+        c.sblocca(None);
+        assert_eq!(intestazione_di(&c.blob[..c.blob_len]).unwrap().0, sale_da_seme(7));
     }
 
     #[test]

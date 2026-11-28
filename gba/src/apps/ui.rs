@@ -13,8 +13,9 @@ use crate::desktop::{App, KEY_A, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_SELECT, KEY_
 
 /// Passo di spostamento della vista foto, in pixel della foto.
 const PASSO_PAN: i32 = 4;
-/// Tasto L (sblocco della cassaforte, vedi `key_password`).
+/// Tasti L (sblocco e avanti nella voce) e R (nuova voce) della cassaforte.
 const KEY_L: u16 = 1 << 9;
+const KEY_R: u16 = 1 << 8;
 
 pub struct AppsUi {
     pub cassa: Cassa,
@@ -54,7 +55,8 @@ impl AppsUi {
     }
 
     /// Tasti della finestra password. Chiusa: su/giù cambia il carattere, A lo aggiunge, Select cancella,
-    /// L sblocca (o crea l'archivio se non esiste). Aperta: tasti normali. Ritorna true se cambia lo schermo.
+    /// L sblocca (o crea l'archivio se non esiste). Aperta: R nuova voce, Select modifica quella selezionata,
+    /// in composizione i tasti del campo, L avanti. Ritorna true se cambia lo schermo.
     pub fn key_password(&mut self, pressed: u16, fs: &Fs) -> bool {
         if !self.cassa.aperta {
             let mut cambiato = true;
@@ -72,6 +74,31 @@ impl AppsUi {
                 cambiato = false;
             }
             return cambiato;
+        }
+        if self.cassa.modifica.is_some() {
+            let mut cambiato = true;
+            if pressed & KEY_UP != 0 {
+                self.cassa.ingresso.su();
+            } else if pressed & KEY_DOWN != 0 {
+                self.cassa.ingresso.giu();
+            } else if pressed & KEY_A != 0 {
+                self.cassa.ingresso.aggiungi();
+            } else if pressed & KEY_SELECT != 0 {
+                self.cassa.ingresso.cancella();
+            } else if pressed & KEY_L != 0 {
+                self.cassa.avanti();
+            } else {
+                cambiato = false;
+            }
+            return cambiato;
+        }
+        if pressed & KEY_R != 0 {
+            self.cassa.inizia(None);
+            return true;
+        }
+        if pressed & KEY_SELECT != 0 && !self.cassa.archivio.is_empty() {
+            self.cassa.inizia(Some(self.cassa.archivio.selezionata()));
+            return true;
         }
         self.key(App::Passwords, pressed)
     }

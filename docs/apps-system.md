@@ -21,7 +21,7 @@ Risorse: RAM = stima di memoria statica; FS = file system; Cifr. = crittografia 
 | 3 | Orologio | Ora su 24 ore, HH:MM | RAM 8 B, timer/frame | nessuna | **Collegata** (`apps/clock.rs`) | Deriva dei 60 fps contro i ~59,73 reali: **da verificare** |
 | 4 | Impostazioni di sistema | Tema (4 palette), nome del sistema | RAM 16 B, FS (salvataggio) | `desktop-concept.md` | **Collegata** (`apps/settings.rs`) | Palette su schermo reale: da verificare |
 | 5 | Archiviatore | Crea, legge, decomprime archivi; cifra file e cartelle | Contenitore fatto; RAM e CPU da misurare | FS, Cifr. (Ascon), quote | Dopo 2–4 | Tempo di cifratura: da verificare |
-| 6 | Gestore password | Archivio cifrato di credenziali | RAM ~ decine di KB (da verificare) | Cifr., FS | Sblocco con master password e salvataggio nel file `vault` (`apps/vault.rs`, Ascon). Aggiunta voci da fare; sale fisso provvisorio | Costo KDF (`ITER`=512) su ARM7TDMI; dimensione in SRAM |
+| 6 | Gestore password | Archivio cifrato di credenziali | RAM ~ decine di KB (da verificare) | Cifr., FS | Sblocco, voci (nuova, modifica) e salvataggio nel file `vault` (`apps/vault.rs`, Ascon). Sale da seme di sistema (entropia debole, da migliorare) | Costo KDF (`ITER`=512) su ARM7TDMI; dimensione in SRAM |
 | 7 | Terminale | Shell di base (`ls`, `cd`, `cat`) | Superficie a caratteri | FS, superficie | In corso (altro thread) | Griglia 30×16: da verificare |
 | 8 | File manager | Elenca e apre directory | FS (lettura) | FS | In corso (altro thread) | 16 voci a schermo |
 | 9 | Utility disco | Stato dello store, spazio usato | FS (sola lettura) | FS | Media | Costo del conteggio: da verificare |
