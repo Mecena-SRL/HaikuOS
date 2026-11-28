@@ -338,6 +338,8 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             }
             if k == BOMB {
                 c.disc(x + BW as f32 / 2.0, y + BH as f32 / 2.0, 1.4, 0xFFFFF3C4);
+                let r = if (g.anim / 6) % 2 == 0 { 2.2 } else { 1.2 };
+                c.disc(x + BW as f32 - 3.0, y - 2.0, r, 0xFFFFF3C4);
             }
             if k == CRACKED {
                 c.rr(x + 6.0, y + 1.0, x + 8.0, y + 4.0, 0.5, CRACK_LINE, CRACK_LINE);
@@ -373,7 +375,9 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     let pad_x = g.paddle as f32 / sub;
     let (py0, py1) = (PAD_Y as f32, (PAD_Y + PAD_H) as f32);
     c.rr_a(pad_x - hw - 2.0, py0 - 2.0, pad_x + hw + 2.0, py1 + 2.0, 3.0, PAD_B, PAD_B, 0.3);
-    c.rr(pad_x - hw, py0, pad_x + hw, py1, 1.5, PAD_T, PAD_B);
+    let blink = g.wide > 0 && g.wide < 60 && (g.wide / 5) % 2 == 0;
+    let (pt, pb) = if blink { (0xFFFFFFFF, 0xFFFFFFFF) } else { (PAD_T, PAD_B) };
+    c.rr(pad_x - hw, py0, pad_x + hw, py1, 1.5, pt, pb);
 
     let mut buf = [0u8; 10];
     c.rr_a(-3.0, -3.0, pw + 3.0, 14.0, 0.5, 0xFF000000, 0xFF000000, 0.45);
@@ -432,6 +436,7 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             c.text_c(b"PUNTI", 78.0, 1.0, TXT);
             let s = num(g.score, &mut buf);
             c.text_c(s, 88.0, 1.0, TXT);
+            c.text_c(b"PREMI SPAZIO", 104.0, 1.0, TXT);
         }
         _ => {}
     }

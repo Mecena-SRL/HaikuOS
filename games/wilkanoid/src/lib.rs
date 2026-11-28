@@ -55,7 +55,7 @@ pub const DROP_MULTI: u8 = 1;
 
 /// Livelli: '0' vuoto, '1' normale, '2' acciaio (due colpi), '4' esplosivo.
 pub const LEVELS: [[&[u8; COLS]; ROWS]; 6] = [
-    [b"111111111", b"111111111", b"111111111", b"121111121", b"111111111", b"111111111"],
+    [b"200000002", b"110000011", b"111010111", b"111111111", b"111111111", b"000000000"],
     [b"000020000", b"000111000", b"001111100", b"011141110", b"111111111", b"101010101"],
     [b"222022022", b"111111111", b"202020202", b"111111111", b"222222222", b"010101010"],
     [b"000020000", b"000222000", b"002242200", b"022222220", b"222222222", b"022222220"],
@@ -145,6 +145,8 @@ pub struct Game {
     /// Tick del tutorial al primo livello (si ferma a `TUT_TICKS`).
     pub tut: u32,
     timer: u32,
+    /// Contatore di animazione (ticks di gioco), per fusibili e lampeggi.
+    pub anim: u32,
     rng: u32,
 }
 
@@ -169,6 +171,7 @@ impl Game {
             paused: false,
             tut: 0,
             timer: 0,
+            anim: 0,
             rng: seed | 1,
         };
         g.load(0);
@@ -331,6 +334,7 @@ impl Game {
     }
 
     fn play(&mut self) {
+        self.anim = self.anim.wrapping_add(1);
         if self.wide > 0 {
             self.wide -= 1;
         }
@@ -377,6 +381,7 @@ impl Game {
                 self.load(self.level + 1);
                 self.phase = Phase::Ready;
             } else {
+                self.score += self.lives as u32 * 500;
                 self.phase = Phase::Won;
             }
             return;
