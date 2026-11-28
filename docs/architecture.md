@@ -7,9 +7,17 @@
 HaikuOS è un sistema operativo modulare, leggero e sicuro.
 
 - **Obiettivo:** girare su hardware molto diverso tra loro, dalla Game Boy Advance (circa 288 KB di RAM) fino a ARM64 e AMD64.
-- **Primo uso previsto:** un desktop generico.
+- **Hardware di partenza:** la Game Boy Advance, come hardware primordiale da cui partire.
+- **Primo uso previsto:** documenti e giochi.
 - **Idea guida:** il sistema è fatto di parti piccole con confini chiari. Ogni parte fa poche cose e le fa bene.
+- **Priorità di progetto:** sicurezza, semplicità, velocità, in quest'ordine in caso di conflitto.
 - **Principio:** ridurre al minimo il codice che ha il potere di decidere su tutto (il "monolite", vedi sotto).
+
+## 1bis. Linguaggi
+
+- **Rust `no_std`** per kernel, agenti e servizi.
+- **Assembly** solo per l'avvio.
+- **C** come alternativa, se Rust risulta troppo grande per la Game Boy Advance. **Da verificare** con una misura reale.
 
 ## 2. Gli strati
 
@@ -44,6 +52,7 @@ Il monolite **non** contiene politiche di priorità, non decide cosa è più imp
 ### 2.4 Agente di allocazione
 Gestisce le richieste dei programmi (quanta memoria, quale risorsa) e la comunicazione sicura, sempre entro limiti fissi.
 All'inizio ce n'è uno solo. Non può superare i limiti che il monolite impone.
+L'agente **propone** le quote; il monolite **approva** e le fa rispettare entro i limiti fissi.
 
 ### 2.5 Microkernel per programma
 Ogni programma ha il suo microkernel minimo, che isola il programma dagli altri.
@@ -64,7 +73,12 @@ Un programma che si comporta come un unikernel: contiene solo ciò che gli serve
 ## 4. Regole di sicurezza
 
 1. **Non fidarsi ciecamente degli agenti.** Il monolite fa rispettare i limiti sempre, anche se un agente sbaglia o è compromesso.
-2. **Filtro dei messaggi a regole fisse (allowlist).** Un messaggio passa solo se una regola esplicita lo permette. Niente euristiche o "intuizioni" (da verificare: la lista delle regole iniziali).
+2. **Filtro dei messaggi a regole fisse (allowlist).** Un messaggio passa solo se una regola esplicita lo permette. Niente euristiche o "intuizioni". Regole iniziali:
+   - allowlist di coppie mittente-destinatario;
+   - dimensione massima fissa per ogni messaggio;
+   - id del mittente verificato dal monolite, non dichiarato dal messaggio;
+   - nessun messaggio può concedere diritti da solo.
+   (**Da verificare:** che la lista basti per il primo rilascio.)
 3. **Isolamento tra programmi.** Ogni programma gira nel proprio microkernel.
 4. **Revoca delle quote.** Il monolite può togliere una quota in qualsiasi momento.
 
@@ -96,16 +110,14 @@ Somma indicativa: 64 + 16 + 3 × 32 = 176 KB, quindi restano circa 112 KB per il
 - Mantenere ogni strato piccolo e testabile da solo.
 - Non scrivere codice o bootloader in questa fase: si parte dalla documentazione.
 
-## 8. Domande aperte
+## 8. Decisioni prese (da Ivan)
 
-Da decidere con Ivan:
-
-1. **Linguaggi di programmazione:** quali usare per ogni strato (kernel, agenti, programmi)?
-2. **Chi decide le quote:** il monolite le assegna in modo fisso, oppure l'agente le propone?
-3. **Filosofia:** quali sono i valori che hanno la precedenza in caso di conflitto (sicurezza, velocità, semplicità)?
-4. **Priorità:** quale uso è il primo da supportare dopo il desktop generico?
-5. **Limiti:** i valori della sezione 6 vanno bene come punto di partenza, o cambiano?
-6. **Filtro messaggi:** quali regole fisse sono necessarie al primo rilascio?
+1. **Linguaggi:** Rust `no_std` per kernel, agenti e servizi; assembly solo per l'avvio; C come alternativa (vedi 1bis).
+2. **Quote:** l'agente propone, il monolite approva e fa rispettare i limiti fissi.
+3. **Priorità:** sicurezza, semplicità, velocità.
+4. **Primo uso:** documenti e giochi.
+5. **Limiti:** la sezione 6 è il punto di partenza; il Game Boy Advance è l'hardware primordiale.
+6. **Primo filtro messaggi:** allowlist di coppie mittente-destinatario, dimensione massima fissa, id mittente verificato dal monolite, nessun messaggio concede diritti da solo.
 
 ## 9. Decisione: nucleo e piattaforme
 
