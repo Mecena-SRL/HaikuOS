@@ -88,3 +88,11 @@ Priorità: **P1** serve alla prima versione; **P2** serve dopo; **P3** serve per
 - [memory-security](memory-security.md): regole di memoria e sicurezza.
 - [x86-boot](x86-boot.md): avvio su x86.
 - [feasibility-gba](feasibility-gba.md): fattibilità GBA.
+
+## 8. Stato della grafica P1 (righe 4, 5, 6)
+
+- `gui/src/gfx.rs`: ritaglio, intersezione, `fill` e `copy` per riga (slice, niente ciclo per pixel), lista fissa `Dirty<N>` che si fonde da sola (niente allocazione).
+- Benchmark `desktop_vector` (media su 30 frame, host x86, rumorosa): 1920×1080 da ~4,1 ms a ~3,2 ms; 3840×2160 da ~15 ms a ~13 ms (target 16,7 ms rispettato sul disegno).
+- Angoli: il percorso a righe piene salta il test per pixel fuori dagli angoli (immagine identica al byte, verificata).
+- `present` copia le zone sporche nel front buffer. Con l'intera schermata sporca costa ~6–7 ms a 4K: il vantaggio vero arriva quando si ridisegna solo una zona (da collegare nel compositore).
+- Da fare: disegno limitato alla zona sporca dal compositore reale; misura su GBA con DMA3 (riga 5).

@@ -4,6 +4,7 @@
 #![no_std]
 
 pub mod anim;
+pub mod gfx;
 pub mod apps;
 #[path = "../../gba/src/chess.rs"]
 pub mod chess;
