@@ -20,6 +20,7 @@ const SKY_LOW: Rgb = [236, 128, 84];
 const EVENING: Rgb = [255, 150, 80];
 const SHADOW: Rgb = [0, 0, 0];
 const SMOKE: Rgb = [206, 206, 216];
+const CURSOR: Rgb = [255, 236, 140];
 
 /// Losanga di una tessera, in unità locali: 100 di larghezza, 50 di altezza, centro in (0, 0).
 const TILE: [(f32, f32); 4] = [(0.0, -25.0), (50.0, 0.0), (0.0, 25.0), (-50.0, 0.0)];
@@ -372,6 +373,19 @@ pub fn render(g: &Game, w: usize, h: usize) -> Frame {
             Building::Quarry => chimneys.push((s, 10.0, -22.0)),
             _ => {}
         }
+    }
+    // Cursore del giocatore: contorno della tessera selezionata.
+    let (qx, qy) = g.cursor;
+    let (cx, cy) = centre(qx, qy);
+    let s = Sprite {
+        cx,
+        cy,
+        k,
+        tint: None,
+    };
+    let pts: Vec<(f32, f32)> = TILE.iter().map(|&(x, y)| s.pt(x, y)).collect();
+    for j in 0..4 {
+        f.line(pts[j], pts[(j + 1) % 4], (3.0 * k).max(2.0), CURSOR);
     }
     for (s, dx, dy) in &chimneys {
         smoke(&mut f, &Sprite { tint: None, ..*s }, *dx, *dy);

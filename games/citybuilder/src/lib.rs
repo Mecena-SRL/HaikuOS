@@ -159,6 +159,7 @@ pub enum BuildError {
     Unbuildable,
     WrongTerrain,
     NoResources,
+    TurnLimit,
 }
 
 impl std::fmt::Display for BuildError {
@@ -169,6 +170,7 @@ impl std::fmt::Display for BuildError {
             BuildError::Unbuildable => write!(f, "l'acqua non si costruisce"),
             BuildError::WrongTerrain => write!(f, "terreno sbagliato per questo edificio"),
             BuildError::NoResources => write!(f, "risorse insufficienti"),
+            BuildError::TurnLimit => write!(f, "un edificio per turno: passa il turno con t"),
         }
     }
 }
@@ -180,6 +182,8 @@ pub struct Empire {
     pub knowledge: i32,
     pub citizens: u32,
     pub irrigation: bool,
+    /// Costruzione già fatta in questo turno: al massimo una per impero.
+    built_this_turn: bool,
     grid: Vec<Option<Building>>,
 }
 
@@ -190,6 +194,7 @@ impl Empire {
             knowledge: 0,
             citizens: 2,
             irrigation: false,
+            built_this_turn: false,
             grid: vec![None; map.w * map.h],
         }
     }
@@ -211,6 +216,9 @@ impl Empire {
         if i >= self.grid.len() {
             return Err(BuildError::OutOfBounds);
         }
+        if self.built_this_turn {
+            return Err(BuildError::TurnLimit);
+        }
         if self.grid[i].is_some() {
             return Err(BuildError::Occupied);
         }
@@ -224,6 +232,7 @@ impl Empire {
             return Err(BuildError::NoResources);
         }
         self.grid[i] = Some(b);
+        self.built_this_turn = true;
         Ok(())
     }
 
@@ -255,8 +264,10 @@ impl Empire {
             self.stock.food = 0;
             self.citizens = self.citizens.saturating_sub(1);
         } else if self.citizens < self.capacity() && self.stock.food >= 2 {
-            self.citizens += 1;
+            let growth = (1 + self.count(Building::Farm) as u32 / 3).min(3);
+            self.citizens = (self.citizens + growth).min(self.capacity());
         }
+        self.built_this_turn = false;
     }
 }
 
@@ -265,6 +276,7 @@ pub enum Status {
     Playing,
     Won,
     Lost,
+    Draw,
 }
 
 pub struct Game {
@@ -272,9 +284,19 @@ pub struct Game {
     pub player: Empire,
     pub rival: Empire,
     pub turns: u32,
+    /// Cursore del giocatore (x, y): dove agisce `b <edificio>`.
+    pub cursor: (usize, usize),
 }
 
 impl Game {
+    /// Sposta il cursore di un passo, senza uscire dalla mappa.
+    pub fn move_cursor(&mut self, dx: i32, dy: i32) {
+        let (x, y) = self.cursor;
+        let nx = (x as i32 + dx).clamp(0, self.map.w as i32 - 1) as usize;
+        let ny = (y as i32 + dy).clamp(0, self.map.h as i32 - 1) as usize;
+        self.cursor = (nx, ny);
+    }
+
     /// Due imperi su una mappa generata: il giocatore a ovest, l'IA a est.
     pub fn new(w: usize, h: usize, seed: u64) -> Self {
         assert!(w >= 8 && h >= 4, "mappa troppo piccola");
@@ -295,6 +317,7 @@ impl Game {
             player,
             rival,
             turns: 0,
+            cursor: (px, py),
         }
     }
 
@@ -311,9 +334,15 @@ impl Game {
     /// Vince chi raggiunge per primo `WIN_POP`; perde chi si estingue o
     /// lascia che l'IA lo superi. In caso di parità vince il giocatore.
     pub fn status(&self) -> Status {
-        if self.player.citizens >= WIN_POP {
-            Status::Won
-        } else if self.rival.citizens >= WIN_POP || self.player.citizens == 0 {
+        match (
+            self.player.citizens >= WIN_POP,
+            self.rival.citizens >= WIN_POP,
+        ) {
+            (true, true) => return Status::Draw,
+            (true, false) => return Status::Won,
+            _ => {}
+        }
+        if self.rival.citizens >= WIN_POP || self.player.citizens == 0 {
             Status::Lost
         } else {
             Status::Playing
@@ -403,11 +432,32 @@ mod tests {
             Err(BuildError::WrongTerrain)
         );
         assert_eq!(e.build(&map, 0, Building::House), Ok(()));
+        e.built_this_turn = false;
         assert_eq!(e.build(&map, 0, Building::House), Err(BuildError::Occupied));
         assert_eq!(
             e.build(&map, 99, Building::House),
             Err(BuildError::OutOfBounds)
         );
+    }
+
+    #[test]
+    fn un_edificio_per_turno() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(0, 100, 0, 0));
+        assert_eq!(e.build(&map, 0, Building::Farm), Ok(()));
+        assert_eq!(e.build(&map, 1, Building::Farm), Err(BuildError::TurnLimit));
+        e.tick();
+        assert_eq!(e.build(&map, 1, Building::Farm), Ok(()));
+    }
+
+    #[test]
+    fn parita_e_pareggio() {
+        let mut g = Game::new(8, 4, 1);
+        g.player.citizens = WIN_POP;
+        g.rival.citizens = WIN_POP;
+        assert_eq!(g.status(), Status::Draw);
+        g.rival.citizens = 0;
+        assert_eq!(g.status(), Status::Won);
     }
 
     #[test]

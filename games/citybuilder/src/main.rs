@@ -68,6 +68,20 @@ fn main() {
                     _ => println!("coordinate o edificio non validi"),
                 }
             }
+            ["w"] => g.move_cursor(0, -1),
+            ["s"] => g.move_cursor(0, 1),
+            ["a"] => g.move_cursor(-1, 0),
+            ["d"] => g.move_cursor(1, 0),
+            ["b", name] => match parse_building(name) {
+                Some(b) => {
+                    let (x, y) = g.cursor;
+                    let i = g.map.idx(x, y);
+                    if let Err(e) = g.player.build(&g.map, i, b) {
+                        println!("impossibile: {e}");
+                    }
+                }
+                None => println!("edificio sconosciuto"),
+            },
             ["q"] => break,
             _ => println!(
                 "comandi: t fine turno | b <casa|fattoria|legno|cava|mercato|biblioteca> <x> <y> | r ricerca | p pausa | q esci"
@@ -77,6 +91,10 @@ fn main() {
         match g.status() {
             Status::Won => {
                 println!("Vittoria: {WIN_POP} cittadini!");
+                break;
+            }
+            Status::Draw => {
+                println!("Pareggio: entrambi a {WIN_POP} cittadini.");
                 break;
             }
             Status::Lost => {
