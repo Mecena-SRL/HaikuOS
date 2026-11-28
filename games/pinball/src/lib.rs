@@ -33,7 +33,7 @@ pub const WALLS: [[i64; 4]; 7] = [
     [1, 1, 1, 200],       // sinistra
     [159, 1, 159, 232],   // destra
     [1, 200, 48, 232],    // uscita sinistra
-    [159, 200, 116, 232], // uscita destra
+    [138, 200, 116, 232], // uscita destra
     [138, 44, 138, 240],  // divisorio corsia
     [138, 14, 156, 40],   // guida corsia -> sinistra
 ];
@@ -97,6 +97,7 @@ pub struct Pinball {
     pub charge: i64,
     multi_done: bool,
     prev_plunger: bool,
+    ball_pts: u32,
 }
 
 impl Pinball {
@@ -116,6 +117,7 @@ impl Pinball {
             charge: 0,
             multi_done: false,
             prev_plunger: false,
+            ball_pts: 0,
         };
         p.reset();
         p
@@ -130,6 +132,7 @@ impl Pinball {
         self.charge = 0;
         self.multi_done = false;
         self.prev_plunger = false;
+        self.ball_pts = 0;
         self.state = State::Ready;
         self.balls = [Ball::default(); MAX_BALLS];
         self.balls[0] = Ball { pos: LANE, vel: (0, 0), live: true };
@@ -154,8 +157,9 @@ impl Pinball {
     }
 
     fn launch(&mut self) {
-        self.balls[0].vel = (0, -(4 + self.charge / 10) * FP);
+        self.balls[0].vel = (0, -(5 + self.charge / 10) * FP);
         self.charge = 0;
+        self.ball_pts = 0;
         self.state = State::Playing;
     }
 
@@ -204,14 +208,14 @@ impl Pinball {
                     }
                 }
                 // ogni impulso può superare VMAX dentro il sottopasso: limita subito
-                b.vel = (clamp(b.vel.0), clamp(b.vel.1));
-            }
-            for (j, s) in SENSORS.iter().enumerate() {
-                let (dx, dy) = (b.pos.0 - s.0 * FP, b.pos.1 - s.1 * FP);
-                if dx * dx + dy * dy < SENSOR_R * SENSOR_R && (lit & (1u8 << j)) == 0 {
-                    lit |= 1 << j;
-                    pts += 200;
+                for (j, s) in SENSORS.iter().enumerate() {
+                    let (dx, dy) = (b.pos.0 - s.0 * FP, b.pos.1 - s.1 * FP);
+                    if dx * dx + dy * dy < SENSOR_R * SENSOR_R && (lit & (1u8 << j)) == 0 {
+                        lit |= 1 << j;
+                        pts += 200;
+                    }
                 }
+                b.vel = (clamp(b.vel.0), clamp(b.vel.1));
             }
             if b.pos.1 > (TABLE_H + 3) * FP {
                 b.live = false;
@@ -220,6 +224,7 @@ impl Pinball {
         }
         self.lit = lit;
         self.score += pts * self.mult;
+        self.ball_pts += pts;
         if self.lit == SENSOR_ALL {
             self.lit = 0;
             self.mult = (self.mult + 1).min(5);
@@ -246,7 +251,9 @@ impl Pinball {
     }
 
     fn lose_ball(&mut self) {
-        self.score += 500 * self.mult; // bonus fine pallina
+        if self.ball_pts > 0 {
+            self.score += 500 * self.mult; // bonus fine pallina, solo se ha fatto punti
+        }
         self.lives -= 1;
         if self.lives == 0 {
             self.state = State::Over;
@@ -359,8 +366,9 @@ fn hit_circle(b: &mut Ball, c: V, rad: i64, e: i64) -> bool {
     if dot(b.vel, n) >= 0 {
         return false;
     }
+    let hard = -dot(b.vel, n) > 2 * FP; // almeno 2 px/tick di velocità d'urto
     b.vel = bounce(b.vel, n, e);
-    true
+    hard
 }
 
 #[cfg(test)]
@@ -491,6 +499,39 @@ mod tests {
         let high = g.high;
         g.reset();
         assert_eq!((g.score, g.lives, g.high), (0, 3, high));
+    }
+
+    #[test]
+    fn launch_clears_the_lane() {
+        let mut g = Pinball::new();
+        let hold = Input { plunger: true, ..Input::default() };
+        for _ in 0..40 {
+            g.tick(hold);
+        }
+        g.tick(Input::default());
+        let mut top = i64::MAX;
+        for _ in 0..200 {
+            g.tick(Input::default());
+            top = top.min(g.balls[0].pos.1);
+            assert!(g.balls[0].live);
+        }
+        assert!(top < 150 * FP, "la pallina non esce dalla corsia");
+    }
+
+    #[test]
+    fn immediate_drain_pays_no_bonus() {
+        let mut g = ball(80, 250, 0, 0);
+        g.tick(Input::default());
+        assert_eq!(g.score, 0);
+    }
+
+    #[test]
+    fn resting_ball_on_bumper_does_not_score() {
+        let mut g = ball(70, 95, 0, 0);
+        for _ in 0..2000 {
+            g.tick(Input::default());
+        }
+        assert!(g.score < 1000, "punti da pallina appoggiata: {}", g.score);
     }
 
     #[test]
