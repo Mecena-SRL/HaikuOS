@@ -8,6 +8,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 |---|---|---|---|
 | `kernel/` | OS, x86 32 bit | - | kernel Multiboot2, primo avvio su COM1 |
 | `caps/` | host, no_std | - | promesse per processo a bit, solo restringibili (kernel-study riga 15), test inline |
+| `sched/` | host, no_std | - | quote fisse per CPU, round robin, interi (kernel-study riga 16), test inline |
 | `setup/` | OS, `no_std` | - | logica primo avvio |
 | `sysapps/` | OS, `no_std` | - | browser ed editor di script |
 | `sim/` | host | - | simulatore monolite, agente, filtro messaggi |
