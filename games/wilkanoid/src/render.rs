@@ -372,6 +372,8 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         let (top, bot) = if d.kind == DROP_MULTI { (MULTI_T, MULTI_B) } else { (DROP_T, DROP_B) };
         c.rr_a(dx - 4.0, dy - 2.5, dx + 4.0, dy + 2.5, 2.5, bot, bot, 0.25);
         c.rr(dx - 3.0, dy - 1.5, dx + 3.0, dy + 1.5, 1.5, top, bot);
+        let lab: &[u8] = if d.kind == DROP_MULTI { b"MU" } else { b"LA" };
+        c.text(lab, dx - 4.0, dy - 8.0, 1.0, TXT);
     }
 
     let hw = g.half() as f32 / sub;
