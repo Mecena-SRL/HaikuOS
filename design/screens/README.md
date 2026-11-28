@@ -10,3 +10,5 @@ Stessa densità (~315 PPI) per 7" e 14": elementi identici in dimensione fisica,
 | Monitor | 3840×2160 | 14" | ≈315 | 8 | 480×270 |
 
 Il 4K ha il doppio dei punti logici in ogni direzione: quattro volte la superficie del 1080p, con icone e finestre della stessa dimensione fisica.
+
+La griglia icone scala con la larghezza logica: a 480 punti il passo raddoppia (icone distribuite su tutta la superficie). Le icone restano della stessa dimensione fisica.
