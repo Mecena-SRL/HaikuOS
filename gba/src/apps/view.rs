@@ -123,13 +123,25 @@ fn testo_a_capo(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, s: &[u
 /// Password: una voce alla volta. Il segreto è nascosto finché A non lo mostra.
 pub fn passwords(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &AppsUi, p: [u16; 4]) {
     body(fb, w, h, x0, y0, p);
-    let n = a.pass.len();
+    if !a.cassa.aperta {
+        font::draw(fb, w, h, x0 + 2, y0 + 2, b"MASTER PASSWORD", p[0]);
+        let ing = &a.cassa.ingresso;
+        let stelle = [b'*'; MAX_CAMPO];
+        font::draw(fb, w, h, x0 + 2, y0 + 16, &stelle[..ing.lunghezza()], p[0]);
+        font::draw(fb, w, h, x0 + 2, y0 + 30, &[ing.carattere()], p[2]);
+        if !a.cassa.esito.is_empty() {
+            font::draw(fb, w, h, x0 + 2, y0 + 44, a.cassa.esito, p[0]);
+        }
+        font::draw(fb, w, h, x0 + 2, y0 + 66, b"SU GIU A L SBLOCCA", p[2]);
+        return;
+    }
+    let n = a.cassa.archivio.len();
     if n == 0 {
         font::draw(fb, w, h, x0 + 2, y0 + 2, b"NESSUNA VOCE", p[0]);
         return;
     }
-    intestazione(fb, w, h, x0 + 2, y0 + 2, b"VOCE", a.pass.selezionata() + 1, n, p[0]);
-    if let Some(v) = a.pass.voce_selezionata() {
+    intestazione(fb, w, h, x0 + 2, y0 + 2, b"VOCE", a.cassa.archivio.selezionata() + 1, n, p[0]);
+    if let Some(v) = a.cassa.archivio.voce_selezionata() {
         font::draw(fb, w, h, x0 + 2, y0 + 12, v.servizio(), p[2]);
         font::draw(fb, w, h, x0 + 2, y0 + 22, b"UTENTE", p[0]);
         font::draw(fb, w, h, x0 + 2, y0 + 28, v.utente(), p[0]);

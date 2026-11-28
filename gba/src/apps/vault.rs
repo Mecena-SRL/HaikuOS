@@ -90,6 +90,128 @@ pub fn apri(src: &[u8], password: &[u8], out: &mut Archivio) -> Result<(), Error
     res
 }
 
+/// Nome del file nello spazio utente.
+pub const NOME: &[u8] = b"vault";
+/// Dimensione massima del file cifrato.
+pub const CAP: usize = INTESTAZIONE + DIM_MAX + TAG;
+/// Sale fisso: provvisorio, da sostituire con entropia reale (da fare).
+pub const SALE: [u8; 16] = *b"haikuos-vault-v1";
+const ALFABETO: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+/// Lunghezza massima della master password.
+pub const PW_MAX: usize = 16;
+
+/// Campo di inserimento della master password: su/giù cambia il carattere, A lo aggiunge, Select cancella.
+pub struct Ingresso {
+    buf: [u8; PW_MAX],
+    len: usize,
+    cur: usize,
+}
+
+impl Ingresso {
+    pub const fn new() -> Self {
+        Ingresso { buf: [0; PW_MAX], len: 0, cur: 0 }
+    }
+    pub fn giu(&mut self) {
+        self.cur = (self.cur + 1) % ALFABETO.len();
+    }
+    pub fn su(&mut self) {
+        self.cur = (self.cur + ALFABETO.len() - 1) % ALFABETO.len();
+    }
+    /// Aggiunge il carattere corrente. `false` se il campo è pieno.
+    pub fn aggiungi(&mut self) -> bool {
+        if self.len == PW_MAX {
+            return false;
+        }
+        self.buf[self.len] = ALFABETO[self.cur];
+        self.len += 1;
+        true
+    }
+    pub fn cancella(&mut self) {
+        if self.len > 0 {
+            self.len -= 1;
+            self.buf[self.len] = 0;
+        }
+    }
+    pub fn password(&self) -> &[u8] {
+        &self.buf[..self.len]
+    }
+    pub fn lunghezza(&self) -> usize {
+        self.len
+    }
+    /// Carattere selezionato in questo momento.
+    pub fn carattere(&self) -> u8 {
+        ALFABETO[self.cur]
+    }
+    pub fn azzera(&mut self) {
+        self.buf.fill(0);
+        self.len = 0;
+    }
+}
+
+/// Stato della cassaforte nella finestra password.
+pub struct Cassa {
+    pub aperta: bool,
+    pub ingresso: Ingresso,
+    pub archivio: Archivio,
+    /// Esito dell'ultimo tentativo (vuoto se nessun errore).
+    pub esito: &'static [u8],
+    /// File cifrato da scrivere in memoria, se `da_salvare`.
+    pub blob: [u8; CAP],
+    pub blob_len: usize,
+    pub da_salvare: bool,
+}
+
+impl Cassa {
+    pub const fn new() -> Self {
+        Cassa {
+            aperta: false,
+            ingresso: Ingresso::new(),
+            archivio: Archivio::new(),
+            esito: b"",
+            blob: [0; CAP],
+            blob_len: 0,
+            da_salvare: false,
+        }
+    }
+
+    /// Sblocca con la password inserita. `file` è il contenuto salvato, o `None` se non esiste ancora:
+    /// in quel caso crea un archivio vuoto cifrato con questa password.
+    pub fn sblocca(&mut self, file: Option<&[u8]>) {
+        match file {
+            None => {
+                let a = Archivio::new();
+                match cifra(&a, self.ingresso.password(), &SALE, &[0; 16], &mut self.blob) {
+                    Ok(n) => {
+                        self.blob_len = n;
+                        self.da_salvare = true;
+                        self.archivio = a;
+                        self.aperta = true;
+                        self.esito = b"";
+                    }
+                    Err(_) => self.esito = b"ERRORE CREAZIONE",
+                }
+            }
+            Some(bytes) => match apri(bytes, self.ingresso.password(), &mut self.archivio) {
+                Ok(()) => {
+                    self.aperta = true;
+                    self.esito = b"";
+                }
+                Err(ErroreVault::Password) => self.esito = b"PASSWORD ERRATA",
+                Err(_) => self.esito = b"ARCHIVIO NON VALIDO",
+            },
+        }
+        self.ingresso.azzera();
+    }
+
+    /// Chiude l'archivio e azzera i dati in chiaro.
+    pub fn chiudi(&mut self) {
+        self.aperta = false;
+        self.archivio = Archivio::new();
+        self.ingresso.azzera();
+        self.esito = b"";
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,5 +297,57 @@ mod tests {
         let mut altro = [0u8; INTESTAZIONE + DIM_MAX + TAG];
         let m = cifra(&a, b"pw", &[1; 16], &NONCE, &mut altro).unwrap();
         assert_ne!(&buf[INTESTAZIONE..n], &altro[INTESTAZIONE..m]);
+    }
+
+    #[test]
+    fn ingresso_cicla_e_cancella() {
+        let mut i = Ingresso::new();
+        assert_eq!(i.carattere(), b'A');
+        i.su();
+        assert_eq!(i.carattere(), b'9');
+        i.giu();
+        assert!(i.aggiungi());
+        i.giu();
+        assert!(i.aggiungi());
+        assert_eq!(i.password(), b"AB");
+        i.cancella();
+        assert_eq!(i.password(), b"A");
+        for _ in 0..PW_MAX {
+            i.aggiungi();
+        }
+        assert_eq!(i.lunghezza(), PW_MAX);
+        assert!(!i.aggiungi());
+        i.azzera();
+        assert_eq!(i.lunghezza(), 0);
+    }
+
+    fn digita(c: &mut Cassa, pw: &[u8]) {
+        c.ingresso.azzera();
+        for &ch in pw {
+            while c.ingresso.carattere() != ch {
+                c.ingresso.giu();
+            }
+            c.ingresso.aggiungi();
+        }
+    }
+
+    #[test]
+    fn cassa_crea_poi_sblocca_con_stessa_password() {
+        let mut c = Cassa::new();
+        digita(&mut c, b"ABC1");
+        c.sblocca(None);
+        assert!(c.aperta && c.da_salvare);
+        let salvato = c.blob[..c.blob_len].to_vec();
+        c.chiudi();
+        assert!(!c.aperta);
+        digita(&mut c, b"ABC2");
+        c.sblocca(Some(&salvato));
+        assert!(!c.aperta);
+        assert_eq!(c.esito, b"PASSWORD ERRATA");
+        digita(&mut c, b"ABC1");
+        c.sblocca(Some(&salvato));
+        assert!(c.aperta);
+        assert_eq!(c.archivio.len(), 0);
+        assert!(c.ingresso.password().is_empty());
     }
 }
