@@ -434,14 +434,13 @@ mod tests {
 mod ai_line {
     use super::*;
 
-    /// L'IA da sola resta entro il muro su ogni pista per 400 tick.
+    /// L'IA da sola resta entro il muro su ogni pista per 1500 tick.
     #[test]
-    #[ignore = "IA esce di pista (tick 55-105): da correggere, vedi docs/kart-3d-v2.md"]
     fn ai_stays_on_track_all_tracks() {
         for track in crate::track::TRACKS.iter() {
             let mut r = Race::new(track, 1, 1);
             r.countdown = 0;
-            for t in 0..400 {
+            for t in 0..1500 {
                 r.tick(None);
                 let k = r.karts[0];
                 let nr = track.nearest(k.x, k.y);
