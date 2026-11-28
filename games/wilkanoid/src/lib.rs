@@ -40,10 +40,10 @@ pub const CRACKED: u8 = 3;
 
 /// Livelli: '0' vuoto, '1' mattone normale, '2' acciaio (due colpi).
 pub const LEVELS: [[&[u8; COLS]; ROWS]; 4] = [
-    [b"111111111", b"111111111", b"111111111", b"111111111", b"111111111", b"111111111"],
+    [b"111111111", b"111111111", b"111111111", b"121111121", b"111111111", b"111111111"],
     [b"000010000", b"000111000", b"001111100", b"011111110", b"111111111", b"101010101"],
     [b"222022022", b"111111111", b"202020202", b"111111111", b"222222222", b"010101010"],
-    [b"000020000", b"000121000", b"001212100", b"012121210", b"001212100", b"000121000"],
+    [b"000020000", b"000222000", b"002222200", b"022222220", b"222222222", b"022222220"],
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -91,6 +91,8 @@ pub struct Game {
     pub cells: [[u8; COLS]; ROWS],
     /// Power-up che cadono.
     pub drops: [Option<(i32, i32)>; 4],
+    /// Fire premuto durante la perdita di vita: lancia alla fine della pausa.
+    pub launch: bool,
     pub trail: [(i32, i32); TRAIL],
     pub parts: [Part; PARTS],
     timer: u32,
@@ -111,6 +113,7 @@ impl Game {
             vel: (0, 0),
             cells: [[EMPTY; COLS]; ROWS],
             drops: [None; 4],
+            launch: false,
             trail: [(0, 0); TRAIL],
             parts: [Part::default(); PARTS],
             timer: 0,
@@ -153,7 +156,11 @@ impl Game {
                     }
                 }
             },
-            Phase::Lost => {}
+            Phase::Lost => {
+                if c == Cmd::Fire {
+                    self.launch = true;
+                }
+            }
         }
     }
 
@@ -164,6 +171,11 @@ impl Game {
                 self.timer = self.timer.saturating_sub(1);
                 if self.timer == 0 {
                     self.phase = Phase::Ready;
+                    if self.launch {
+                        self.launch = false;
+                        self.phase = Phase::Play;
+                        self.vel = (VX_MAX / 2, -VY);
+                    }
                 }
             }
             Phase::Play => self.play(),
@@ -278,8 +290,9 @@ impl Game {
             }
         }
 
-        // Mattoni: al primo colpo si rimbalza e si esce.
-        'bricks: for r in 0..ROWS {
+        // Mattoni: il primo colpo rimbalza; gli altri mattoni sfiorati nello stesso tick si rompono senza rimbalzo.
+        let mut bounced = false;
+        for r in 0..ROWS {
             for c in 0..COLS {
                 if self.cells[r][c] == EMPTY {
                     continue;
@@ -290,17 +303,23 @@ impl Game {
                 if x < bx0 - BALL_R || x > bx1 + BALL_R || y < by0 - BALL_R || y > by1 + BALL_R {
                     continue;
                 }
-                let from_above_below = !(py >= by0 && py <= by1);
-                let from_side = !(px >= bx0 && px <= bx1);
-                if from_above_below || !from_side {
-                    let up = py < by0;
-                    vy = if up { -vy.abs() } else { vy.abs() };
-                    y = if up { by0 - BALL_R } else { by1 + BALL_R };
-                }
-                if from_side {
-                    let left = px < bx0;
-                    vx = if left { -vx.abs() } else { vx.abs() };
-                    x = if left { bx0 - BALL_R } else { bx1 + BALL_R };
+                if !bounced {
+                    // Colpo da sopra/sotto: rimbalzo verticale. Da lato: orizzontale. Angolo: solo verticale.
+                    let from_above_below = !(py >= by0 && py <= by1);
+                    let from_side = !(px >= bx0 && px <= bx1);
+                    let vertical = from_above_below || !from_side;
+                    let horizontal = from_side && !from_above_below;
+                    if vertical {
+                        let up = py < by0;
+                        vy = if up { -vy.abs() } else { vy.abs() };
+                        y = if up { by0 - BALL_R } else { by1 + BALL_R };
+                    }
+                    if horizontal {
+                        let left = px < bx0;
+                        vx = if left { -vx.abs() } else { vx.abs() };
+                        x = if left { bx0 - BALL_R } else { bx1 + BALL_R };
+                    }
+                    bounced = true;
                 }
                 let cell = self.cells[r][c];
                 let pts = (self.level as u32 + 1) * if cell == NORMAL { 10 } else if cell == STEEL { 5 } else { 20 };
@@ -316,7 +335,6 @@ impl Game {
                         *slot = Some((bx0 + BW / 2 * SUB, by0));
                     }
                 }
-                break 'bricks;
             }
         }
         self.ball = (x, y);

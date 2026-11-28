@@ -364,9 +364,10 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
 
     match g.phase {
         Phase::Title => {
+            c.rr_a(-1.0, -1.0, pw + 1.0, ph + 1.0, 0.5, 0xFF000000, 0xFF000000, 0.5);
             c.panel(30.0, 40.0, 210.0, 98.0);
             c.text_c(b"WILKANOID", 52.0, 3.0, TXT);
-            c.text_c(b"PREMI SPAZIO", 80.0, 1.0, TXT);
+            c.text_c(b"PREMI SPAZIO", 80.0, 2.0, TXT);
         }
         Phase::Ready => c.text_c(b"PREMI SPAZIO", 96.0, 1.0, TXT),
         Phase::Lost => {
@@ -374,6 +375,7 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             c.text_c(b"VITA PERSA", 62.0, 2.0, TXT);
         }
         Phase::Over | Phase::Won => {
+            c.rr_a(-1.0, -1.0, pw + 1.0, ph + 1.0, 0.5, 0xFF000000, 0xFF000000, 0.5);
             c.panel(50.0, 40.0, 190.0, 98.0);
             let title: &[u8] = if g.phase == Phase::Over { b"GAME OVER" } else { b"VITTORIA" };
             c.text_c(title, 52.0, 2.0, TXT);
