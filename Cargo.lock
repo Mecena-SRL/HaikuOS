@@ -125,6 +125,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "haiku-engine"
+version = "0.1.0"
+
+[[package]]
 name = "haiku-kernel"
 version = "0.1.0"
 dependencies = [
