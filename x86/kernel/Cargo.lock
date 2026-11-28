@@ -14,9 +14,14 @@ name = "haiku-kernel"
 version = "0.1.0"
 dependencies = [
  "haiku-gui",
+ "haiku-memcore",
  "haiku-office",
  "haiku-ps2",
 ]
+
+[[package]]
+name = "haiku-memcore"
+version = "0.1.0"
 
 [[package]]
 name = "haiku-office"

@@ -42,6 +42,15 @@ Priorità: **P1** serve alla prima versione; **P2** serve dopo; **P3** serve per
 | 24 | Discovery | ACPI e device tree | Linux, FreeBSD, NetBSD | Scopre cosa c'è sulla scheda | x86-64 usa ACPI, ARM64 usa device tree | Parser minimo, solo per i dispositivi usati | P3 |
 | 25 | Osservabilità | Tracce a buffer circolare | illumos DTrace (concetto), Linux ftrace | Registra eventi a costo basso | Debug senza strumenti pesanti | Buffer fisso con etichette numeriche | P4 |
 
+### Stato P1 memoria (PR memcore)
+
+- Righe 12, 13, 14 implementate come crate `memcore/` (no_std, senza heap, test su host con `cargo test`):
+  - 12 `buddy.rs`: buddy su bitmap fissa, `alloc`/`free`/`release`, fusione dei compagni.
+  - 13 `pool.rs`: pool a N slot decisi a compilazione.
+  - 14 `prot.rs`: `Prot::new` rifiuta W+X; il tipo non ha variante W+X.
+- Collegate al boot x86: `x86/kernel/src/mem.rs` riempie il buddy dalla mappa E820 (fino a 256 MB), `init_phys` in `kmain`. Verifica QEMU non ancora fatta.
+- Scheduling: nessuna idea P1 in tabella. La riga 16 (quote) è P2 e non è stata fatta.
+
 ## 2b. Stato driver e input
 
 - **Riga 8 (coda eventi):** già presente in `sim/src/input.rs` (coda fissa, conta gli scarti). Manca ancora il timestamp.
