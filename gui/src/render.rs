@@ -44,7 +44,7 @@ pub trait Canvas {
             }
             let (bg, fg) = if i == sel { (T2, T0) } else { (T0, T2) };
             self.fill(Rect::new(r.x, y, r.w, MENU_ROW), bg);
-            self.text(r.x + 2, y + MENU_ROW - 2, label, fg);
+            self.text(r.x + 2, y + (MENU_ROW - FONT_H) / 2, label, fg);
         }
     }
     /// Pixel con copertura `a` (0..=255) del token `t`, per l'antialiasing. Di base: soglia a metà (pixel pieno).
@@ -100,11 +100,60 @@ fn round_corners<C: Canvas>(c: &mut C, f: Rect) {
     }
 }
 
+/// Tasti della calcolatrice, 4 colonne × 5 righe; `""` è cella vuota. Solo etichette: la logica è in `Calc`.
+const CALC_KEYS: [&str; 20] = [
+    "7", "8", "9", "/", //
+    "4", "5", "6", "*", //
+    "1", "2", "3", "-", //
+    "0", ".", "=", "+", //
+    "C", "", "", "",
+];
+
+/// Direzione di una lancetta in gradi (0 = ore 12, senso orario), come `(sin, -cos)` ×1000.
+/// Seno di Bhaskara I (errore < 0,2%): solo interi, nessuna tabella.
+fn hand(deg: i32) -> (i32, i32) {
+    fn sin(d: i32) -> i32 {
+        let d = d.rem_euclid(360);
+        if d >= 180 {
+            return -sin(d - 180);
+        }
+        let p = d * (180 - d);
+        16 * p * 1000 / (40500 - p)
+    }
+    (sin(deg), -sin(deg + 90))
+}
+
 /// Prefisso di `s` che entra in `cols` colonne di testo (4 px per carattere).
 fn clip(s: &str, cols: i32) -> &str {
     let n = (cols.max(0) as usize).min(s.len());
     s.get(..n).unwrap_or("")
 }
+
+/// Larghezza in px di `s`: vettoriale sui backend ricchi, bitmap (3×5 o 5×7) altrove.
+fn text_w(rich: bool, s: &str) -> i32 {
+    if rich {
+        crate::vfont::advance(LINE_H - 1, s)
+    } else {
+        s.len() as i32 * (FONT_W + 1)
+    }
+}
+
+/// Riga di testo in `x` entro `w` px: `vtext` sui backend ricchi, bitmap altrove (GBA invariato).
+fn label<C: Canvas>(c: &mut C, x: i32, y: i32, w: i32, s: &str, t: Tok, cols: i32) {
+    if c.rich() {
+        let mut n = s.len();
+        while n > 0 && (!s.is_char_boundary(n) || text_w(true, &s[..n]) > w) {
+            n -= 1;
+        }
+        c.vtext(x, y, LINE_H - 1, &s[..n], t);
+    } else {
+        c.text(x, y, clip(s, cols), t);
+    }
+}
+
+/// Icona vettoriale di un file (griglia 16×16 di `icon_vec`).
+const DOC_ICON: &[(i32, i32, i32, i32)] = &[(3, 1, 10, 14)];
+const DOC_LINES: &[(i32, i32, i32, i32)] = &[(5, 5, 6, 1), (5, 8, 6, 1), (5, 11, 4, 1)];
 
 /// Contenuto di una finestra: stato vero per FILE, TERM, CALC; testo statico per le altre.
 fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
@@ -115,15 +164,22 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
         1 if s.files.open => {
             let (_, body) = s.files_list[s.files.sel];
             for (k, line) in body.lines().take(rows).enumerate() {
-                c.text(cc.x, row_y(k), clip(line, cols), T0);
+                label(c, cc.x, row_y(k), cc.w, line, T0, cols);
             }
         }
         1 => {
             for (k, (name, _)) in s.files_list.iter().enumerate() {
                 if k == s.files.sel {
-                    c.fill(Rect::new(cc.x + 1, row_y(k), cc.w - 2, LINE_H), T2);
+                    c.rect_rounded(Rect::new(cc.x + 1, row_y(k), cc.w - 2, LINE_H), 2, T2);
                 }
-                c.text(cc.x + 1, row_y(k) + 1, clip(name, cols), T0);
+                let mut x = cc.x + 1;
+                if c.rich() {
+                    let cell = Rect::new(x + 1, row_y(k), LINE_H - 2, LINE_H - 2);
+                    c.icon_vec(cell, DOC_ICON, T1);
+                    c.icon_vec(cell, DOC_LINES, T0);
+                    x = cell.x + cell.w + 2;
+                }
+                label(c, x, row_y(k) + 1, cc.x + cc.w - x, name, T0, cols);
             }
         }
         2 => {
@@ -133,26 +189,40 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             for (k, idx) in (total.saturating_sub(rows)..total).enumerate() {
                 if idx < t.hn {
                     let line = core::str::from_utf8(&t.hist[idx][..t.hl[idx]]).unwrap_or("");
-                    c.text(cc.x, row_y(k), clip(line, cols), T0);
+                    label(c, cc.x, row_y(k), cc.w, line, T0, cols);
                 } else {
                     // Prompt ": " e cursore come blocco T2 (il font non ha il trattino basso).
                     let mut p = [0u8; TL + 2];
                     p[..2].copy_from_slice(b": ");
                     p[2..2 + t.len].copy_from_slice(&t.line[..t.len]);
                     let line = core::str::from_utf8(&p[..2 + t.len]).unwrap_or("");
-                    c.text(cc.x, row_y(k), clip(line, cols), T0);
-                    let cx = cc.x + (2 + t.len as i32) * (FONT_W + 1);
+                    label(c, cc.x, row_y(k), cc.w, line, T0, cols);
+                    let cx = cc.x + text_w(c.rich(), line);
                     if cx + FONT_W <= cc.x + cc.w {
-                        c.fill(Rect::new(cx, row_y(k), FONT_W, FONT_H), T2);
+                        c.rect_rounded(Rect::new(cx, row_y(k), FONT_W, FONT_H), 1, T2);
                     }
                 }
             }
         }
         3 => {
+            // Display T2 con cifre T0; tasti 4×5 arrotondati (T1), etichetta vettoriale.
             let mut buf = [0u8; 21];
             let shown = s.calc.show(&mut buf);
-            c.text(cc.x, row_y(0), shown, T0);
-            c.text(cc.x, row_y(2), clip("0-9 + - * / = C", cols), T0);
+            let disp = Rect::new(cc.x, cc.y, cc.w, 10);
+            c.rect_rounded(disp, 2, T0);
+            c.vtext(disp.x + 2, disp.y + 1, 8, shown, T1);
+            let gy = disp.y + disp.h + 2;
+            let (gap, kw) = (1, (cc.w - 3) / 4);
+            let kh = ((cc.y + cc.h - gy - 4) / 5).max(4);
+            for (i, key) in CALC_KEYS.iter().enumerate() {
+                if key.is_empty() {
+                    continue;
+                }
+                let (col, row) = ((i % 4) as i32, (i / 4) as i32);
+                let k = Rect::new(cc.x + col * (kw + gap), gy + row * (kh + gap), kw, kh - gap);
+                c.rect_rounded(k, 2, T2);
+                c.vtext(k.x + kw / 2 - 2, k.y + (k.h - kh / 2) / 2, (kh - 2).clamp(3, 8), key, T1);
+            }
         }
         4 => {
             // Pagina dalla riga di scorrimento; i collegamenti con la selezione in T2.
@@ -192,12 +262,15 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             }
             let code = ed.lines().min(7 - off);
             for i in 0..code {
-                c.text(cc.x, row_y(i + off), clip(ed.line(i), cols), T0);
+                label(c, cc.x, row_y(i + off), cc.w, ed.line(i), T0, cols);
             }
             let (r, col) = ed.cursor();
-            let cx = cc.x + col as i32 * (FONT_W + 1);
-            if r < code && cx + FONT_W <= cc.x + cc.w {
-                c.fill(Rect::new(cx, row_y(r + off), FONT_W, FONT_H), T2);
+            if r < code {
+                let line = ed.line(r);
+                let cx = cc.x + text_w(c.rich(), line.get(..col).unwrap_or(line));
+                if cx + FONT_W <= cc.x + cc.w {
+                    c.rect_rounded(Rect::new(cx, row_y(r + off), FONT_W, FONT_H), 1, T2);
+                }
             }
             if rows >= TEXT_ROWS {
                 c.fill(Rect::new(cc.x, row_y(7), cc.w, 1), T3);
@@ -210,21 +283,37 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
             }
         }
         6 => {
-            c.text(cc.x, row_y(0), "TEMA", T0);
-            c.text(cc.x, row_y(1), clip(THEME_NAMES[s.theme as usize % 3], cols), T0);
-            c.text(cc.x, row_y(3), clip("INVIO CAMBIA", cols), T0);
+            // Titolo vettoriale, poi la scelta del tema come menu (riga selezionata in T2).
+            c.vtext(cc.x, cc.y, 7, "TEMA", T2);
+            c.menu(Rect::new(cc.x, cc.y + 9, cc.w, MENU_ROW * THEME_NAMES.len() as i32), &THEME_NAMES, s.theme as usize % 3);
         }
         7 => {
-            c.text(cc.x, row_y(0), core::str::from_utf8(&s.clock).unwrap_or(""), T0);
-            c.text(cc.x, row_y(2), clip("EUROPA ROMA", cols), T0);
+            // Quadrante analogico (ore e minuti) a sinistra, orario digitale a destra.
+            let b = &s.clock;
+            let (h, m) = ((b[0] - b'0') as i32 * 10 + (b[1] - b'0') as i32, (b[3] - b'0') as i32 * 10 + (b[4] - b'0') as i32);
+            let d = cc.h.min(cc.w * 2 / 3);
+            let face = Rect::new(cc.x, cc.y, d, d);
+            c.rect_rounded(face, d / 3, T0);
+            let (cx, cy, r) = (face.x + d / 2, face.y + d / 2, d / 2 - 2);
+            for k in 0..12 {
+                let (dx, dy) = hand(k * 30);
+                c.line(cx + dx * r / 1000, cy + dy * r / 1000, cx + dx * (r - 2) / 1000, cy + dy * (r - 2) / 1000, 1, T2);
+            }
+            let (dx, dy) = hand((h % 12 * 60 + m) / 2);
+            c.line(cx, cy, cx + dx * r / 2000, cy + dy * r / 2000, 2, T2);
+            let (dx, dy) = hand(m * 6);
+            c.line(cx, cy, cx + dx * r * 9 / 10000, cy + dy * r * 9 / 10000, 1, T2);
+            let tx = face.x + d + 3;
+            c.vtext(tx, cc.y + cc.h / 2 - 6, 7, core::str::from_utf8(b).unwrap_or(""), T2);
+            c.vtext(tx, cc.y + cc.h / 2 + 6, 5, "EUROPA ROMA", T2);
         }
         8 => {
             // Lettore: nome del file scelto (←/→), poi il testo con scorrimento (↑/↓).
             let (name, body) = s.files_list[s.files.sel];
-            c.text(cc.x, row_y(0), clip(name, cols), T0);
+            label(c, cc.x, row_y(0), cc.w, name, T0, cols);
             c.fill(Rect::new(cc.x, row_y(1), cc.w, 1), T3);
             for (k, line) in body.lines().skip(s.rscroll).take(rows.min(TEXT_ROWS) - 2).enumerate() {
-                c.text(cc.x, row_y(k + 2), clip(line, cols), T0);
+                label(c, cc.x, row_y(k + 2), cc.w, line, T0, cols);
             }
         }
         10 => {

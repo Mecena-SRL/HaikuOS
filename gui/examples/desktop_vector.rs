@@ -1,16 +1,18 @@
 //! Scrivania reale disegnata da `render::draw_motion` su un `Canvas` a piena risoluzione.
 //! Unità logiche 240×135, scala intera (16 a 3840×2160, 8 a 1920×1080). Testo vettoriale (`vfont`)
 //! con antialiasing reale. Animazioni (`anim`): apertura/chiusura finestra e selettore reattivo.
-//! Uso:
-//!   desktop_vector W H out.ppm                 scrivania ferma
-//!   desktop_vector W H out.ppm MS open        calcolatrice che sale, a MS millisecondi
-//!   desktop_vector W H out.ppm MS close       calcolatrice che scende (chiusura)
-//!   desktop_vector W H out.ppm MS launch      selettore che scorre dall'icona FILE alla CALC
+//! Uso: cargo run --release --features wide-font --example desktop_vector -- W H out.ppm [modo] [icona]
+//!   modo: (assente) scrivania ferma | app=N finestra a schermo intero | open=MS | close=MS | launch=MS
+//!   open=MS   calcolatrice che sale a MS millisecondi; close=MS la fa scendere (chiusura)
+//!   launch=MS selettore che scorre dall'icona FILE alla CALC
+//!   icona: indice dell'icona da aprire prima del frame (screenshot delle app)
 //! Poi il PPM diventa PNG: `python3 -c "from PIL import Image; Image.open('out.ppm').save('out.png')"`.
+#![allow(dead_code)]
 use haiku_gui::anim::{Budget, Ease, Reactive, FRAME_US};
 use haiku_gui::icons;
+use haiku_gui::input::Key;
 use haiku_gui::layout::{icon_cell, Rect};
-use haiku_gui::render::{draw_motion, Canvas, Motion, STILL};
+use haiku_gui::render::{draw, draw_motion, Canvas, Motion, STILL};
 use haiku_gui::{vfont, Icon, Shell, Tok};
 use std::io::Write;
 
@@ -158,11 +160,32 @@ fn main() {
 
     let mut shell = Shell::new(&ICONS, LW, LH);
     shell.set_clock(10, 30);
+    // Quinto argomento (opzionale): indice dell'icona da aprire, per gli screenshot delle app.
+    if let Some(i) = a.get(5).and_then(|p| p.parse::<usize>().ok()) {
+        shell.sel = i;
+        let _ = shell.key(Key::A);
+    }
     let mut v = Vector { pw: w, ph: h, s: w / LW, buf: vec![0; (w * h) as usize] };
+    // "app=N": una sola finestra a schermo intero con l'app N (es. app=3 calcolatrice).
+    if let Some(n) = a.get(4).and_then(|p| p.strip_prefix("app=")).and_then(|p| p.parse::<u8>().ok()) {
+        let title = ICONS.iter().find(|i| i.app == n).map(|i| i.title).unwrap_or("");
+        shell.wm.open(n, title, LW - 2, LH - 2, LW, LH);
+        draw(&mut v, &shell);
+        let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
+        write!(f, "P6\n{w} {h}\n255\n").unwrap();
+        for px in &v.buf {
+            f.write_all(&[(px >> 16) as u8, (px >> 8) as u8, *px as u8]).unwrap();
+        }
+        println!("app {n} -> {out}");
+        return;
+    }
 
-    // Movimento: a `ms` millisecondi dall'inizio dell'animazione.
-    let ms = a.get(4).and_then(|p| p.parse::<u32>().ok());
-    let mode = a.get(5).map(String::as_str).unwrap_or("open");
+    // Movimento: "open=MS", "close=MS" o "launch=MS", a MS millisecondi dall'inizio.
+    let arg = a.get(4).map(String::as_str).unwrap_or("");
+    let (mode, ms) = match arg.split_once('=') {
+        Some((m, t)) => (m, t.parse::<u32>().ok()),
+        None => ("", None),
+    };
     let mut dy = [0i32];
     let mut sel = None;
     if let Some(ms) = ms {
@@ -182,12 +205,13 @@ fn main() {
                 y.set(to.y, 0, GLIDE_MS, Ease::OutCubic);
                 sel = Some(Rect::new(x.get(ms), y.get(ms), to.w, to.h));
             }
-            _ => {
+            "open" => {
                 shell.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
                 let mut r = Reactive::new(WIN_DY);
                 r.set(0, 0, OPEN_MS, Ease::OutCubic);
                 dy[0] = r.get(ms);
             }
+            _ => {}
         }
     }
     let m = if ms.is_some() { Motion { win_dy: &dy, sel } } else { STILL };

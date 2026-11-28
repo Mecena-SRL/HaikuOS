@@ -92,3 +92,21 @@ pub fn art(label: &str) -> &'static [Shape] {
         _ => A_DEFAULT,
     }
 }
+
+pub use crate::icon_vec_data::ICON_VEC;
+
+/// Rettangoli vettoriali (16×16) dell'icona `name` di `icons/gen.py`; None se sconosciuta.
+pub fn vec_rects(name: &str) -> Option<&'static [Cut]> {
+    ICON_VEC.iter().find(|(n, _)| *n == name).map(|(_, r)| *r)
+}
+
+/// Disegna l'icona vettoriale `name` nella cella `cell` con il token `t`. False se sconosciuta.
+pub fn draw_vec<C: crate::render::Canvas>(c: &mut C, cell: crate::layout::Rect, name: &str, t: Tok) -> bool {
+    match vec_rects(name) {
+        Some(r) => {
+            c.icon_vec(cell, r, t);
+            true
+        }
+        None => false,
+    }
+}

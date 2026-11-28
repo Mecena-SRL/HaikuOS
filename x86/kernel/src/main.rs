@@ -14,9 +14,11 @@ mod mem;
 mod io;
 mod pci;
 mod ahci;
+mod timer;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
+use haiku_gui::anim::{Budget, FRAME_US};
 use haiku_gui::render::Canvas;
 
 
@@ -46,6 +48,11 @@ pub extern "C" fn kmain() -> ! {
     console::init();
     kprintln!("HaikuOS 0.1 - kernel x86-64 avviato in long mode");
     kprintln!("[ok] seriale COM1 e VGA attivi");
+    console::puts("[ok] timer TSC ");
+    console::put_dec(timer::init());
+    console::puts(" MHz, frame ");
+    console::put_dec(FRAME_US);
+    console::puts(" us\n");
 
     let fbo = fb::init();
     match &fbo {
@@ -112,11 +119,13 @@ pub extern "C" fn kmain() -> ! {
             let (mut cx, mut cy) = (lw / 2, lh / 2); // cursore in unità logiche
             let mut left_prev = false;
             let mut acc = (0i32, 0i32);
-            let mut draw_now = true;
+            let mut dirty = true;
             let mut clock = (u8::MAX, u8::MAX);
+            let mut bud = Budget::new(FRAME_US);
+            let mut next_frame = timer::now_us();
+            let mut next_report = next_frame + 1_000_000;
+            let mut reported = 0;
             loop {
-                let mut dirty = draw_now;
-                draw_now = false;
                 let now = rtc::time();
                 if now != clock {
                     clock = now;
@@ -161,11 +170,36 @@ pub extern "C" fn kmain() -> ! {
                     }
                     None => {}
                 }
-                if dirty {
-                    let mut c = f.canvas(shell.theme as usize);
-                    haiku_gui::render::draw(&mut c, &shell);
-                    haiku_gui::render::pointer(&mut c, cx, cy);
-                    f.flush();
+                // Un frame per tick: si disegna solo allo scoccare del tick e solo se sporco.
+                let t = timer::now_us();
+                if t >= next_frame {
+                    next_frame += FRAME_US as u64;
+                    if t > next_frame + FRAME_US as u64 {
+                        next_frame = t + FRAME_US as u64; // in ritardo: riparte dal tick corrente
+                    }
+                    if dirty {
+                        let mut c = f.canvas(shell.theme as usize);
+                        haiku_gui::render::draw(&mut c, &shell);
+                        haiku_gui::render::pointer(&mut c, cx, cy);
+                        f.flush();
+                        bud.record((timer::now_us() - t) as u32);
+                        dirty = false;
+                    }
+                    if t >= next_report {
+                        next_report += 1_000_000;
+                        if bud.frames != reported {
+                            reported = bud.frames;
+                            console::puts("[budget] frame ");
+                            console::put_dec(bud.frames);
+                            console::puts(" sforati ");
+                            console::put_dec(bud.over);
+                            console::puts(" medio ");
+                            console::put_dec(bud.avg_us());
+                            console::puts(" us max ");
+                            console::put_dec(bud.max_us);
+                            console::puts(" us\n");
+                        }
+                    }
                 }
             }
         }
