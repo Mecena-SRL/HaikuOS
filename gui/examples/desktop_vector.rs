@@ -134,6 +134,19 @@ fn main() {
     let mut shell = Shell::new(&ICONS, LW, LH);
     shell.set_clock(10, 30);
     let mut v = Vector { pw: w, ph: h, s: w / LW, buf: vec![0; (w * h) as usize] };
+    // "app=N": una sola finestra a schermo intero con l'app N (es. app=3 calcolatrice).
+    if let Some(n) = a.get(4).and_then(|p| p.strip_prefix("app=")).and_then(|p| p.parse::<u8>().ok()) {
+        let title = ICONS.iter().find(|i| i.app == n).map(|i| i.title).unwrap_or("");
+        shell.wm.open(n, title, LW - 2, LH - 2, LW, LH);
+        draw(&mut v, &shell);
+        let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
+        write!(f, "P6\n{w} {h}\n255\n").unwrap();
+        for px in &v.buf {
+            f.write_all(&[(px >> 16) as u8, (px >> 8) as u8, *px as u8]).unwrap();
+        }
+        println!("app {n} -> {out}");
+        return;
+    }
     match a.get(4).and_then(|p| p.parse::<u32>().ok()) {
         Some(p) => {
             // Transizione: scrivania (vecchia) scivola via, calcolatrice (nuova) entra da destra.
