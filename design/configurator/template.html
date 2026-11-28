@@ -170,6 +170,21 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 /* legenda componenti testabili */
 #legend-tests{font-size:12px;padding:8px 12px;border-bottom:1px solid var(--line);line-height:1.5}
 #legend-tests b{display:block;margin-top:4px}
+.stage .bar b{cursor:pointer;padding:0 calc(var(--u)*.6);border-radius:var(--rad)}
+.stage .bar b:hover{background:rgba(16,33,57,.12)}
+.stage .bar b.app{font-weight:700;margin-right:calc(var(--u)*1)}
+.stage .bar b.on{background:var(--T0);color:var(--T3)}
+.stage .clk{cursor:pointer}
+.stage .mbdrop{display:none;position:absolute;top:calc(var(--u)*var(--barh,3));background:#fff;border:var(--sw) solid var(--T0);border-radius:var(--rad);padding:calc(var(--u)*.6) 0;font-size:calc(var(--u)*1.6);min-width:calc(var(--u)*14);z-index:6;box-shadow:0 calc(var(--u)*1) calc(var(--u)*2) rgba(0,0,0,.25)}
+.stage .mbdrop.open{display:block}
+.stage .mbdrop div{padding:calc(var(--u)*.6) calc(var(--u)*2);cursor:pointer;color:var(--T0);white-space:nowrap}
+.stage .mbdrop div:hover{background:var(--T2);color:var(--T1)}
+.stage .mbdrop hr{border:0;border-top:var(--sw) solid rgba(16,33,57,.15);margin:calc(var(--u)*.4) 0}
+.stage .wnotif{z-index:4}
+.stage .nx{position:absolute;right:calc(var(--u)*1.5);top:calc(var(--u)*1.5);cursor:pointer;font-size:calc(var(--u)*2.4);line-height:1;padding:0 calc(var(--u)*.5);border-radius:var(--rad)}
+.stage .nx:hover{background:var(--T3)}
+.stage.nclose .wnotif{display:none!important}
+.stage.nopen .wnotif{display:block}
 /* defaults, overridden by data-* set from answers */
 .stage[data-bar=bottom] .bar{top:auto;bottom:0}
 .stage[data-bar=none] .bar{display:none}
@@ -344,8 +359,19 @@ function updateStrokes(){const u=uPx(),st=$('stage').style;
  st.setProperty('--u',u+'px');
  st.setProperty('--sw',Math.max(1,Math.round(u/4))+'px');
  st.setProperty('--sw2',Math.max(2,Math.round(u/2))+'px');}
+const MENUS={fine:['Informazioni','Preferenze…','---','Esci'],modifica:['Annulla','Ripeti','---','Copia','Incolla'],vista:['Ingrandisci','Riduci','---','Schermo intero']};
+function showMenu(k,el){
+ const d=$('mbdrop');
+ document.querySelectorAll('.stage .bar b.on').forEach(x=>x.classList.remove('on'));
+ if(d.classList.contains('open')&&el.classList.contains('on')){d.classList.remove('open');return}
+ el.classList.add('on');
+ d.innerHTML=MENUS[k].map(x=>x==='---'?'<hr>':`<div>${x}</div>`).join('');
+ d.style.left=(el.offsetLeft)+'px';
+ d.classList.add('open');
+}
 function buildStage(){
- $('stage').innerHTML=`<div class="bar"><i></i><b>Fine</b><b>Modifica</b><b>Vista</b><span class="clk"></span></div>
+ $('stage').innerHTML=`<div class="bar"><i></i><b class="app">Calcolatrice</b><b data-menu="fine">Fine</b><b data-menu="modifica">Modifica</b><b data-menu="vista">Vista</b><span class="clk" data-x="clock"></span></div>
+ <div class="mbdrop" id="mbdrop"></div>
  <div class="win" id="win"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">Calcolatrice</div></div>
   <div class="sbar"></div><div class="body"><div class="wx"><div class="wc"><i></i>Opzione</div><div class="wr"><i></i>Scelta</div><div class="wsl"><b></b></div><div class="wpg"><b></b></div></div><div class="btn" data-tip="Pulsante primario">Continua</div>
   <div class="field">Scrivi qui…</div>
@@ -363,12 +389,16 @@ function buildStage(){
  <div class="wgrip"></div><div class="wghost"></div>
  <div class="wwin2"><div class="tb"><div class="t">Note</div></div><div class="body"><div class="field">Secondo documento</div></div></div>
  <div class="wovw"><span></span><span></span><span></span></div>
- <div class="wnotif"><b>Centro notifiche</b><div>Aggiornamento disponibile</div><div>Batteria al 40%</div></div>
+ <div class="wnotif"><b>Centro notifiche</b><span class="nx" data-x="nclose">×</span><div>Aggiornamento disponibile</div><div>Batteria al 40%</div></div>
  <div class="wlock"><div class="lk-t">12:00</div><div class="lk-f">Password</div><div class="lk-g"></div></div>
  <div class="wcur"></div>
  <div class="wwidget"><b>Meteo</b> 18°</div>`;
  $('stage').addEventListener('click',e=>{
   const t=e.target;
+  if(t.dataset.menu){showMenu(t.dataset.menu,t);return}
+  if(t.dataset.x==='clock'){const st=$('stage');st.classList.toggle('nopen');st.classList.remove('nclose');return}
+  if(t.dataset.x==='nclose'){const st=$('stage');st.classList.add('nclose');st.classList.remove('nopen');return}
+  if(!t.closest('.mbdrop')&&!t.dataset.menu){$('mbdrop').classList.remove('open');document.querySelectorAll('.stage .bar b.on').forEach(x=>x.classList.remove('on'))}
   if(t.dataset.x==='close'){t.closest('.win').classList.add('hide')}
   if(t.dataset.x==='min'){t.closest('.win').classList.toggle('hide')}
   if(t.classList.contains('ic')){$('win').classList.remove('hide')}
