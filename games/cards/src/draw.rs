@@ -326,6 +326,7 @@ pub struct Hit {
     w: i32,
     h: i32,
     a: u32,
+    k: bool,
 }
 
 /// Punti cliccabili del frame corrente. Si ricostruisce a ogni `draw`.
@@ -338,14 +339,14 @@ pub struct Ui {
 
 impl Ui {
     pub const fn new() -> Self {
-        Self { hits: [Hit { x: 0, y: 0, w: 0, h: 0, a: 0 }; 128], n: 0, focus: 0 }
+        Self { hits: [Hit { x: 0, y: 0, w: 0, h: 0, a: 0, k: true }; 128], n: 0, focus: 0 }
     }
     pub fn reset(&mut self) {
         self.n = 0;
     }
     pub fn hit(&mut self, x: i32, y: i32, w: i32, h: i32, a: u32) {
         if self.n < self.hits.len() {
-            self.hits[self.n] = Hit { x, y, w, h, a };
+            self.hits[self.n] = Hit { x, y, w, h, a, k: true };
             self.n += 1;
         }
     }
@@ -359,25 +360,35 @@ impl Ui {
             self.hit(x, y, w, h, a);
         }
     }
+    /// Pulsante solo mouse (es. nuova partita): non prende il fuoco da tastiera.
+    pub fn mouse_button(&mut self, p: &mut Pic, x: i32, y: i32, w: i32, h: i32, a: u32, label: &str) {
+        let n = self.n;
+        self.button(p, x, y, w, h, a, label, true);
+        if self.n > n {
+            self.hits[n].k = false;
+        }
+    }
     /// Azione sotto il punto (coordinate logiche); vince il punto disegnato per ultimo.
     pub fn click(&self, x: i32, y: i32) -> Option<u32> {
         (0..self.n).rev().map(|i| self.hits[i]).find(|h| x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h).map(|h| h.a)
     }
     pub fn next(&mut self) {
-        if self.n > 0 {
+        for _ in 0..self.n {
             self.focus = (self.focus + 1) % self.n;
+            if self.hits[self.focus].k { break; }
         }
     }
     pub fn prev(&mut self) {
-        if self.n > 0 {
+        for _ in 0..self.n {
             self.focus = (self.focus + self.n - 1) % self.n;
+            if self.hits[self.focus].k { break; }
         }
     }
     pub fn fire(&self) -> Option<u32> {
-        if self.focus < self.n { Some(self.hits[self.focus].a) } else { None }
+        if self.focus < self.n && self.hits[self.focus].k { Some(self.hits[self.focus].a) } else { None }
     }
     pub fn focus_frame(&self, p: &mut Pic) {
-        if self.focus < self.n {
+        if self.focus < self.n && self.hits[self.focus].k {
             let h = self.hits[self.focus];
             p.frame(h.x - 4, h.y - 4, h.w + 8, h.h + 8, 4, YEL);
         }
@@ -389,5 +400,5 @@ pub fn topbar(p: &mut Pic, ui: &mut Ui, title: &str, status: &str) {
     p.rect(0, 0, W, 64, DARK);
     p.text(30, 16, title, 32, WHITE);
     p.text(420, 20, status, 26, YEL);
-    ui.button(p, W - 300, 12, 260, 44, NEW, "NUOVA PARTITA", true);
+    ui.mouse_button(p, W - 300, 12, 260, 44, NEW, "NUOVA PARTITA");
 }
