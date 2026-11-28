@@ -37,6 +37,8 @@ const KART_H: Fx = int(8);
 const KERB_W: i32 = 4;
 const SUBS: i32 = 8;
 const N_TRACK: usize = 640;
+/// Distanza (16.16) oltre la quale la nebbia è al massimo.
+const FOG_FAR: Fx = int(900);
 const N_OBJ: usize = 256;
 
 #[derive(Clone, Copy, Default)]
@@ -172,7 +174,11 @@ fn paint(buf: &mut [u32], w: usize, h: usize, list: &mut [Quad]) {
         }
     }
     for q in list.iter() {
-        fill(buf, w, h, q);
+        // Nebbia di profondità: i poligoni lontani tendono al colore del cielo (max metà).
+        let t = (q.key.max(0) as i64 * 128 / FOG_FAR as i64).min(128) as u32;
+        let mut f = *q;
+        f.col = lerp(q.col, SKY_LOW, t);
+        fill(buf, w, h, &f);
     }
 }
 
