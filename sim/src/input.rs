@@ -34,8 +34,15 @@ pub enum Event {
     Release(Button),
 }
 
+/// Evento con l'istante di arrivo (unità scelta dal chiamante, es. ms di sistema).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Stamped {
+    pub at: u64,
+    pub ev: Event,
+}
+
 pub struct Input {
-    queue: Queue<Event>,
+    queue: Queue<Stamped>,
     dropped: u32,
 }
 
@@ -44,9 +51,14 @@ impl Input {
         Self { queue: Queue::new(depth), dropped: 0 }
     }
 
-    /// Errore `Full` se la coda è piena: l'evento si scarta e si conta.
+    /// Errore `Full` se la coda è piena: l'evento si scarta e si conta. Istante 0.
     pub fn push(&mut self, e: Event) -> Result<(), Error> {
-        let r = self.queue.push(e);
+        self.push_at(0, e)
+    }
+
+    /// Come `push`, con l'istante di arrivo.
+    pub fn push_at(&mut self, at: u64, e: Event) -> Result<(), Error> {
+        let r = self.queue.push(Stamped { at, ev: e });
         if r.is_err() {
             self.dropped += 1;
         }
@@ -54,6 +66,11 @@ impl Input {
     }
 
     pub fn poll(&mut self) -> Option<Event> {
+        self.queue.pop().map(|s| s.ev)
+    }
+
+    /// Come `poll`, ma con l'istante di arrivo.
+    pub fn poll_stamped(&mut self) -> Option<Stamped> {
         self.queue.pop()
     }
 
@@ -65,5 +82,28 @@ impl Input {
 impl Microkernel for Input {
     fn manifest(&self) -> Manifest {
         INPUT_MANIFEST
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn istanti_in_ordine_fifo() {
+        let mut i = Input::new(4);
+        i.push_at(10, Event::Press(Button::A)).unwrap();
+        i.push_at(25, Event::Release(Button::A)).unwrap();
+        let a = i.poll_stamped().unwrap();
+        assert_eq!((a.at, a.ev), (10, Event::Press(Button::A)));
+        assert_eq!(i.poll(), Some(Event::Release(Button::A)));
+        assert_eq!(i.poll_stamped(), None);
+    }
+
+    #[test]
+    fn push_senza_istante_vale_zero() {
+        let mut i = Input::new(2);
+        i.push(Event::Press(Button::B)).unwrap();
+        assert_eq!(i.poll_stamped().unwrap().at, 0);
     }
 }
