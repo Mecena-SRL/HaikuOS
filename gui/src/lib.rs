@@ -8,6 +8,7 @@ pub mod apps;
 #[path = "../../gba/src/chess.rs"]
 pub mod chess;
 pub mod icons;
+mod icon_vec_data;
 pub mod input;
 pub mod layout;
 pub mod palette;
