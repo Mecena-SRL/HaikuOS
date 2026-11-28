@@ -129,25 +129,27 @@ pub fn render(g: &Game) -> Frame {
             }
         }
     }
-    // HUD: etichetta a sinistra, barra proporzionale a ogni risorsa (scala fissa) a destra.
-    const BX: usize = 48;
+    // HUD: pannello con etichetta a sinistra e barra proporzionale a ogni risorsa (scala fissa) a destra.
+    const BX: i32 = 48;
+    let (mw, mh) = (mw as i32, mh as i32);
+    f.fill(Rect::new(0, mh, mw, HUD_H as i32), Tok::T0);
     let s = g.player.stock;
-    let bars: [(&str, i32, Rgb); 4] = [
-        ("CIBO", s.food, [230, 210, 80]),
-        ("LEGNO", s.wood, [110, 70, 30]),
-        ("PIETRA", s.stone, [170, 170, 180]),
-        ("ORO", s.gold, [240, 200, 60]),
+    let bars: [(&str, i32, Tok); 4] = [
+        ("CIBO", s.food, Tok::A(1)),
+        ("LEGNO", s.wood, Tok::A(3)),
+        ("PIETRA", s.stone, Tok::A(6)),
+        ("ORO", s.gold, Tok::A(9)),
     ];
-    for (row, (name, v, c)) in bars.iter().enumerate() {
-        let y = (mh + 6 + row * 12) as i32;
+    let max_len = mw - BX - 4;
+    for (row, (name, v, t)) in bars.iter().enumerate() {
+        let y = mh + 6 + row as i32 * 12;
         f.text(4, y + 1, name, Tok::T1);
-        let len = ((*v).max(0) as usize * 2).min(mw - BX - 4);
-        f.rect(BX, mh + 6 + row * 12, len, 8, *c);
+        f.rect_rounded(Rect::new(BX, y, ((*v).max(0) * 2).min(max_len), 8), 2, *t);
     }
-    let y = (mh + 6 + 4 * 12) as i32;
+    let y = mh + 6 + 4 * 12;
     f.text(4, y + 1, "POP", Tok::T1);
-    let pop = (g.player.citizens as usize * (mw - BX - 4)) / WIN_POP as usize;
-    f.rect(BX, mh + 6 + 4 * 12 + 2, pop.min(mw - BX - 4), 6, [90, 200, 255]);
+    let pop = (g.player.citizens as i32 * max_len) / WIN_POP as i32;
+    f.rect_rounded(Rect::new(BX, y + 2, pop.min(max_len), 6), 2, Tok::A(4));
     f
 }
 
@@ -171,5 +173,24 @@ pub fn overlay(f: &mut Frame, screen: Screen) {
         let (bg, fg) = if i == 0 { (Tok::T2, Tok::T0) } else { (Tok::T0, Tok::T2) };
         f.fill(Rect::new(p.x + 4, y, p.w - 8, MENU_ROW), bg);
         f.text(p.x + 8, y + 2, label, fg);
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use super::*;
+
+    /// Costo di un fotogramma (mappa + HUD): `cargo test --release -- --ignored --nocapture bench`.
+    #[test]
+    #[ignore]
+    fn bench_frame() {
+        let g = crate::Game::new(16, 10, 1);
+        let t = std::time::Instant::now();
+        for _ in 0..2000 {
+            let mut f = render(&g);
+            overlay(&mut f, Screen::Play);
+            std::hint::black_box(&f);
+        }
+        println!("BENCH citybuilder {:.1} us/frame", t.elapsed().as_secs_f64() * 1e6 / 2000.0);
     }
 }
