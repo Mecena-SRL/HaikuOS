@@ -183,6 +183,17 @@ pub fn state_hash(bodies: &[Body]) -> u32 {
     h
 }
 
+/// Hash FNV-1a di un buffer di pixel: serve per i test golden del renderer.
+pub fn frame_hash(px: &[u32]) -> u32 {
+    let mut h: u32 = 0x811c_9dc5;
+    for c in px {
+        for byte in c.to_le_bytes() {
+            h = (h ^ byte as u32).wrapping_mul(0x0100_0193);
+        }
+    }
+    h
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,4 +292,33 @@ mod tests {
         f2.blit(&Sprite { w: 2, h: 2, px: &sp }, 2, 2); // 2 pixel opachi visibili, 2 trasparenti
         assert_eq!(buf2.iter().filter(|&&c| c != 0).count(), 2);
     }
+}
+
+#[cfg(test)]
+mod golden {
+    use super::*;
+
+    /// Scena 480x272: mappa a tile con pavimento, uno sprite, un corpo che cade.
+    /// Il valore atteso va aggiornato solo con una modifica voluta al renderer o alla fisica.
+    #[test]
+    fn golden_frame_480x272() {
+        const W: usize = 30;
+        const H: usize = 17;
+        let mut cells = [0u8; W * H];
+        for x in 0..W {
+            cells[16 * W + x] = 1;
+        }
+        let map = Map { w: W, h: H, tile: 16, cells: &cells };
+        let mut b = Body { x: px(40), y: px(10), w: 8, h: 8, ..Default::default() };
+        for _ in 0..120 {
+            crate::replay::tick(&mut b, &map, crate::replay::RIGHT);
+        }
+        let mut buf = [0u32; 480 * 272];
+        let mut f = Frame { w: 480, h: 272, px: &mut buf };
+        f.clear(0xFF10_1020);
+        f.draw_map(&map, &[0, 0xFF88_AA44], 0, 0);
+        f.fill_rect(to_px(b.x), to_px(b.y), b.w, b.h, 0xFFFF_FFFF);
+        assert_eq!(frame_hash(&buf), GOLDEN);
+    }
+    const GOLDEN: u32 = 3995928773;
 }
