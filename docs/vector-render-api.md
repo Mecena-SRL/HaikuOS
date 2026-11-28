@@ -48,3 +48,13 @@ fn draw_score<C: Canvas>(c: &mut C, r: Rect, score: u32, t: Tok) {
     c.text(r.x + 4, r.y + 4, "PUNTI", t);
 }
 ```
+
+## 6. Scrivania a piena risoluzione
+
+`gui/examples/desktop_vector.rs` disegna `render::draw` su un `Canvas` a 32 bit, con unità logiche 240×135 e scala intera (16 a 3840×2160, 8 a 1920×1080). Un solo percorso, nessuna dipendenza nuova:
+
+```sh
+cd gui && cargo run --release --features wide-font --example desktop_vector -- 3840 2160 out.ppm
+```
+
+Output committati: `design/screens/desktop_vector_*.png`. Limiti: il testo è il font 5×8 scalato a blocchi, e lo sfondo usa ancora le colline (`hills`), non il wallpaper bitmap di `design/wallpapers/`.
