@@ -55,7 +55,8 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage .ic:active{transform:scale(.96)}
 .stage .win{position:absolute;left:12%;top:18%;width:58%;height:56%;background:var(--T1);border-radius:var(--rad);overflow:hidden;box-shadow:0 0 0 var(--bw,var(--hair,1px)) rgba(0,0,0,.15)}
 .stage .win.hide{display:none}
-.stage .tb{height:calc(var(--u)*var(--tbh,3));background:var(--T3);display:flex;align-items:center;gap:calc(var(--u)*1.2);padding:0 calc(var(--u)*2);font-weight:600;position:relative}
+.stage .win:not(.act) .tb{opacity:.6}
+.stage .tb{user-select:none;height:calc(var(--u)*var(--tbh,3));background:var(--T3);display:flex;align-items:center;gap:calc(var(--u)*1.2);padding:0 calc(var(--u)*2);font-weight:600;position:relative}
 .stage .tb .t{position:absolute;left:0;right:0;text-align:center;pointer-events:none}
 .stage .tb .bt{display:flex;gap:calc(var(--u)*1);z-index:1}
 .stage .tb .bt b{width:calc(var(--u)*1.6);height:calc(var(--u)*1.6);border-radius:var(--rad);background:var(--T2);display:block;cursor:pointer;transition:filter .12s}
@@ -374,7 +375,7 @@ function showMenu(k,el){
 function buildStage(){
  $('stage').innerHTML=`<div class="bar"><i></i><b class="mtitle">Calcolatrice</b><b data-menu="fine">Fine</b><b data-menu="modifica">Modifica</b><b data-menu="vista">Vista</b><span class="clk" data-x="clock"></span></div>
  <div class="mbdrop" id="mbdrop"></div>
- <div class="win" id="win"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">Calcolatrice</div></div>
+ <div class="win act" id="win"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">Calcolatrice</div></div>
   <div class="sbar"></div><div class="body"><div class="wx"><div class="wc"><i></i>Opzione</div><div class="wr"><i></i>Scelta</div><div class="wsl"><b></b></div><div class="wpg"><b></b></div></div><div class="btn" data-tip="Pulsante primario">Continua</div>
   <div class="field">Scrivi qui…</div>
   <div class="row"><div class="sw on" data-tip="Interruttore"></div><div class="sl" data-tip="Cursore"><i></i></div></div></div></div>
@@ -407,12 +408,30 @@ function buildStage(){
   if(t.classList.contains('sw'))t.classList.toggle('on');
   if(t.closest('.dock span')){document.querySelectorAll('.dock span').forEach(x=>x.classList.toggle('act',x===t));if(t.dataset.app==='2')$('win').classList.remove('hide');if(t.dataset.app==='3')$('wfm').classList.remove('hide')}
  });
+ $('stage').addEventListener('pointerdown',winDrag);
  $('stage').addEventListener('mouseover',e=>{
   const t=e.target.closest('[data-tip]');const tip=$('tip');
   if(!t){tip.classList.remove('on');return}
   tip.textContent=t.dataset.tip;const r=t.getBoundingClientRect(),s=$('stage').getBoundingClientRect(),k=$('stage').offsetWidth?r.width/t.offsetWidth:1;
   tip.style.left=((r.left-s.left)/k)+'px';tip.style.top=((r.top-s.top)/k-calcU()*4)+'px';tip.classList.add('on');
  });
+}
+// finestre: il clic porta in primo piano (stato attivo); trascinando la barra del titolo la finestra si sposta
+let Z=10;
+function winDrag(e){
+ const w=e.target.closest('.win');if(!w)return;
+ w.style.zIndex=++Z;
+ document.querySelectorAll('.stage .win').forEach(x=>x.classList.toggle('act',x===w));
+ const tb=e.target.closest('.tb');if(!tb||e.target.closest('.bt'))return;
+ const st=$('stage');const x0=e.clientX,y0=e.clientY,l0=w.offsetLeft,t0=w.offsetTop;
+ tb.setPointerCapture(e.pointerId);
+ const mv=ev=>{
+  const l=Math.max(0,Math.min(l0+ev.clientX-x0,st.offsetWidth-w.offsetWidth));
+  const t=Math.max(0,Math.min(t0+ev.clientY-y0,st.offsetHeight-w.offsetHeight));
+  w.style.left=l+'px';w.style.top=t+'px';
+ };
+ const up=()=>{tb.removeEventListener('pointermove',mv);tb.removeEventListener('pointerup',up)};
+ tb.addEventListener('pointermove',mv);tb.addEventListener('pointerup',up);
 }
 function calcU(){return uPx()}
 // MAP: option id -> [attribute, value]. Options not listed here are not visual.
