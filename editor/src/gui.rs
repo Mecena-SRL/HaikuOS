@@ -1,6 +1,7 @@
 //! Interfaccia dell'editor disegnata su framebuffer `u32` (ARGB). `no_std`.
 //! Il rendering è separato dalla piattaforma: il chiamante fornisce il buffer.
 
+use crate::dirty::Dirty;
 use crate::{History, Scene};
 
 /// Formato pixel nativo della piattaforma (u32 ARGB sull'host, u16 BGR555 sul GBA).
@@ -71,6 +72,7 @@ pub struct Editor<const W: usize, const H: usize, const N: usize, const U: usize
     pub cx: usize,
     pub cy: usize,
     pub brush: u8,
+    pub dirty: Dirty,
 }
 
 /// Tasti logici; la piattaforma li mappa dai tasti reali.
@@ -91,10 +93,21 @@ pub enum Key {
 
 impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H, N, U> {
     pub fn new(scene: Scene<W, H, N>) -> Self {
-        Self { scene, hist: History::default(), cx: 0, cy: 0, brush: 1 }
+        Self { scene, hist: History::default(), cx: 0, cy: 0, brush: 1, dirty: Dirty::new() }
     }
 
     pub fn handle(&mut self, k: Key) {
+        let old_y = self.cy;
+        self.apply(k);
+        if k == Key::Undo {
+            self.dirty.mark_all();
+        } else {
+            self.dirty.mark_row(old_y);
+            self.dirty.mark_row(self.cy);
+        }
+    }
+
+    fn apply(&mut self, k: Key) {
         match k {
             Key::Up => self.cy = self.cy.saturating_sub(1),
             Key::Down => self.cy = (self.cy + 1).min(H - 1),
@@ -114,6 +127,27 @@ impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H
             Key::Quit => {}
             Key::NextBrush => self.brush = (self.brush + 1) % PALETTE.len() as u8,
             Key::PrevBrush => self.brush = (self.brush + PALETTE.len() as u8 - 1) % PALETTE.len() as u8,
+        }
+    }
+
+    /// Ridisegna solo le righe sporche (`dirty`). Il chiamante pulisce `dirty` dopo.
+    pub fn draw_dirty<P: Pixel>(&self, c: &mut Canvas<P>, ts: usize) {
+        for y in (0..H).filter(|&y| self.dirty.is_dirty(y)) {
+            c.rect(0, y * ts, c.w, ts, 0xFF000000);
+            for x in 0..W {
+                let col = PALETTE[self.scene.tiles.cells[y][x] as usize % PALETTE.len()];
+                c.rect(x * ts, y * ts, ts - 1, ts - 1, col);
+                if self.scene.solid.cells[y][x] != 0 {
+                    c.rect(x * ts + ts / 3, y * ts + ts / 3, ts / 3, ts / 3, SOLID_COLOR);
+                }
+            }
+        }
+        for s in self.scene.sprites.iter().flatten().filter(|s| self.dirty.is_dirty(s.y as usize)) {
+            let col = SPRITE_COLORS[s.kind as usize % SPRITE_COLORS.len()];
+            c.rect(s.x as usize * ts + ts / 4, s.y as usize * ts + ts / 4, ts / 2, ts / 2, col);
+        }
+        if self.dirty.is_dirty(self.cy) {
+            c.frame(self.cx * ts, self.cy * ts, ts, ts, CURSOR_COLOR);
         }
     }
 
@@ -173,6 +207,19 @@ mod tests {
         assert_eq!(e.scene.solid.get(0, 0), Some(1));
         e.handle(Key::Solid);
         assert_eq!(e.scene.solid.get(0, 0), Some(0));
+    }
+
+    #[test]
+    fn draw_dirty_touches_only_changed_row() {
+        let mut e = E::new(Scene::default());
+        e.dirty.clear();
+        e.cy = 2;
+        e.handle(Key::Paint); // marca solo la riga 2
+        let mut buf = [0xDEADBEEFu32; 16 * 12];
+        let mut c = Canvas { px: &mut buf, w: 16, h: 12 };
+        e.draw_dirty(&mut c, 4);
+        assert_eq!(buf[0], 0xDEADBEEF); // riga 0 intatta
+        assert_eq!(buf[8 * 16], CURSOR_COLOR); // cornice cursore in riga 2
     }
 
     #[test]

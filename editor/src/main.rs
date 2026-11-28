@@ -117,7 +117,7 @@ fn save(s: &S, path: &str) {
 fn render(s: &S, out: &str) {
     use haiku_editor::{gui::Canvas, History};
     const TS: usize = 16;
-    let ed = Editor { scene: *s, hist: History::<8>::default(), cx: 0, cy: 0, brush: 1 };
+    let ed = Editor { scene: *s, hist: History::<8>::default(), cx: 0, cy: 0, brush: 1, dirty: haiku_editor::dirty::Dirty::new() };
     let (w, h) = (16 * TS, 12 * TS);
     let mut px = vec![0u32; w * h];
     ed.draw(&mut Canvas { px: &mut px, w, h }, TS);

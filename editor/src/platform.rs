@@ -22,15 +22,22 @@ pub fn run<const W: usize, const H: usize, const N: usize, const U: usize, P: Pl
     p: &mut P,
     ts: usize,
 ) {
+    frame(ed, p, ts); // primo frame completo (tutto sporco)
     while let Some(k) = p.poll_key() {
         if k == Key::Quit {
             break;
         }
         ed.handle(k);
-        let (w, h) = p.size();
-        ed.draw(&mut Canvas { px: p.buffer(), w, h }, ts);
-        p.present();
+        frame(ed, p, ts);
     }
+}
+
+/// Ridisegna le sole righe sporche, pulisce lo stato sporco e mostra.
+fn frame<const W: usize, const H: usize, const N: usize, const U: usize, P: Platform>(ed: &mut Editor<W, H, N, U>, p: &mut P, ts: usize) {
+    let (w, h) = p.size();
+    ed.draw_dirty(&mut Canvas { px: p.buffer(), w, h }, ts);
+    ed.dirty.clear();
+    p.present();
 }
 
 #[cfg(test)]
@@ -68,6 +75,6 @@ mod tests {
         let mut p = Fake { keys: [Some(Key::Right), Some(Key::Paint), Some(Key::Quit), Some(Key::Up)], n: 0, buf: [0; 48], presents: 0 };
         run(&mut ed, &mut p, 4);
         assert_eq!((ed.cx, ed.scene.tiles.get(1, 0)), (1, Some(1)));
-        assert_eq!(p.presents, 2); // dopo Quit non c'è più disegno
+        assert_eq!(p.presents, 3); // primo frame + 2 tasti; dopo Quit non c'è più disegno
     }
 }
