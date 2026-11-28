@@ -114,3 +114,16 @@ Logica pura, testata sull'host (`host/test_apps.rs`, 7 test nuovi). Ogni utility
 | Archiviatore cifrato | nessuno | `archive::seal`/`open` con Ascon-AEAD128 e test. Nessuna voce in UI né terminale. **Da verificare**: tempi su ARM7TDMI |
 
 Nota: una foto piena (240×160×2 B ≈ 75 KB) non entra nello store da 8 KB né in uno slot da 32 KB: per questo la miniatura è 1 bit.
+
+## Logica delle utility di sistema (non collegate)
+
+| Modulo | App | Dati in ingresso | Stato |
+|---|---|---|---|
+| `apps/registri.rs` | Registri | Voci di log (anello fisso, 8 voci) | Logica testata, non nel desktop |
+| `apps/connessioni.rs` | Connessioni | Stato rete e IP (`Offline` finché il net stack non c'è) | Logica testata, non nel desktop |
+| `apps/dischi.rs` | Dischi | Byte usati e totali per spazio (sistema, utente) | Logica testata, non nel desktop |
+| `apps/analisi.rs` | Analizzatore disco | Classifica dei file più grandi (top 3), barra 10 caselle | Logica testata, non nel desktop |
+| `apps/caratteri.rs` | Caratteri | Conteggi da `fontmgr` (installati, attivi) | Logica testata, non nel desktop |
+
+Test host: `cd gba && rustc --edition 2021 --test host/test_sistema.rs -o /tmp/sis_t && /tmp/sis_t` (12 test, tutti ok).
+Il disegno e il collegamento al lanciatore (`desktop.rs`, `ui.rs`) sono il passo successivo: **da verificare** su schermo e memoria.
