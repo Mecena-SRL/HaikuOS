@@ -106,6 +106,20 @@ impl Fb {
         unsafe { core::ptr::write_volatile(p as *mut u32, c) }
     }
 
+    /// Riempie un rettangolo fisico (ritagliato) nel buffer di lavoro, riga per riga.
+    fn span(&self, x: i32, y: i32, w: i32, h: i32, c: u32) {
+        let x0 = x.max(0);
+        let x1 = (x + w).min(self.w);
+        if x0 >= x1 {
+            return;
+        }
+        for py in y.max(0)..(y + h).min(self.h) {
+            let p = (self.back + (py as usize * self.w as usize + x0 as usize) * 4) as *mut u32;
+            // Buffer di lavoro in RAM (non MMIO): scrittura normale, LLVM la vettorizza.
+            unsafe { core::slice::from_raw_parts_mut(p, (x1 - x0) as usize).fill(c) }
+        }
+    }
+
     /// Copia il buffer di lavoro sulla scheda video in un solo passo (niente sfarfallio).
     pub fn flush(&self) {
         let (w, h) = (self.w as usize, self.h as usize);
@@ -166,13 +180,6 @@ impl<'a> Scaled<'a> {
         }
     }
 
-    fn rect_px(&self, x0: i32, y0: i32, x1: i32, y1: i32, c: u32) {
-        for y in y0..y1 {
-            for x in x0..x1 {
-                self.fb.put(x, y, c);
-            }
-        }
-    }
 }
 
 impl<'a> Canvas for Scaled<'a> {
@@ -201,16 +208,20 @@ impl<'a> Canvas for Scaled<'a> {
         for &(x, y, w, h, t) in icons::art(label) {
             let (x0, x1) = (x * k / 32, ((x + w) * k / 32).max(x * k / 32 + 1));
             let (y0, y1) = (y * k / 32, ((y + h) * k / 32).max(y * k / 32 + 1));
-            self.rect_px(ox + x0, oy + y0, ox + x1, oy + y1, col(self.pal, t));
+            self.fb.span(ox + x0, oy + y0, x1 - x0, y1 - y0, col(self.pal, t));
         }
     }
 
+    /// Riempimento a span: ogni riga logica è una sola scrittura contigua nel buffer (vettorizzata da LLVM).
     fn fill(&mut self, r: Rect, t: Tok) {
         let c = col(self.pal, t);
+        let s = self.fb.scale;
+        let (x0, x1) = (r.x.max(0), (r.x + r.w).min(self.lw));
+        if x0 >= x1 {
+            return;
+        }
         for y in r.y.max(0)..(r.y + r.h).min(self.lh) {
-            for x in r.x.max(0)..(r.x + r.w).min(self.lw) {
-                self.block(x, y, c);
-            }
+            self.fb.span(x0 * s, y * s, (x1 - x0) * s, s, c);
         }
     }
 
