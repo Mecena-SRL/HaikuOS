@@ -773,9 +773,17 @@ impl Otto {
                 Some(c) => self.cp.push(c),
                 None => {
                     self.turn = 0;
+                    self.stallo();
                     return;
                 }
             }
+        }
+    }
+
+    /// Mazzo vuoto e nessuno può giocare: la partita finisce, vince chi ha meno carte.
+    fn stallo(&mut self) {
+        if self.stock.n == 0 && !self.any_ok() && self.over == 0 {
+            self.over = if self.pl.n <= self.cp.n { 1 } else { 2 };
         }
     }
 
@@ -875,7 +883,7 @@ impl Game for Otto {
             }
         }
 
-        ui.button(p, 1400, 560, 340, 80, act(2, 0, 0), "PESCA", play);
+        ui.button(p, 1400, 560, 340, 80, act(2, 0, 0), "PESCA", play && !self.any_ok());
         if self.wait {
             for s in 0..4usize {
                 ui.button(p, 1400, 200 + s as i32 * 90, 340, 80, act(3, s as u32, 0), SUITS[s], true);
