@@ -245,7 +245,11 @@ fn draw(g: &Game) {
         println!("crescita ferma: {motivo}");
     }
     if let Some((n, ev)) = g.next_event().filter(|(n, _)| *n <= 3) {
-        println!("preavviso: tra {n} turni {}", ev.name());
+        println!(
+            "preavviso: tra {n} {} {}",
+            if n == 1 { "turno" } else { "turni" },
+            ev.name()
+        );
     }
     if g.endgame() {
         println!(
@@ -261,7 +265,11 @@ fn draw(g: &Game) {
         g.rival.citizens,
         g.rival_style.name(),
         g.profile,
-        g.win_pop
+        match g.win_pop {
+            40 => "facile",
+            60 => "difficile",
+            _ => "normale",
+        }
     );
 }
 
