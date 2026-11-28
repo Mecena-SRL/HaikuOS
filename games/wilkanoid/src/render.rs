@@ -249,7 +249,7 @@ impl<'a> Cv<'a> {
 
 fn tone_col(t: u8) -> u32 {
     match t {
-        7 => BOMB_T,
+        t if t == crate::TONE_BOMB => BOMB_T,
         _ if (t as usize) < ROWS => ROW[t as usize],
         _ => STEEL_T,
     }
@@ -279,7 +279,11 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     let ph = PH as f32;
     let sub = SUB as f32;
 
-    c.rr(-3.0, -3.0, pw + 3.0, ph + 3.0, 4.0, FRAME_T, FRAME_B);
+    // Cornice: solo quattro strisce sottili (il campo copre il resto).
+    c.rr(-3.0, -3.0, pw + 3.0, 0.0, 0.5, FRAME_T, FRAME_T);
+    c.rr(-3.0, ph, pw + 3.0, ph + 3.0, 0.5, FRAME_B, FRAME_B);
+    c.rr(-3.0, 0.0, 0.0, ph, 0.5, FRAME_T, FRAME_B);
+    c.rr(pw, 0.0, pw + 3.0, ph, 0.5, FRAME_T, FRAME_B);
     c.rr(0.0, 0.0, pw, ph, 2.0, FIELD_T, FIELD_B);
 
     // Campo stellato: posizioni fisse, deterministiche.

@@ -43,6 +43,9 @@ pub const STEEL: u8 = 2;
 pub const CRACKED: u8 = 3;
 /// Mattone esplosivo: distrugge i vicini quando cade.
 pub const BOMB: u8 = 4;
+/// Tono delle particelle: indice riga per i mattoni normali, poi acciaio ed esplosivo.
+pub const TONE_STEEL: u8 = 6;
+pub const TONE_BOMB: u8 = 7;
 
 /// Power-up che cadono.
 pub const DROP_WIDE: u8 = 0;
@@ -51,7 +54,7 @@ pub const DROP_MULTI: u8 = 1;
 /// Livelli: '0' vuoto, '1' normale, '2' acciaio (due colpi), '4' esplosivo.
 pub const LEVELS: [[&[u8; COLS]; ROWS]; 6] = [
     [b"111111111", b"111111111", b"111111111", b"121111121", b"111111111", b"111111111"],
-    [b"000010000", b"000111000", b"001111100", b"011111110", b"111111111", b"101010101"],
+    [b"000020000", b"000111000", b"001111100", b"011111110", b"111111111", b"101010101"],
     [b"222022022", b"111111111", b"202020202", b"111111111", b"222222222", b"010101010"],
     [b"000020000", b"000222000", b"002222200", b"022222220", b"222222222", b"022222220"],
     [b"111010111", b"011414110", b"110111011", b"111010111", b"011111110", b"111111111"],
@@ -84,7 +87,7 @@ pub struct Ball {
     pub vy: i32,
 }
 
-/// Particella di distruzione. `tone` = indice riga, 6 = acciaio.
+/// Particella di distruzione. `tone` = indice riga, `TONE_STEEL` o `TONE_BOMB`.
 #[derive(Clone, Copy, Default)]
 pub struct Part {
     pub x: i32,
@@ -353,6 +356,7 @@ impl Game {
     fn step_ball(&mut self, b: Ball) -> Option<Ball> {
         let (px, py) = (b.x, b.y);
         let (mut x, mut y, mut vx, mut vy) = (px + b.vx, py + b.vy, b.vx, b.vy);
+        let vx_in = b.vx;
         let top = PAD_Y * SUB;
 
         if x < BALL_R {
@@ -380,7 +384,10 @@ impl Game {
             vy = -self.speed();
             vx = ((x - self.paddle) * VX_MAX / half).clamp(-VX_MAX, VX_MAX);
             if vx.abs() < VX_MIN {
-                vx = if x < self.paddle { -VX_MIN } else { VX_MIN };
+                // Colpo al centro: angolo casuale, così la palla non entra in un'orbita periodica.
+                let side = if x == self.paddle { vx_in.signum() } else if x < self.paddle { -1 } else { 1 };
+                let side = if side == 0 { 1 } else { side };
+                vx = side * (VX_MIN + (self.rand() % 6) as i32);
             }
         }
 
@@ -439,8 +446,8 @@ impl Game {
                 self.shake = self.shake.max(4);
                 let tone = match cell {
                     NORMAL => r as u8,
-                    BOMB => 7,
-                    _ => 6,
+                    BOMB => TONE_BOMB,
+                    _ => TONE_STEEL,
                 };
                 let (mx, my) = (bx0 + BW / 2 * SUB, by0 + BH / 2 * SUB);
                 self.burst(mx, my, tone);
@@ -475,7 +482,7 @@ impl Game {
                 self.cells[rr][cc] = EMPTY;
                 self.flash[rr][cc] = FLASH_TICKS;
                 let (mx, my) = ((BX0 + cc as i32 * (BW + BGX)) * SUB + BW / 2 * SUB, (BY0 + rr as i32 * (BH + BGY)) * SUB + BH / 2 * SUB);
-                self.burst(mx, my, 7);
+                self.burst(mx, my, TONE_BOMB);
             }
         }
         self.shake = self.shake.max(10);
@@ -507,9 +514,9 @@ impl Game {
     /// Multipalla: copia la palla di riferimento in due direzioni, fino a `MAX_BALLS`.
     fn spawn_extra_balls(&mut self) {
         let Some(b) = self.lead() else { return };
-        for sign in [-1, 1] {
+        for vx in [-VX_MAX / 2, VX_MAX / 2] {
             if let Some(slot) = self.balls.iter_mut().find(|s| s.is_none()) {
-                *slot = Some(Ball { vx: -b.vx * sign, ..b });
+                *slot = Some(Ball { vx, ..b });
             }
         }
     }
@@ -577,5 +584,25 @@ mod tests {
         g.balls[0] = Some(Ball { x: BALL_R + 1, y: 100 * SUB, vx: -VY, vy: 0 });
         g.tick();
         assert!(g.lead().map_or(false, |b| b.vx > 0));
+    }
+}
+
+#[cfg(test)]
+mod seed_sweep {
+    use super::*;
+
+    #[test]
+    fn bot_wins_many_seeds() {
+        for seed in 1..=40u32 {
+            let mut g = Game::new(seed);
+            g.input(Cmd::Fire);
+            for _ in 0..400_000 {
+                if matches!(g.phase, Phase::Won | Phase::Over) {
+                    break;
+                }
+                autoplay(&mut g);
+            }
+            assert_eq!(g.phase, Phase::Won, "seed {seed} bloccato al livello {}", g.level + 1);
+        }
     }
 }
