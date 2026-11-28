@@ -1,12 +1,14 @@
 //! Scrivania reale disegnata da `render::draw` su un `Canvas` a piena risoluzione.
 //! Stesso percorso dell'x86 (`Scaled` in x86/kernel/src/fb.rs): unità logiche 240×135,
 //! scala intera (16 a 3840×2160, 8 a 1920×1080). Plate delle icone via `rect_rounded`.
-//! Uso: cargo run --release --features wide-font --example desktop_vector -- 3840 2160 out.ppm
+//! Uso: cargo run --release --features wide-font --example desktop_vector -- 3840 2160 out.ppm [permille]
+//! Con `permille` (0..=1000) disegna un frame della transizione `Slide` tra scrivania e calcolatrice.
 //! Poi il PPM diventa PNG: `python3 -c "from PIL import Image; Image.open('out.ppm').save('out.png')"`.
 #![allow(dead_code)]
 #[path = "../../x86/kernel/src/font.rs"]
 mod font;
 
+use haiku_gui::anim::{Budget, Shifted, Slide, FRAME_US};
 use haiku_gui::icons;
 use haiku_gui::layout::Rect;
 use haiku_gui::render::{draw, Canvas};
@@ -132,7 +134,25 @@ fn main() {
     let mut shell = Shell::new(&ICONS, LW, LH);
     shell.set_clock(10, 30);
     let mut v = Vector { pw: w, ph: h, s: w / LW, buf: vec![0; (w * h) as usize] };
-    draw(&mut v, &shell);
+    match a.get(4).and_then(|p| p.parse::<u32>().ok()) {
+        Some(p) => {
+            // Transizione: scrivania (vecchia) scivola via, calcolatrice (nuova) entra da destra.
+            let mut next = Shell::new(&ICONS, LW, LH);
+            next.set_clock(10, 30);
+            next.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
+            let (ox, nx) = Slide::start(LW, 0, 1000).offsets(p);
+            // Budget di frame: 30 render misurati, µs per frame (target 60 Hz).
+            let mut bud = Budget::new(FRAME_US);
+            for _ in 0..30 {
+                let t0 = std::time::Instant::now();
+                draw(&mut Shifted { inner: &mut v, dx: ox, dy: 0 }, &shell);
+                draw(&mut Shifted { inner: &mut v, dx: nx, dy: 0 }, &next);
+                bud.record(t0.elapsed().as_micros() as u32);
+            }
+            println!("frame: media {} µs, max {} µs, oltre 16667 µs: {}/{}", bud.avg_us(), bud.max_us, bud.over, bud.frames);
+        }
+        None => draw(&mut v, &shell),
+    }
 
     let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
     write!(f, "P6\n{w} {h}\n255\n").unwrap();

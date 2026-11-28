@@ -58,3 +58,18 @@ cd gui && cargo run --release --features wide-font --example desktop_vector -- 3
 ```
 
 Output committati: `design/screens/desktop_vector_*.png`. Limiti: il testo è il font 5×8 scalato a blocchi, e lo sfondo usa ancora le colline (`hills`), non il wallpaper bitmap di `design/wallpapers/`.
+
+## 7. Animazioni (`gui/src/anim.rs`)
+
+Tutto a interi (ms, permille, µs), no_std, senza allocazione nel frame.
+
+| Tipo | Fa |
+|---|---|
+| `Ease`, `ease(e, t)` | easing su permille: Linear, InQuad, OutQuad, InOutQuad, OutCubic |
+| `Tween` | interpolazione `from`→`to` fra `start` e `start+dur` (ms) |
+| `Reactive` | valore con `set(target, now, dur, ease)`: riparte dal valore visualizzato, nessun salto |
+| `Slide` | transizione orizzontale tra due schermate: `offsets(now)` dà gli spostamenti |
+| `Shifted<C>` | vista di un `Canvas` spostata di `(dx, dy)`: si disegna una schermata come sempre |
+| `Budget` | registra µs per frame, conta gli sforamenti di `FRAME_US` (16 667 µs = 60 Hz) |
+
+Demo: `cargo run --release --features wide-font --example desktop_vector -- 1920 1080 out.ppm 500` disegna il frame a metà transizione e stampa il budget. Output: `design/screens/anim_transition_1920x1080.png`.

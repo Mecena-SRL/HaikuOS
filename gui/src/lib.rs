@@ -3,6 +3,7 @@
 //! GBA e x86 implementano solo `fill` e `text`; regole, layout e input sono qui.
 #![no_std]
 
+pub mod anim;
 pub mod apps;
 #[path = "../../gba/src/chess.rs"]
 pub mod chess;
