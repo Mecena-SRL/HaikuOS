@@ -54,6 +54,32 @@ pub trait Canvas {
             self.fill(Rect::new(x, y, 1, 1), t);
         }
     }
+    /// Backend con primitive antialiasate (angoli, cerchi, linee, poligoni): le cornici non usano pixel d'angolo a mano.
+    fn smooth(&self) -> bool {
+        false
+    }
+    /// Poligono pieno a regola pari, vertici in ordine (px logici). Di base: righe piene, senza antialiasing.
+    fn poly(&mut self, pts: &[(i32, i32)], t: Tok) {
+        let Some(y0) = pts.iter().map(|p| p.1).min() else { return };
+        let y1 = pts.iter().map(|p| p.1).max().unwrap_or(y0);
+        for y in y0..y1 {
+            let mut xs = [0i32; 16];
+            let mut n = 0;
+            for i in 0..pts.len() {
+                let (a, b) = (pts[i], pts[(i + 1) % pts.len()]);
+                if (a.1 > y) != (b.1 > y) && n < xs.len() {
+                    xs[n] = a.0 + (y - a.1) * (b.0 - a.0) / (b.1 - a.1);
+                    n += 1;
+                }
+            }
+            xs[..n].sort_unstable();
+            for k in (0..n / 2 * 2).step_by(2) {
+                if xs[k + 1] > xs[k] {
+                    self.fill(Rect::new(xs[k], y, xs[k + 1] - xs[k], 1), t);
+                }
+            }
+        }
+    }
     /// Testo vettoriale con antialiasing (`vfont`): `size` px per em. Ritorna la larghezza in px.
     fn vtext(&mut self, x: i32, y: i32, size: i32, s: &str, t: Tok) -> i32
     where
@@ -84,6 +110,9 @@ pub trait Canvas {
         }
     }
 }
+
+/// Raggio degli angoli delle finestre e dei pulsanti circolari (px logici).
+const CORNER: i32 = 4;
 
 /// Smussa i quattro angoli della finestra `f` con il fondo T0 (raggio 4 px logici).
 fn round_corners<C: Canvas>(c: &mut C, f: Rect) {
@@ -365,6 +394,13 @@ fn draw_app<C: Canvas>(c: &mut C, s: &Shell, app: u8, cc: Rect) {
 /// Sfondo a colline (scelta di Ivan): onde triangolari in T2 dal 70% in giù.
 fn hills<C: Canvas>(c: &mut C, w: i32, h: i32) {
     let (base, amp, period) = (h * 7 / 10, h / 8, (w / 2).max(2));
+    if c.rich() {
+        // Vettoriale: un poligono con picchi e valli ogni `period / 2`, chiuso in basso.
+        let q = period / 2;
+        let pts = [(0, base), (q, base - amp), (2 * q, base), (3 * q, base - amp), (w, base), (w, h), (0, h)];
+        c.poly(&pts, T2);
+        return;
+    }
     for x in 0..w {
         let t = x % period;
         let tri = if t * 2 < period { t * 2 } else { (period - t) * 2 };
@@ -400,6 +436,22 @@ fn notice<C: Canvas>(c: &mut C, s: &Shell) {
 
 /// Simbolo del pulsante 8×8: `-` (riduci), `+` (massimizza), `x` (chiudi). Bibbia §13.
 fn glyph<C: Canvas>(c: &mut C, r: Rect, sym: char, col: Tok) {
+    if c.smooth() {
+        // Tratti antialiasati: `-`, `+`, `x` sul centro del pulsante.
+        let (cx, cy) = (r.x + r.w / 2, r.y + r.h / 2);
+        match sym {
+            '-' => c.line(cx - 2, cy, cx + 2, cy, 2, col),
+            '+' => {
+                c.line(cx - 2, cy, cx + 2, cy, 1, col);
+                c.line(cx, cy - 2, cx, cy + 2, 1, col);
+            }
+            _ => {
+                c.line(cx - 2, cy - 2, cx + 2, cy + 2, 1, col);
+                c.line(cx + 2, cy - 2, cx - 2, cy + 2, 1, col);
+            }
+        }
+        return;
+    }
     match sym {
         '-' => c.fill(Rect::new(r.x + 1, r.y + 3, 6, 2), col),
         '+' => {
@@ -418,13 +470,13 @@ fn glyph<C: Canvas>(c: &mut C, r: Rect, sym: char, col: Tok) {
 /// Ombra morbida sotto la finestra (solo x86, bibbia §13): un bordo T0 di 2 px fuori dal bordo.
 fn shadow<C: Canvas>(c: &mut C, f: Rect) {
     if c.rounded() {
-        c.fill(Rect::new(f.x + 2, f.y + 2, f.w, f.h), T0);
+        c.rect_rounded(Rect::new(f.x + 2, f.y + 2, f.w, f.h), CORNER, T0);
     }
 }
 
 /// Smussa gli angoli di un pulsante 8×8 con un pixel T0 (solo x86, bibbia §13).
 fn corners<C: Canvas>(c: &mut C, r: Rect) {
-    if c.rounded() {
+    if c.rounded() && !c.smooth() {
         for (x, y) in [(r.x, r.y), (r.x + r.w - 1, r.y), (r.x, r.y + r.h - 1), (r.x + r.w - 1, r.y + r.h - 1)] {
             c.fill(Rect::new(x, y, 1, 1), T0);
         }
@@ -515,12 +567,14 @@ pub fn draw_motion<C: Canvas>(c: &mut C, s: &Shell, m: &Motion<'_>) {
         let dy = m.win_dy.get(i).copied().unwrap_or(0);
         let f = Rect::new(w.frame.x, w.frame.y + dy, w.frame.w, w.frame.h);
         shadow(c, f);
-        c.fill(f, T3);
+        c.rect_rounded(f, CORNER, T3);
         let tb = title_bar(f);
         let rich = c.rich();
         // x86: titolo dell'app nel suo colore (attiva) con icona 8×8 a sinistra; GBA: T2/T1 come da bibbia.
         let tx = if rich {
-            c.fill(tb, if Some(i) == active { Tok::A(w.app) } else { T1 });
+            // Striscia del titolo prolungata di un raggio: gli angoli bassi finiscono sotto il corpo.
+            let te = Rect::new(tb.x, tb.y, tb.w, tb.h + CORNER);
+            c.rect_rounded(te, CORNER, if Some(i) == active { Tok::A(w.app) } else { T1 });
             let label = s.icons.iter().find(|ic| ic.app == w.app).map_or("", |ic| ic.label);
             c.icon(Rect::new(tb.x + 1, tb.y + 1, TITLE_H - 2, TITLE_H - 2), label, w.app);
             tb.x + TITLE_H
@@ -531,9 +585,9 @@ pub fn draw_motion<C: Canvas>(c: &mut C, s: &Shell, m: &Motion<'_>) {
         let cols = (min_button(f).x - tx - 4) / (FONT_W + 1);
         c.text(tx, tb.y + (TITLE_H - FONT_H) / 2, clip(w.title, cols), T0);
         let (cl, mx, mn) = if rich { (Tok::A(11), Tok::A(10), Tok::A(9)) } else { (T0, T0, T0) };
-        c.fill(close_button(f), cl);
-        c.fill(max_button(f), mx);
-        c.fill(min_button(f), mn);
+        c.rect_rounded(close_button(f), CLOSE / 2, cl);
+        c.rect_rounded(max_button(f), CLOSE / 2, mx);
+        c.rect_rounded(min_button(f), CLOSE / 2, mn);
         let sc = if rich { T0 } else { T1 };
         glyph(c, close_button(f), 'x', sc);
         glyph(c, max_button(f), '+', sc);
@@ -541,9 +595,9 @@ pub fn draw_motion<C: Canvas>(c: &mut C, s: &Shell, m: &Motion<'_>) {
         for r in [close_button(f), max_button(f), min_button(f)] {
             corners(c, r);
         }
-        c.fill(body(f), T1);
+        c.rect_rounded(body(f), CORNER, T1);
         draw_app(c, s, w.app, content(f));
-        if c.rounded() {
+        if c.rounded() && !c.smooth() {
             round_corners(c, f);
         }
     }

@@ -16,7 +16,8 @@ pub mod layout;
 pub mod palette;
 pub mod render;
 pub mod vfont;
-mod vfont_data;
+mod fonts;
+pub mod ttf;
 pub mod shell;
 pub mod wm;
 
@@ -24,3 +25,11 @@ pub use apps::{Calc, FileView, Term};
 pub use input::Key;
 pub use palette::Tok;
 pub use shell::{Event, Icon, Shell};
+
+/// Solo test: accesso al font di sistema incorporato.
+#[doc(hidden)]
+pub mod fonts_test {
+    pub fn ui_font() -> Option<crate::ttf::Font> {
+        crate::fonts::ui()
+    }
+}

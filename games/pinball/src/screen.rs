@@ -11,6 +11,8 @@ mod font;
 
 /// Ingrandimento del PPM di uscita.
 pub const SCALE: usize = 3;
+/// Altezza dell'em del testo di sistema, in unità del tavolo.
+const TEXT_EM: i32 = 8;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Screen {
@@ -97,18 +99,20 @@ impl Canvas for Img {
             }
         }
     }
-
+    /// Testo di sistema (Inter, `fonts/README.md`) al posto del 3×5 di gba.
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
+        haiku_gui::vfont::draw_text(self, x, y, TEXT_EM, s, t);
+    }
+
+    /// Miscela con copertura `a` (antialiasing del testo di sistema).
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        if x < 0 || y < 0 || x as usize >= self.w || y as usize >= self.h {
+            return;
+        }
         let c = rgb(t);
-        for (i, ch) in s.bytes().enumerate() {
-            let gx = x + i as i32 * font::ADVANCE as i32;
-            for (row, bits) in font::glyph(ch).iter().enumerate() {
-                for col in 0..font::GLYPH_W {
-                    if (bits >> (font::GLYPH_W - 1 - col)) & 1 == 1 {
-                        self.put(gx + col as i32, y + row as i32, 1, 1, c);
-                    }
-                }
-            }
+        let p = &mut self.px[y as usize * self.w + x as usize];
+        for k in 0..3 {
+            p[k] = ((p[k] as u32 * (255 - a as u32) + c[k] as u32 * a as u32) / 255) as u8;
         }
     }
 }
