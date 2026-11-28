@@ -19,12 +19,14 @@ Un'unica interfaccia di disegno che i giochi e le app usano senza sapere quale b
 
 Tipi di supporto: `Rect` e `Tok` (token colore della palette). Layout condiviso in `gui/src/layout.rs`: `title_bar`, `body`, `menu_rect`, `icon_cell`, `close_button`, `min_button`, `max_button`.
 
-## 3. Estensioni vettoriali proposte (da verificare)
+## 3. Estensioni vettoriali (in parte implementate)
+
+`rect_rounded` e `line` sono nel trait con implementazione di base (`gui/src/render.rs`, test in `gui/tests/vector.rs`). `icon_svg` e `menu` restano proposte, da verificare.
 
 | Primitiva | Forma proposta | Uso |
 |---|---|---|
 | `rect_rounded(r, radius, t)` | rettangolo con raggio | pulsanti, menu, finestre HD |
-| `line(x1, y1, x2, y2, w, t)` | segmento di spessore `w` | bordi, grafici, orologio |
+| `line(x1, y1, x2, y2, w, t)` | segmento di spessore `w` (implementata) | bordi, grafici, orologio |
 | `icon_svg(cell, id)` | icona da un sottoinsieme SVG pre-compilato | icone HD: nessun PNG a runtime |
 | `menu(r, rows)` | menu a righe con etichetta e scorciatoia | menu app e contestuali |
 

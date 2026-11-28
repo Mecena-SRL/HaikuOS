@@ -22,6 +22,32 @@ pub trait Canvas {
     }
     /// Icona vera nella cella `cell` (16×16 logici = 32×32 fisici; 8×8 nei titoli). False se non disponibile.
     fn icon(&mut self, _cell: Rect, _label: &str, _app: u8) {}
+    /// Rettangolo con angoli di raggio `radius`. Di base è pieno: i backend con angoli lo ridefiniscono.
+    fn rect_rounded(&mut self, r: Rect, _radius: i32, t: Tok) {
+        self.fill(r, t);
+    }
+    /// Segmento di spessore `w` (px, minimo 1), da `(x1, y1)` a `(x2, y2)`. Di base: quadrati pieni lungo Bresenham.
+    fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, w: i32, t: Tok) {
+        let w = w.max(1);
+        let (dx, dy) = ((x2 - x1).abs(), -(y2 - y1).abs());
+        let (sx, sy) = (if x1 < x2 { 1 } else { -1 }, if y1 < y2 { 1 } else { -1 });
+        let (mut x, mut y, mut err) = (x1, y1, dx + dy);
+        loop {
+            self.fill(Rect::new(x - w / 2, y - w / 2, w, w), t);
+            if x == x2 && y == y2 {
+                break;
+            }
+            let e2 = 2 * err;
+            if e2 >= dy {
+                err += dy;
+                x += sx;
+            }
+            if e2 <= dx {
+                err += dx;
+                y += sy;
+            }
+        }
+    }
 }
 
 /// Smussa i quattro angoli della finestra `f` con il fondo T0 (raggio 4 px logici).
