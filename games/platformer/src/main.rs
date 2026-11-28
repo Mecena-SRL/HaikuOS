@@ -131,10 +131,15 @@ fn shot(path: &str, screen: Screen) {
 
 fn write_ppm(path: &str, fb: &[u32]) {
     let mut f = File::create(path).expect("creazione file");
-    write!(f, "P6\n{} {}\n255\n", VIEW_W, VIEW_H).unwrap();
-    let bytes: Vec<u8> = fb
-        .iter()
-        .flat_map(|&c| [(c >> 16) as u8, (c >> 8) as u8, c as u8])
+    // Ingrandimento x2 (vicino più prossimo) per leggere i menu.
+    let (w, h) = (VIEW_W as usize, VIEW_H as usize);
+    write!(f, "P6\n{} {}\n255\n", 2 * w, 2 * h).unwrap();
+    let bytes: Vec<u8> = (0..4 * w * h)
+        .flat_map(|i| {
+            let (ox, oy) = (i % (2 * w), i / (2 * w));
+            let c = fb[(oy / 2) * w + ox / 2];
+            [(c >> 16) as u8, (c >> 8) as u8, c as u8]
+        })
         .collect();
     f.write_all(&bytes).unwrap();
 }
