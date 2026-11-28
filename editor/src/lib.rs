@@ -3,6 +3,7 @@
 
 #![cfg_attr(not(test), no_std)]
 
+pub mod chrome;
 pub mod gui;
 pub mod platform;
 
