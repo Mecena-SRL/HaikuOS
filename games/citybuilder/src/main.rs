@@ -2,13 +2,19 @@
 //! `r` ricerca irrigazione, `q` esci. Edifici: casa, fattoria, legno, cava, mercato, biblioteca.
 
 use citybuilder::menu::{on_menu_key, Next, Screen};
-use citybuilder::{Building, Game, Status, Terrain, WIN_POP};
+use citybuilder::{Building, Difficulty, Game, Status, Terrain};
 use std::io::{self, BufRead};
 
-const HELP: &str = "comandi: w a s d cursore | b <casa|fattoria|legno|cava|mercato|biblioteca> cantiere sul cursore | x demolisci | t fine turno | r ricerca | p pausa | q esci | ? aiuto";
+const HELP: &str = "comandi: w a s d cursore | b <casa|fattoria|legno|cava|mercato|biblioteca> cantiere sul cursore | x demolisci | m scambia 5 oro in 6 cibo | t fine turno | r ricerca | p pausa | q esci | ? aiuto";
 
 fn main() {
-    let mut g = Game::new(24, 12, 0x4841494B55);
+    // `--difficolta facile|normale|difficile`: soglia di vittoria per entrambi.
+    let diff = std::env::args()
+        .position(|a| a == "--difficolta")
+        .and_then(|p| std::env::args().nth(p + 1))
+        .and_then(|n| Difficulty::from_name(&n))
+        .unwrap_or(Difficulty::Normale);
+    let mut g = Game::with_difficulty(24, 12, 0x4841494B55, diff);
     // `--shot <file.ppm>` (partita), `--shot-title` e `--shot-pause`: fotogrammi grafici, senza terminale.
     let args: Vec<String> = std::env::args().collect();
     if let [_, flag, path, rest @ ..] = args.as_slice() {
@@ -87,6 +93,11 @@ fn main() {
                     _ => println!("coordinate o edificio non validi"),
                 }
             }
+            ["m"] => {
+                if let Err(e) = g.player.trade_gold() {
+                    println!("impossibile: {e}");
+                }
+            }
             ["x"] => {
                 if let Err(e) = g.demolish_cursor() {
                     println!("impossibile: {e}");
@@ -112,11 +123,11 @@ fn main() {
         draw(&g);
         match g.status() {
             Status::Won => {
-                println!("Vittoria: {WIN_POP} cittadini!");
+                println!("Vittoria: {} cittadini!", g.win_pop);
                 break;
             }
             Status::Draw => {
-                println!("Pareggio: entrambi a {WIN_POP} cittadini.");
+                println!("Pareggio: entrambi a {} cittadini.", g.win_pop);
                 break;
             }
             Status::Lost => {
@@ -211,8 +222,9 @@ fn draw(g: &Game) {
     println!("legenda: H casa F fattoria L legnaia Q cava M mercato B biblioteca _ cantiere x IA . erba T foresta ^ montagna ~ acqua");
     let s = g.player.stock;
     println!(
-        "pop {}/{WIN_POP}  cibo {}  legno {}  pietra {}  oro {}  conoscenza {}  turno {}/{}",
+        "pop {}/{}  cibo {}  legno {}  pietra {}  oro {}  conoscenza {}  turno {}/{}",
         g.player.citizens,
+        g.win_pop,
         s.food,
         s.wood,
         s.stone,
@@ -228,9 +240,11 @@ fn draw(g: &Game) {
         println!("attenzione: cibo basso, con zero cibo perdi un cittadino");
     }
     println!(
-        "IA (x): pop {}, stile {}",
+        "IA (x): pop {}, stile {} | profilo {}, difficoltà {}",
         g.rival.citizens,
-        g.rival_style.name()
+        g.rival_style.name(),
+        g.profile,
+        g.win_pop
     );
 }
 

@@ -3,7 +3,7 @@
 
 use crate::menu::Screen;
 use crate::raster::{rgb, Frame, Rgb};
-use crate::{Building, Game, Terrain, WIN_POP};
+use crate::{Building, Game, Terrain};
 use haiku_gui::layout::Rect;
 use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
@@ -439,7 +439,7 @@ fn hud_bar(f: &mut Frame, g: &Game, top: i32, hud: f32) {
         let tx = x0 + (r * 2.0) as i32 + (hud * 0.2) as i32;
         vfont::draw_text(f, tx, top + (hud * 0.12) as i32, label_px, label, Tok::T2);
         let value = if n == 4 {
-            format!("{}/{WIN_POP}", v)
+            format!("{}/{}", v, g.win_pop)
         } else {
             v.to_string()
         };
@@ -453,7 +453,7 @@ fn hud_bar(f: &mut Frame, g: &Game, top: i32, hud: f32) {
         );
         // Barra sotto la cella: pop rispetto all'obiettivo, risorse su scala fissa.
         let frac = if n == 4 {
-            *v as f32 / WIN_POP as f32
+            *v as f32 / g.win_pop as f32
         } else {
             *v as f32 / 100.0
         };

@@ -262,6 +262,16 @@ impl Empire {
         Ok(())
     }
 
+    /// Scambio: 5 oro diventano 6 cibo. Non consuma il turno di costruzione.
+    pub fn trade_gold(&mut self) -> Result<(), BuildError> {
+        if self.stock.gold < 5 {
+            return Err(BuildError::NoResources);
+        }
+        self.stock.gold -= 5;
+        self.stock.food = (self.stock.food + 6).min(FOOD_CAP);
+        Ok(())
+    }
+
     /// Demolisce l'edificio completo in `i`: rimborso di metà del legno base, e la capienza si adegua.
     pub fn demolish(&mut self, i: usize) -> Result<(), BuildError> {
         if i >= self.grid.len() {
@@ -476,6 +486,50 @@ pub enum Status {
     Draw,
 }
 
+/// Difficoltà: cambia la soglia di vittoria per entrambi (stesse regole per giocatore e IA).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Difficulty {
+    Facile,
+    Normale,
+    Difficile,
+}
+
+impl Difficulty {
+    pub fn win_pop(self) -> u32 {
+        match self {
+            Difficulty::Facile => 40,
+            Difficulty::Normale => WIN_POP,
+            Difficulty::Difficile => 60,
+        }
+    }
+
+    pub fn from_name(s: &str) -> Option<Self> {
+        match s {
+            "facile" => Some(Difficulty::Facile),
+            "normale" => Some(Difficulty::Normale),
+            "difficile" => Some(Difficulty::Difficile),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Difficulty::Facile => "facile",
+            Difficulty::Normale => "normale",
+            Difficulty::Difficile => "difficile",
+        }
+    }
+}
+
+/// Profilo di partenza scelto dal seme: stesse risorse iniziali per giocatore e IA.
+pub fn start_profile(seed: u64) -> (&'static str, Stock) {
+    match mix(seed ^ 0x51) % 3 {
+        0 => ("agricolo", Stock::new(40, 20, 10, 0)),
+        1 => ("boscaiolo", Stock::new(20, 50, 5, 0)),
+        _ => ("minatore", Stock::new(25, 30, 25, 5)),
+    }
+}
+
 pub struct Game {
     pub map: Map,
     pub player: Empire,
@@ -488,18 +542,26 @@ pub struct Game {
     pub rival_style: Style,
     /// Evento dell'ultimo turno, se ce n'è stato uno.
     pub event: Option<Event>,
+    /// Cittadini per vincere (dalla difficoltà).
+    pub win_pop: u32,
+    /// Nome del profilo di partenza (dal seme).
+    pub profile: &'static str,
 }
 
 impl Game {
     /// Due imperi su una mappa generata: il giocatore a ovest, l'IA a est.
     pub fn new(w: usize, h: usize, seed: u64) -> Self {
+        Self::with_difficulty(w, h, seed, Difficulty::Normale)
+    }
+
+    pub fn with_difficulty(w: usize, h: usize, seed: u64, diff: Difficulty) -> Self {
         assert!(w >= 8 && h >= 4, "mappa troppo piccola");
         let mut map = Map::generate(w, h, seed);
         let (px, py) = (w / 4, h / 2);
         let (rx, ry) = (3 * w / 4, h / 2);
         map.clear_area(px, py);
         map.clear_area(rx, ry);
-        let stock = Stock::new(30, 40, 10, 0);
+        let (profile, stock) = start_profile(seed);
         let mut player = Empire::new(&map, stock);
         let mut rival = Empire::new(&map, stock);
         // Ogni impero parte con una casa gratuita.
@@ -514,6 +576,8 @@ impl Game {
             seed,
             rival_style: Style::from_seed(seed),
             event: None,
+            win_pop: diff.win_pop(),
+            profile,
         }
     }
 
@@ -551,9 +615,10 @@ impl Game {
     /// Vince chi arriva a `WIN_POP`; se entrambi ci arrivano nello stesso turno è patta.
     /// Perde chi si estingue o lascia che l'IA arrivi prima.
     pub fn status(&self) -> Status {
+        let soglia = self.win_pop;
         match (
-            self.player.citizens >= WIN_POP,
-            self.rival.citizens >= WIN_POP,
+            self.player.citizens >= soglia,
+            self.rival.citizens >= soglia,
         ) {
             (true, true) => return Status::Draw,
             (true, false) => return Status::Won,
@@ -579,6 +644,10 @@ impl Game {
 fn ai_turn(e: &mut Empire, map: &Map, style: Style) {
     // La ricerca non consuma il turno di costruzione (come per il giocatore).
     e.research_irrigation();
+    // Cibo quasi finito: scambia oro (come il giocatore con `m`).
+    if e.stock.food < 4 {
+        let _ = e.trade_gold();
+    }
     let mut plan = [
         (Building::House, e.capacity() <= e.citizens),
         (
@@ -893,6 +962,34 @@ mod tests {
         assert_eq!(g.status(), Status::Won);
         g.rival.citizens = 7;
         assert_eq!(g.status(), Status::Draw);
+    }
+
+    #[test]
+    fn oro_si_scambia_in_cibo() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(0, 0, 0, 9));
+        assert_eq!(e.trade_gold(), Ok(()));
+        assert_eq!((e.stock.gold, e.stock.food), (4, 6));
+        assert_eq!(e.trade_gold(), Err(BuildError::NoResources));
+    }
+
+    #[test]
+    fn difficolta_cambia_la_soglia_per_entrambi() {
+        let mut g = Game::with_difficulty(24, 12, 3, Difficulty::Facile);
+        assert_eq!(g.win_pop, 40);
+        g.player.citizens = 40;
+        assert_eq!(g.status(), Status::Won);
+        assert_eq!(
+            Difficulty::from_name("difficile"),
+            Some(Difficulty::Difficile)
+        );
+    }
+
+    #[test]
+    fn profilo_uguale_per_giocatore_e_ia() {
+        let g = Game::new(24, 12, 99);
+        assert_eq!(g.player.stock, g.rival.stock);
+        assert_eq!(g.profile, start_profile(99).0);
     }
 
     #[test]
