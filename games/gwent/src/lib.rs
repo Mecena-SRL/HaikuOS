@@ -22,6 +22,10 @@ pub const HAND_CAP: usize = 12;
 pub const ROW: usize = 32;
 /// Round vinti per vincere la partita (al meglio dei tre).
 pub const WINS: u8 = 2;
+/// Jolly "Sprone": +1 moltiplicatore alla fila che ha almeno 3 carte.
+pub const JOKER_SPRONE: u8 = 0;
+/// Jolly "Scudo di brina": il Gelo non colpisce la fila di chi lo possiede.
+pub const JOKER_SCUDO: u8 = 1;
 /// Bit alto di uno slot del tabellone: proprietario (0 o 1).
 const OWNER: u8 = 0x80;
 
@@ -64,11 +68,13 @@ pub struct Side {
     pub rows: [Pile<ROW>; 2],
     pub wins: u8,
     pub passed: bool,
+    /// Jolly attivi per questo giocatore (vedi `JOKER_*`).
+    pub jokers: [Option<u8>; 2],
 }
 
 impl Side {
     const fn new() -> Self {
-        Self { deck: Pile::new(), hand: Pile::new(), grave: Pile::new(), rows: [Pile::new(), Pile::new()], wins: 0, passed: false }
+        Self { deck: Pile::new(), hand: Pile::new(), grave: Pile::new(), rows: [Pile::new(), Pile::new()], wins: 0, passed: false, jokers: [None; 2] }
     }
 }
 
@@ -302,9 +308,10 @@ impl Game {
     pub fn slot_power(&self, board: usize, row: usize, i: usize) -> i32 {
         let rp = &self.side[board].rows[row];
         let d = DEFS[(rp.c[i] & !OWNER) as usize];
-        let affected = (row == 0 && self.frost) || (row == 1 && self.fog);
+        let shielded = self.has_joker(board, JOKER_SCUDO);
+        let affected = (row == 0 && self.frost && !shielded) || (row == 1 && self.fog);
         let mut p = d.power as i32;
-        if affected && p > 1 {
+        if affected && d.kind == Kind::Unit && p > 1 {
             p = 1;
         }
         if d.kind == Kind::Unit {
@@ -317,13 +324,28 @@ impl Game {
         p
     }
 
-    /// Potenza totale delle carte sul tabellone di `board` (anche quelle portate dall'avversario).
+    /// Il giocatore `who` ha il jolly `j` attivo?
+    pub fn has_joker(&self, who: usize, j: u8) -> bool {
+        self.side[who].jokers.contains(&Some(j))
+    }
+
+    /// Imposta i jolly del giocatore `who` (massimo due).
+    pub fn set_jokers(&mut self, who: usize, j: [Option<u8>; 2]) {
+        self.side[who].jokers = j;
+    }
+
+    /// Punteggio di un tabellone (chip × mult per fila, sommati). Chip = potenza delle carte della fila.
+    /// Mult = 1, +1 con il jolly Sprone se la fila ha almeno 3 carte.
     pub fn score(&self, board: usize) -> i32 {
         let mut t = 0;
         for r in 0..2 {
-            for i in 0..self.side[board].rows[r].n as usize {
-                t += self.slot_power(board, r, i);
+            let n = self.side[board].rows[r].n as usize;
+            let mut chips = 0;
+            for i in 0..n {
+                chips += self.slot_power(board, r, i);
             }
+            let mult = if self.has_joker(board, JOKER_SPRONE) && n >= 3 { 2 } else { 1 };
+            t += chips * mult;
         }
         t
     }
@@ -552,5 +574,57 @@ mod tests {
             }
             assert!(g.side[g.over.unwrap() as usize].wins >= WINS);
         }
+    }
+}
+
+#[cfg(test)]
+mod joker_tests {
+    use super::*;
+
+    #[test]
+    fn senza_jolly_il_punteggio_non_cambia() {
+        let mut g = Game::new(3);
+        g.set_jokers(0, [None, None]);
+        let base: i32 = (0..2).map(|r| (0..g.side[0].rows[r].n as usize).map(|i| g.slot_power(0, r, i)).sum::<i32>()).sum();
+        assert_eq!(g.score(0), base);
+    }
+
+    #[test]
+    fn sprone_raddoppia_la_fila_con_tre_carte() {
+        let mut g = Game::new(3);
+        g.frost = false;
+        g.fog = false;
+        g.side[0].rows[0] = Pile::new();
+        g.side[0].rows[1] = Pile::new();
+        for _ in 0..3 {
+            g.side[0].rows[0].push(0);
+        }
+        let chips = (0..3).map(|i| g.slot_power(0, 0, i)).sum::<i32>();
+        g.set_jokers(0, [Some(JOKER_SPRONE), None]);
+        assert_eq!(g.score(0), chips * 2);
+    }
+
+    #[test]
+    fn scudo_protegge_la_propria_fila_dal_gelo() {
+        let mut g = Game::new(3);
+        g.side[0].rows[0] = Pile::new();
+        g.side[0].rows[0].push(4); // Gigante
+        g.side[0].rows[1] = Pile::new();
+        g.frost = false;
+        let pieno = g.slot_power(0, 0, 0);
+        g.frost = true;
+        g.set_jokers(0, [None, None]);
+        assert_eq!(g.slot_power(0, 0, 0), 1);
+        g.set_jokers(0, [Some(JOKER_SCUDO), None]);
+        assert_eq!(g.slot_power(0, 0, 0), pieno);
+    }
+
+    #[test]
+    fn stendardo_sotto_gelo_resta_due() {
+        let mut g = Game::new(3);
+        g.side[0].rows[0] = Pile::new();
+        g.side[0].rows[0].push(9); // Stendardo, potenza 2
+        g.frost = true;
+        assert_eq!(g.slot_power(0, 0, 0), 2);
     }
 }
