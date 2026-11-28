@@ -107,6 +107,8 @@ pub struct Pinball {
     pub world: u8,
     /// Passo della missione della guardiana (0..3), sensori nell'ordine SENSORS.
     pub mission: u8,
+    /// Sensori in cui la pallina si trova ora (rilevamento per ingresso).
+    inside: u8,
 }
 
 impl Pinball {
@@ -129,6 +131,7 @@ impl Pinball {
             ball_pts: 0,
             world: 0,
             mission: 0,
+            inside: 0,
         };
         p.reset();
         p
@@ -146,6 +149,7 @@ impl Pinball {
         self.ball_pts = 0;
         self.world = 0;
         self.mission = 0;
+        self.inside = 0;
         self.state = State::Ready;
         self.balls = [Ball::default(); MAX_BALLS];
         self.balls[0] = Ball { pos: LANE, vel: (0, 0), live: true };
@@ -192,6 +196,7 @@ impl Pinball {
         let fl = self.flips;
         let mut pts: u32 = 0;
         let mut lit = self.lit;
+        let mut inside = self.inside;
         for bi in 0..MAX_BALLS {
             let mut b = self.balls[bi];
             if !b.live {
@@ -230,20 +235,30 @@ impl Pinball {
                 }
                 // ogni impulso può superare VMAX dentro il sottopasso: limita subito
                 for (j, s) in SENSORS.iter().enumerate() {
+                    let bit = 1u8 << j;
                     let (dx, dy) = (b.pos.0 - s.0 * FP, b.pos.1 - s.1 * FP);
-                    if dx * dx + dy * dy < SENSOR_R * SENSOR_R && (lit & (1u8 << j)) == 0 {
-                        lit |= 1 << j;
+                    if dx * dx + dy * dy >= SENSOR_R * SENSOR_R {
+                        inside &= !bit;
+                        continue;
+                    }
+                    if inside & bit != 0 {
+                        continue; // già dentro: niente doppio conteggio
+                    }
+                    inside |= bit;
+                    if lit & bit == 0 {
+                        lit |= bit;
                         pts += 200;
-                        if j as u8 == self.mission {
-                            self.mission += 1;
-                            pts += 500;
-                            if self.mission == 3 {
-                                // missione compiuta: la porta di marea si apre sul mondo successivo
-                                self.mission = 0;
-                                self.world = (self.world + 1) % 3;
-                                pts += 2000;
-                                lit = 0;
-                            }
+                    }
+                    // la missione avanza su ogni ingresso, anche se il sensore era già acceso
+                    if j as u8 == self.mission {
+                        self.mission += 1;
+                        pts += 500;
+                        if self.mission == 3 {
+                            // missione compiuta: la porta di marea si apre sul mondo successivo
+                            self.mission = 0;
+                            self.world = (self.world + 1) % 3;
+                            pts += 2000;
+                            lit = 0;
                         }
                     }
                 }
@@ -282,6 +297,7 @@ impl Pinball {
             }
         }
         self.lit = lit;
+        self.inside = inside;
         self.score += pts * self.mult;
         self.ball_pts += pts;
         if self.lit == SENSOR_ALL {
@@ -571,6 +587,18 @@ mod tests {
         }
         assert_eq!(g.world, 1);
         assert_eq!(g.mission, 0);
+    }
+
+    #[test]
+    fn out_of_order_hits_do_not_block_mission() {
+        let mut g = Pinball::new();
+        g.state = State::Playing;
+        for j in [1usize, 0, 1] {
+            let s = SENSORS[j];
+            g.balls[0] = Ball { pos: (s.0 * FP, s.1 * FP), vel: (0, 0), live: true };
+            g.tick(Input::default());
+        }
+        assert_eq!(g.mission, 2, "il sensore 1 deve far avanzare la missione dopo il sensore 0");
     }
 
     #[test]

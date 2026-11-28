@@ -370,7 +370,7 @@ pub fn render(g: &Pinball, screen: Screen, w: usize, h: usize) -> Frame {
     }
     let mut tab = Vec::with_capacity(64);
     table(g, &mut tab);
-    if screen == Screen::Play {
+    if screen != Screen::Title {
         hud(g, &mut tab);
     }
     paint(&mut buf, w, h, m, &tab);

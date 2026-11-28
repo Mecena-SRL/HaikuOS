@@ -129,7 +129,9 @@ fn interactive() {
 fn shot(path: &str, screen: Screen, size: (usize, usize)) {
     let mut g = Pinball::new();
     let mut charge = 0u32;
-    for f in 0..600 {
+    // il titolo si mostra sul primo stato di gioco, senza partita avviata
+    let warm = if screen == Screen::Title { 0 } else { 600 };
+    for f in 0..warm {
         if step(&mut g, &mut charge, f) {
             break;
         }
