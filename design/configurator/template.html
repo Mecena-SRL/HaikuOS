@@ -13,14 +13,17 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 1
 header h1{font-size:15px;margin:0;font-weight:600}
 header .sum{font-size:12px;color:var(--mut)}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-.app{display:grid;grid-template-columns:240px minmax(0,1fr) 420px;height:calc(100% - 48px)}
-nav{border-right:1px solid var(--line);overflow:auto;padding:8px 0}
+.app{display:grid;grid-template-columns:var(--c1,220px) 6px minmax(260px,1fr) 6px var(--c3,460px);height:calc(100% - 48px)}
+.sp{cursor:col-resize;background:transparent;position:relative}
+.sp:hover,.sp.drag{background:rgba(222,123,99,.35)}
+nav{overflow:auto;padding:8px 0;min-width:0}
+.sumbox{display:block}
 nav .cat{font-weight:600;padding:8px 16px 2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
 nav button{display:flex;justify-content:space-between;width:100%;text-align:left;padding:5px 16px 5px 26px;border-radius:0}
 nav button:hover{background:rgba(16,33,57,.05)}
 nav button.sel{background:var(--T0);color:var(--T1)}
 nav button small{opacity:.6}
-main{overflow:auto;padding:16px 24px 64px}
+main{overflow:auto;padding:16px 24px 64px;min-width:0}
 main h2{font-size:16px;margin:0 0 2px}
 main .path{font-size:12px;color:var(--mut);margin-bottom:14px}
 .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:#fff}
@@ -35,12 +38,12 @@ main .path{font-size:12px;color:var(--mut);margin-bottom:14px}
 .opt .src{font-size:11px;color:var(--mut)}
 .opt label.c{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer}
 .opt label.c input{accent-color:var(--T2)}
-aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;min-width:0}
 .ctl{display:flex;gap:6px;flex-wrap:wrap}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .seg button{padding:5px 10px;font-size:12px}
 .seg button.on{background:var(--T0);color:var(--T1)}
-.frame{flex:1;min-height:260px;display:flex;align-items:center;justify-content:center;background:#e6dccd;border-radius:10px;overflow:auto;position:relative}
+.frame{flex:1;min-height:200px;display:flex;align-items:center;justify-content:center;background:#e6dccd;border-radius:10px;overflow:auto;position:relative}
 .dev{position:absolute;left:50%;top:50%}
 /* stage: all sizes are multiples of --u (unit u = max(1, round(S*pct/12800))) */
 .stage{position:relative;overflow:hidden;background:var(--T0);color:var(--T0);font-size:calc(var(--u)*2);--rad:calc(var(--u)*2)}
@@ -102,7 +105,7 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
 .sumbox{font-size:12px;border-top:1px solid var(--line);padding-top:8px}
 .sumbox div{display:flex;justify-content:space-between;padding:1px 0}
 .btnpri{background:var(--T0);color:var(--T1);padding:6px 12px;border-radius:7px;font-size:12px}
-@media (max-width:1000px){.app{grid-template-columns:200px 1fr}aside{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}}
+
 </style>
 </head>
 <body>
@@ -113,7 +116,7 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
 </header>
 <div class="app">
  <nav id="nav"></nav>
- <main id="main"></main>
+ <div class="sp" data-s="1"></div>
  <aside>
   <div class="ctl">
    <div class="seg" id="dev"></div>
@@ -123,8 +126,10 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
   </div>
   <div class="legend" id="meta"></div>
   <div class="frame" id="frame"><div class="dev" id="dev-box"><div class="stage" id="stage"></div></div></div>
-  <div class="sumbox" id="sumbox"></div>
+  <div class="sumbox" id="sumbox" style="display:none"></div>
  </aside>
+ <div class="sp" data-s="2"></div>
+ <main id="main"></main>
 </div>
 <script>
 const DATA=/*DATA*/null;
@@ -132,7 +137,7 @@ const MAP=/*MAP*/null;
 const DEV={"5":{w:800,h:480,l:'5"'},"7":{w:1024,h:600,l:'7"'},"14":{w:1920,h:1080,l:'14"'}};
 const ORI={l:'Orizzontale',p:'Verticale'};
 const PCTS=[100,125,150];
-const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,fit:false,ans:{},cust:{}};
+const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,fit:true,ans:{},cust:{}};
 const $=id=>document.getElementById(id);
 
 // ---- build tree
@@ -192,7 +197,7 @@ $('main').addEventListener('click',e=>{
 // geometria: u float (nessun arrotondamento); tratti: formula separata, in px interi, mai scalati
 function dims(){return S.ori==='l'?DEV[S.dev]:{w:DEV[S.dev].h,h:DEV[S.dev].w}}
 // 1:1 = dimensioni reali del dispositivo (u vera); adatta = la superficie viene ridotta e u si ricalcola dalla formula
-function fitK(){if(!S.fit)return 1;const f=$('frame').getBoundingClientRect(),d=dims();return Math.min(1,(f.width-24)/d.w,(f.height-24)/d.h)}
+function fitK(){if(!S.fit)return 1;const f=$('frame').getBoundingClientRect(),d=dims();return Math.min((f.width-24)/d.w,(f.height-24)/d.h)}
 function uPx(){const d=dims(),k=fitK();return Math.min(d.w,d.h)*k*S.pct/12800}
 function scaleDev(){
  const d=dims(),k=fitK(),w=Math.round(d.w*k),h=Math.round(d.h*k);
@@ -264,6 +269,19 @@ $('exp').addEventListener('click',()=>{
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:'application/json'}));a.download='haikuos-identita.json';a.click();
 });
 new ResizeObserver(scaleDev).observe($('frame'));
+// colonne ridimensionabili (minimi: sinistra 150, centrale 300, destra 300)
+const app=document.querySelector('.app');
+function setCol(n,px){app.style.setProperty(n,px+'px')}
+document.querySelectorAll('.sp').forEach(sp=>sp.addEventListener('pointerdown',e=>{
+ const i=sp.dataset.s;sp.classList.add('drag');sp.setPointerCapture(e.pointerId);
+ const x0=e.clientX,c1=$('nav').offsetWidth,c3=document.querySelector('main').offsetWidth;
+ const move=ev=>{const dx=ev.clientX-x0,W=app.offsetWidth;
+  if(i==='1'){const v=Math.max(150,Math.min(c1+dx,W-c3-300-12));setCol('--c1',v)}
+  else{const v=Math.max(300,Math.min(c3-dx,W-$('nav').offsetWidth-300-12));setCol('--c3',v)}
+  scaleDev()};
+ const up=()=>{sp.classList.remove('drag');sp.removeEventListener('pointermove',move);sp.removeEventListener('pointerup',up)};
+ sp.addEventListener('pointermove',move);sp.addEventListener('pointerup',up);
+}));
 buildStage();segs();renderNav();renderMain();updatePreview();updateSummary();
 </script>
 </body>
