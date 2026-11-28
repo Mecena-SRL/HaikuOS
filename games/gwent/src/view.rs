@@ -1,5 +1,6 @@
-//! Disegno (solo host, std). Il tabellone è in coordinate di progetto 1920×1080, scalato con la stessa
-//! proporzione in ogni schermo (letterbox). Usa il trait `Canvas` di `haiku-gui`. Testo solo ASCII.
+//! Disegno (solo host, std). Tabellone in coordinate di progetto 1920×1080, scalato con la stessa
+//! proporzione in ogni schermo (letterbox). Primitive vettoriali di `haiku-gui` più sfumature, bagliori
+//! e velature calcolati per pixel (nessun bitmap). Testo solo ASCII.
 
 use gwent::cards::{Kind, DEFS};
 use gwent::Game;
@@ -49,18 +50,98 @@ pub fn hit(x: i32, y: i32, hand_len: usize) -> Option<Hit> {
     (0..hand_len).rev().find(|&i| inside(hand_rect(i, hand_len), x, y)).map(Hit::Card)
 }
 
-/// Fotogramma `w`×`h` pixel, formato 0x00RRGGBB (lo stesso di minifb).
+// Palette della scena (0xRRGGBB).
+const SKY_TOP: u32 = 0x08101F;
+const SKY_BOT: u32 = 0x1B3354;
+const FELT_TOP: u32 = 0x1F6B4F;
+const FELT_BOT: u32 = 0x0B2C22;
+const ROW_TOP: u32 = 0x0A2A20;
+const ROW_BOT: u32 = 0x0E3A2C;
+const GOLD_TOP: u32 = 0xFFE08A;
+const GOLD_BOT: u32 = 0xC98E2A;
+const PAPER_TOP: u32 = 0xFCF8F0;
+const PAPER_BOT: u32 = 0xE6D6BC;
+const PL: u32 = 0x4E9BFF;
+const AI: u32 = 0xFF8A3D;
+const FROST: u32 = 0x9FD8FF;
+const FOG: u32 = 0xC4CEDD;
+const GLOW_GOLD: u32 = 0xFFD76A;
+const BTN_TOP: u32 = 0x47E6C4;
+const BTN_BOT: u32 = 0x1A9C84;
+const BTN_OFF: u32 = 0x4A5368;
+
+/// Interpolazione lineare di due colori, `t` in 0..=255.
+fn lerp(a: u32, b: u32, t: u32) -> u32 {
+    let ch = |s: u32| {
+        let (x, y) = ((a >> s) & 255, (b >> s) & 255);
+        ((x * (255 - t) + y * t) / 255) << s
+    };
+    ch(16) | ch(8) | ch(0)
+}
+
+/// Mescola `src` su `dst` con copertura `a` (0..=255).
+fn mix(dst: u32, src: u32, a: u32) -> u32 {
+    let ch = |s: u32| {
+        let (d, c) = ((dst >> s) & 255, (src >> s) & 255);
+        ((d * (255 - a) + c * a) / 255) << s
+    };
+    ch(16) | ch(8) | ch(0)
+}
+
+/// Fotogramma RGB, `w`×`h` pixel, formato 0x00RRGGBB (lo stesso di minifb).
 pub struct Img {
     pub w: usize,
     pub h: usize,
     pub px: Vec<u32>,
 }
 
-fn rgb(t: Tok) -> u32 {
-    t.rgb()
-}
-
 impl Img {
+    /// Rettangolo arrotondato con sfumatura verticale da `c0` (in alto) a `c1` (in basso). `rad` 0 = rettangolo.
+    fn rr_grad(&mut self, r: Rect, rad: i32, c0: u32, c1: u32) {
+        let rad = rad.min(r.w / 2).min(r.h / 2).max(0);
+        let (x0, x1) = (r.x.max(0), (r.x + r.w).min(self.w as i32));
+        let (y0, y1) = (r.y.max(0), (r.y + r.h).min(self.h as i32));
+        for y in y0..y1 {
+            let c = lerp(c0, c1, ((y - r.y) * 255 / (r.h - 1).max(1)) as u32);
+            for x in x0..x1 {
+                let (dx, dy) = (x - r.x, y - r.y);
+                let ox = if dx < rad { rad - 1 - dx } else if dx >= r.w - rad { dx - (r.w - rad) } else { 0 };
+                let oy = if dy < rad { rad - 1 - dy } else if dy >= r.h - rad { dy - (r.h - rad) } else { 0 };
+                if ox * ox + oy * oy < rad * rad || (ox == 0 && oy == 0) {
+                    self.px[y as usize * self.w + x as usize] = c;
+                }
+            }
+        }
+    }
+
+    /// Velatura `c` di copertura `a` su tutto il rettangolo.
+    fn tint(&mut self, r: Rect, a: u32, c: u32) {
+        for y in r.y.max(0)..(r.y + r.h).min(self.h as i32) {
+            for x in r.x.max(0)..(r.x + r.w).min(self.w as i32) {
+                let i = y as usize * self.w + x as usize;
+                self.px[i] = mix(self.px[i], c, a);
+            }
+        }
+    }
+
+    /// Alone attorno al rettangolo: `amax` al bordo, che svanisce su `spread` pixel con caduta quadratica.
+    fn glow(&mut self, r: Rect, spread: i32, c: u32, amax: u32) {
+        let s2 = spread * spread;
+        for y in (r.y - spread).max(0)..(r.y + r.h + spread).min(self.h as i32) {
+            for x in (r.x - spread).max(0)..(r.x + r.w + spread).min(self.w as i32) {
+                let dx = (r.x - x).max(x - (r.x + r.w - 1)).max(0);
+                let dy = (r.y - y).max(y - (r.y + r.h - 1)).max(0);
+                let d2 = dx * dx + dy * dy;
+                if d2 == 0 || d2 >= s2 {
+                    continue;
+                }
+                let a = amax * (s2 - d2) as u32 / s2 as u32;
+                let i = y as usize * self.w + x as usize;
+                self.px[i] = mix(self.px[i], c, a);
+            }
+        }
+    }
+
     /// PPM P6 a dimensioni native.
     pub fn write_ppm(&self, out: &mut impl std::io::Write) -> std::io::Result<()> {
         write!(out, "P6\n{} {}\n255\n", self.w, self.h)?;
@@ -73,12 +154,7 @@ impl Img {
 
 impl Canvas for Img {
     fn fill(&mut self, r: Rect, t: Tok) {
-        let c = rgb(t);
-        for y in r.y.max(0)..(r.y + r.h).min(self.h as i32) {
-            for x in r.x.max(0)..(r.x + r.w).min(self.w as i32) {
-                self.px[y as usize * self.w + x as usize] = c;
-            }
-        }
+        self.rr_grad(r, 0, t.rgb(), t.rgb());
     }
 
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
@@ -86,32 +162,15 @@ impl Canvas for Img {
     }
 
     fn rect_rounded(&mut self, r: Rect, radius: i32, t: Tok) {
-        let c = rgb(t);
-        let rad = radius.min(r.w / 2).min(r.h / 2).max(0);
-        for y in r.y.max(0)..(r.y + r.h).min(self.h as i32) {
-            for x in r.x.max(0)..(r.x + r.w).min(self.w as i32) {
-                let (dx, dy) = (x - r.x, y - r.y);
-                let ox = if dx < rad { rad - 1 - dx } else if dx >= r.w - rad { dx - (r.w - rad) } else { 0 };
-                let oy = if dy < rad { rad - 1 - dy } else if dy >= r.h - rad { dy - (r.h - rad) } else { 0 };
-                if ox * ox + oy * oy < rad * rad || (ox == 0 && oy == 0) {
-                    self.px[y as usize * self.w + x as usize] = c;
-                }
-            }
-        }
+        self.rr_grad(r, radius, t.rgb(), t.rgb());
     }
 
     fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
         if x < 0 || y < 0 || x as usize >= self.w || y as usize >= self.h {
             return;
         }
-        let d = rgb(t);
         let i = y as usize * self.w + x as usize;
-        let s = self.px[i];
-        let mix = |sh: u32| {
-            let (s0, d0, a) = ((s >> sh) & 255, (d >> sh) & 255, a as u32);
-            ((s0 * (255 - a) + d0 * a) / 255) << sh
-        };
-        self.px[i] = mix(16) | mix(8) | mix(0);
+        self.px[i] = mix(self.px[i], t.rgb(), a as u32);
     }
 }
 
@@ -141,14 +200,36 @@ impl Pane {
         Rect::new(self.ox + s(r.x), self.oy + s(r.y), s(r.w), s(r.h))
     }
 
-    fn fill(&mut self, r: Rect, t: Tok) {
-        let d = self.d(r);
-        self.im.fill(d, t);
+    fn s(&self, v: i32) -> i32 {
+        (v as f32 * self.k) as i32
     }
 
-    fn rr(&mut self, r: Rect, rad: i32, t: Tok) {
+    /// Rettangolo arrotondato con sfumatura da `c0` a `c1`.
+    fn rr(&mut self, r: Rect, rad: i32, c0: u32, c1: u32) {
         let d = self.d(r);
-        self.im.rect_rounded(d, (rad as f32 * self.k) as i32, t);
+        let rad = self.s(rad);
+        self.im.rr_grad(d, rad, c0, c1);
+    }
+
+    /// Rettangolo arrotondato di tinta piatta.
+    fn rr_flat(&mut self, r: Rect, rad: i32, c: u32) {
+        self.rr(r, rad, c, c);
+    }
+
+    fn grad(&mut self, r: Rect, c0: u32, c1: u32) {
+        let d = self.d(r);
+        self.im.rr_grad(d, 0, c0, c1);
+    }
+
+    fn tint(&mut self, r: Rect, a: u32, c: u32) {
+        let d = self.d(r);
+        self.im.tint(d, a, c);
+    }
+
+    fn glow(&mut self, r: Rect, spread: i32, c: u32, amax: u32) {
+        let d = self.d(r);
+        let sp = self.s(spread);
+        self.im.glow(d, sp, c, amax);
     }
 
     /// Testo con angolo in alto a sinistra; `size` in unità di progetto (em).
@@ -165,8 +246,8 @@ impl Pane {
     }
 }
 
-fn accent(owner: usize) -> Tok {
-    if owner == 0 { Tok::A(4) } else { Tok::A(3) }
+fn owner_color(owner: usize) -> u32 {
+    if owner == 0 { PL } else { AI }
 }
 
 fn tag(id: usize) -> &'static str {
@@ -183,17 +264,23 @@ fn tag(id: usize) -> &'static str {
     }
 }
 
-/// Una carta: cornice del colore del proprietario, potenza in alto a sinistra, nome e tipo in basso.
-fn card(p: &mut Pane, r: Rect, id: usize, owner: usize, power: i32, sel: bool) {
-    if sel {
-        p.rr(Rect::new(r.x - 5, r.y - 5, r.w + 10, r.h + 10), 12, Tok::T3);
+/// Una carta: cornice del colore del proprietario, carta a sfumatura con riflesso in alto,
+/// potenza in medaglione dorato, nome e tipo. `played` accende l'alone del proprietario.
+fn card(p: &mut Pane, r: Rect, id: usize, owner: usize, power: i32, sel: bool, played: bool) {
+    if played {
+        p.glow(r, 18, owner_color(owner), 150);
     }
-    p.rr(r, 10, accent(owner));
-    p.rr(Rect::new(r.x + 5, r.y + 5, r.w - 10, r.h - 10), 8, Tok::T1);
+    if sel {
+        p.glow(r, 26, GLOW_GOLD, 230);
+    }
+    p.rr_flat(r, 10, owner_color(owner));
+    let inner = Rect::new(r.x + 5, r.y + 5, r.w - 10, r.h - 10);
+    p.rr(inner, 8, PAPER_TOP, PAPER_BOT);
+    p.tint(Rect::new(inner.x + 8, inner.y + 3, inner.w - 16, inner.h / 3), 70, 0xFFFFFF);
     let d = DEFS[id];
     let weather = matches!(d.kind, Kind::Frost | Kind::Fog | Kind::Clear);
     if !weather {
-        p.rr(Rect::new(r.x + 9, r.y + 9, 34, 34), 17, Tok::A(1));
+        p.rr(Rect::new(r.x + 9, r.y + 9, 34, 34), 17, GOLD_TOP, GOLD_BOT);
         let s = format!("{power}");
         p.txt(r.x + 17, r.y + 13, 26, &s, Tok::T0);
     }
@@ -201,10 +288,12 @@ fn card(p: &mut Pane, r: Rect, id: usize, owner: usize, power: i32, sel: bool) {
     p.txt(r.x + 12, r.y + r.h - 32, 14, tag(id), Tok::T2);
 }
 
-/// Tabellone e pannelli in `p` (riusato tra i fotogrammi). `cur` è la carta selezionata, `msg` la riga di stato.
+/// Tabellone, mano e pannelli in `p` (riusato tra i fotogrammi). `cur` è la carta selezionata, `msg` la riga di stato.
 pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
-    p.im.px.fill(rgb(Tok::T0));
-    p.fill(Rect::new(0, 0, DW, DH), Tok::T0);
+    // Sfondo a sfumatura e tavolo di feltro con bordo d'oro.
+    p.grad(Rect::new(0, 0, DW, DH), SKY_TOP, SKY_BOT);
+    p.rr_flat(Rect::new(262, 84, 1296, 700), 28, GOLD_BOT);
+    p.rr(Rect::new(268, 90, 1284, 688), 24, FELT_TOP, FELT_BOT);
 
     // Intestazione: avversario a sinistra, tu a destra, round al centro.
     p.txt(40, 30, 30, "AVVERSARIO", Tok::T1);
@@ -214,16 +303,21 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
     for (b, x0) in [(1usize, 40), (0, 1560)] {
         for i in 0..2 {
             let r = Rect::new(x0 + 240 + i * 34, 34, 22, 22);
-            p.rr(r, 11, if (i as u8) < g.side[b].wins { Tok::A(3) } else { Tok::T2 });
+            let c = if (i as u8) < g.side[b].wins { owner_color(b) } else { 0x3A4660 };
+            p.rr_flat(r, 11, c);
         }
     }
 
-    // Tabellone: per ogni fila colore di sfondo e carte; la fila colpita dal meteo cambia colore.
+    // File: sfondo scuro, velatura del meteo, carte con alone.
     for board in 0..2 {
         for row in 0..2 {
-            let affected = (row == 0 && g.frost) || (row == 1 && g.fog);
             let rr = row_rect(board, row);
-            p.rr(rr, 14, if affected { Tok::A(4) } else { Tok::T2 });
+            p.rr(rr, 14, ROW_TOP, ROW_BOT);
+            let affected = (row == 0 && g.frost) || (row == 1 && g.fog);
+            if affected {
+                let c = if row == 0 { FROST } else { FOG };
+                p.tint(rr, 80, c);
+            }
             let slots = g.side[board].rows[row];
             let n = slots.n as usize;
             let pitch = if n <= 1 { 130 } else { (1100 / (n as i32 - 1)).min(130) };
@@ -233,23 +327,28 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
                 let id = (slot & 0x7f) as usize;
                 let power = g.slot_power(board, row, i);
                 let cr = Rect::new(rr.x + 4 + i as i32 * pitch, rr.y + 15, 120, 130);
-                card(p, cr, id, owner, power, false);
+                card(p, cr, id, owner, power, false, true);
             }
         }
     }
 
     // Punteggi per tabellone (sinistra).
     for (board, y) in [(1usize, 110), (0, 450)] {
-        p.rr(Rect::new(40, y, 220, 310), 14, Tok::T2);
+        p.rr_flat(Rect::new(40, y, 220, 310), 14, GOLD_BOT);
+        p.rr(Rect::new(43, y + 3, 214, 304), 12, 0x2A4A7A, 0x142744);
         let label = if board == 0 { "TU" } else { "AVV." };
-        p.txt_c(Rect::new(40, 0, 220, 0), y + 20, 26, label, Tok::T0);
+        p.txt_c(Rect::new(40, 0, 220, 0), y + 20, 26, label, Tok::T1);
         let s = format!("{}", g.score(board));
-        p.txt_c(Rect::new(40, 0, 220, 0), y + 120, 96, &s, Tok::T0);
+        p.txt_c(Rect::new(40, 0, 220, 0), y + 120, 96, &s, Tok::T1);
     }
 
-    // Mano: la carta selezionata si alza.
+    // Mano: la carta selezionata si alza e viene disegnata per ultima, sopra le altre.
     let n = g.side[0].hand.n as usize;
-    for i in 0..n {
+    let mut order: Vec<usize> = (0..n).filter(|&i| i != cur).collect();
+    if cur < n {
+        order.push(cur);
+    }
+    for i in order {
         let id = g.side[0].hand.c[i] as usize;
         let mut r = hand_rect(i, n);
         let sel = i == cur;
@@ -257,7 +356,7 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
             r.y -= 20;
         }
         let power = DEFS[id].power as i32;
-        card(p, r, id, 0, power, sel);
+        card(p, r, id, 0, power, sel, false);
     }
 
     // Pannello di destra: stato, meteo, pulsante.
@@ -266,8 +365,12 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
     p.txt(1560, 220, 24, if g.frost { "GELO attivo" } else { "" }, Tok::A(4));
     p.txt(1560, 255, 24, if g.fog { "NEBBIA attiva" } else { "" }, Tok::A(4));
     let yours = g.turn == 0 && g.over.is_none();
-    let (bg, label) = if yours { (Tok::A(2), "PASSA") } else { (Tok::T2, "...") };
-    p.rr(PASS, 12, bg);
+    let label = if yours { "PASSA" } else { "..." };
+    if yours {
+        p.rr(PASS, 12, BTN_TOP, BTN_BOT);
+    } else {
+        p.rr_flat(PASS, 12, BTN_OFF);
+    }
     p.txt_c(PASS, PASS.y + 22, 36, label, Tok::T0);
     p.txt(1560, 580, 26, if yours { "Tocca a te" } else { "Turno avversario" }, Tok::T3);
     p.txt(1560, 630, 24, msg, Tok::T1);
