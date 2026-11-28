@@ -118,32 +118,104 @@ impl Canvas for Vector {
         self.span(r.x * s, r.y * s, (r.x + r.w) * s, (r.y + r.h) * s, t.rgb());
     }
 
-    /// Angoli a raggio `radius` (logico) calcolati pixel per pixel in fisico: nitidi a ogni risoluzione.
+    fn smooth(&self) -> bool {
+        true
+    }
+
+    /// Rettangolo con angoli antialiasati: copertura dalla distanza dal bordo del cerchio d'angolo.
     fn rect_rounded(&mut self, r: Rect, radius: i32, t: Tok) {
         let s = self.s;
         let (x0, y0, x1, y1) = (r.x * s, r.y * s, (r.x + r.w) * s, (r.y + r.h) * s);
         let rr = radius * s;
         let c = t.rgb();
         let Some(cl) = gfx::intersect(Rect::new(x0, y0, x1 - x0, y1 - y0), self.clip) else { return };
+        let rf = rr as f32;
         for py in cl.y..cl.y + cl.h {
-            // Fuori dagli angoli la riga è piena: una `fill` invece di un test per pixel.
+            // Fuori dalle zone d'angolo la riga è piena: una `span` invece di un test per pixel.
             if rr == 0 || (py >= y0 + rr && py < y1 - rr) {
                 self.span(cl.x, py, cl.x + cl.w, py + 1, c);
                 continue;
             }
             for px in cl.x..cl.x + cl.w {
-                let d = |v: i32, a: i32, b: i32| {
-                    if v < a + rr {
-                        a + rr - 1 - v
-                    } else if v >= b - rr {
-                        v - (b - rr)
-                    } else {
-                        0
+                let (qx, qy) = (px as f32 + 0.5, py as f32 + 0.5);
+                let ex = (x0 + rr) as f32 - qx;
+                let ex = if ex > 0.0 { ex } else { qx - (x1 - rr) as f32 };
+                let ey = (y0 + rr) as f32 - qy;
+                let ey = if ey > 0.0 { ey } else { qy - (y1 - rr) as f32 };
+                if ex <= 0.0 || ey <= 0.0 {
+                    self.span(px, py, px + 1, py + 1, c);
+                    continue;
+                }
+                let cov = (0.5 - ((ex * ex + ey * ey).sqrt() - rf)).clamp(0.0, 1.0);
+                if cov > 0.0 {
+                    self.mix(px, py, (cov * 255.0) as u8, c);
+                }
+            }
+        }
+    }
+
+    /// Segmento antialiasato di spessore `w` logico: copertura dalla distanza dall'asse.
+    fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, w: i32, t: Tok) {
+        let s = self.s as f32;
+        let c = t.rgb();
+        let (ax, ay) = ((x1 as f32 + 0.5) * s, (y1 as f32 + 0.5) * s);
+        let (bx, by) = ((x2 as f32 + 0.5) * s, (y2 as f32 + 0.5) * s);
+        let hw = w.max(1) as f32 * s / 2.0;
+        let (dx, dy) = (bx - ax, by - ay);
+        let len2 = (dx * dx + dy * dy).max(1e-6);
+        let bb = Rect::new(
+            (ax.min(bx) - hw - 1.0) as i32,
+            (ay.min(by) - hw - 1.0) as i32,
+            ((ax.max(bx) - ax.min(bx)) + 2.0 * hw + 3.0) as i32,
+            ((ay.max(by) - ay.min(by)) + 2.0 * hw + 3.0) as i32,
+        );
+        let Some(cl) = gfx::intersect(bb, self.clip) else { return };
+        for py in cl.y..cl.y + cl.h {
+            for px in cl.x..cl.x + cl.w {
+                let (qx, qy) = (px as f32 + 0.5 - ax, py as f32 + 0.5 - ay);
+                let k = ((qx * dx + qy * dy) / len2).clamp(0.0, 1.0);
+                let (ex, ey) = (qx - k * dx, qy - k * dy);
+                let cov = (hw - (ex * ex + ey * ey).sqrt() + 0.5).clamp(0.0, 1.0);
+                if cov > 0.0 {
+                    self.mix(px, py, (cov * 255.0) as u8, c);
+                }
+            }
+        }
+    }
+
+    /// Poligono antialiasato (regola pari): 4×4 campioni per pixel.
+    fn poly(&mut self, pts: &[(i32, i32)], t: Tok) {
+        let s = self.s as f32;
+        let c = t.rgb();
+        let p: Vec<(f32, f32)> = pts.iter().map(|&(x, y)| (x as f32 * s, y as f32 * s)).collect();
+        let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+        for &(x, y) in &p {
+            x0 = x0.min(x);
+            y0 = y0.min(y);
+            x1 = x1.max(x);
+            y1 = y1.max(y);
+        }
+        let bb = Rect::new(x0 as i32, y0 as i32, (x1 - x0) as i32 + 2, (y1 - y0) as i32 + 2);
+        let Some(cl) = gfx::intersect(bb, self.clip) else { return };
+        for py in cl.y..cl.y + cl.h {
+            for px in cl.x..cl.x + cl.w {
+                let mut hits = 0u32;
+                for j in 0..4 {
+                    for i in 0..4 {
+                        let sx = px as f32 + (i as f32 + 0.5) / 4.0;
+                        let sy = py as f32 + (j as f32 + 0.5) / 4.0;
+                        let mut inside = false;
+                        for k in 0..p.len() {
+                            let (a, b) = (p[k], p[(k + 1) % p.len()]);
+                            if (a.1 > sy) != (b.1 > sy) && sx < a.0 + (sy - a.1) * (b.0 - a.0) / (b.1 - a.1) {
+                                inside = !inside;
+                            }
+                        }
+                        hits += inside as u32;
                     }
-                };
-                let (dx, dy) = (d(px, x0, x1), d(py, y0, y1));
-                if dx * dx + dy * dy < rr * rr {
-                    self.buf[(py * self.pw + px) as usize] = c;
+                }
+                if hits > 0 {
+                    self.mix(px, py, (hits * 255 / 16) as u8, c);
                 }
             }
         }
