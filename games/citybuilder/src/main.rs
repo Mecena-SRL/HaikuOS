@@ -232,6 +232,12 @@ fn draw(g: &Game) {
         terrain_name(g.map.terrain(i)),
         if occupato { "occupato" } else { "libero" }
     );
+    // Motivo del blocco: azione del turno o crescita, per il giocatore.
+    if g.player.action_used() {
+        println!("azione: già usata questo turno, passa il turno con t");
+    } else {
+        println!("azione: disponibile");
+    }
     println!("legenda: H casa F fattoria L legnaia Q cava M mercato B biblioteca _ cantiere x IA . erba T foresta ^ montagna ~ acqua");
     let s = g.player.stock;
     println!(
@@ -249,13 +255,25 @@ fn draw(g: &Game) {
     if let Some(motivo) = g.player.growth_block() {
         println!("crescita ferma: {motivo}");
     }
-    if let Some((n, ev)) = g.next_event().filter(|(n, _)| *n <= 3) {
-        println!(
-            "preavviso: tra {n} {} {}",
-            if n == 1 { "turno" } else { "turni" },
-            ev.name()
-        );
+    // Conto alla rovescia: sempre visibile; il tipo di evento si rivela a 3 turni.
+    if let Some((n, ev)) = g.next_event() {
+        let quando = if n == 1 { "turno" } else { "turni" };
+        if n <= 3 {
+            println!("preavviso: tra {n} {quando} {}", ev.name());
+        } else {
+            println!("prossimo evento tra {n} turni (si rivela a 3)");
+        }
     }
+    // Corsa: cittadini di entrambi sulla soglia di vittoria.
+    println!(
+        "corsa: tu {}/{} | IA {}/{} | turni {}/{}",
+        g.player.citizens,
+        g.win_pop,
+        g.rival.citizens,
+        g.win_pop,
+        g.turns,
+        citybuilder::MAX_TURNS
+    );
     if g.endgame() {
         println!(
             "ultimi turni: {} al tetto",

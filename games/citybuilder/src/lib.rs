@@ -424,6 +424,11 @@ impl Empire {
     }
 
     /// Perché la popolazione non cresce ora (None = cresce).
+    /// True se il turno ha già una costruzione o demolizione.
+    pub fn action_used(&self) -> bool {
+        self.built_this_turn
+    }
+
     pub fn growth_block(&self) -> Option<&'static str> {
         if self.citizens >= self.capacity() {
             Some("nessuna casa libera")
