@@ -1,5 +1,6 @@
-//! Wilkanoid: logica di gioco a punto fisso, `no_std`, senza allocazione.
+//! Wilkanoid: logica a punto fisso, `no_std`, senza allocazione.
 //! Campo logico 240x135 px (16:9). 1 px = `SUB` subunità.
+//! Collisioni palla-mattone con cerchio contro rettangolo (punto più vicino, senza sqrt).
 
 #![cfg_attr(not(test), no_std)]
 
@@ -20,30 +21,39 @@ pub const PAD_Y: i32 = 124;
 pub const PAD_H: i32 = 3;
 pub const PAD_W: i32 = 28;
 pub const PAD_WIDE: i32 = 44;
-pub const BALL_R: i32 = 24; // 1.5 px
+/// Raggio della palla: 1.5 px.
+pub const BALL_R: i32 = 24;
 pub const LIVES: u8 = 3;
-/// Posizioni precedenti della palla per la scia.
+pub const MAX_BALLS: usize = 3;
 pub const TRAIL: usize = 5;
 pub const PARTS: usize = 32;
-const PAD_STEP: i32 = 3 * SUB;
+/// Velocità verticale base (subunità per tick); cresce di 1 per livello.
 const VY: i32 = 20;
+/// Componente orizzontale massima e minima dopo un colpo sulla racchetta.
 const VX_MAX: i32 = 18;
-const VX_MIN: i32 = 6; // evita rimbalzi verticali infiniti
+const VX_MIN: i32 = 6;
 const DROP_V: i32 = 8;
 const WIDE_TICKS: u32 = 600;
 const LOST_TICKS: u32 = 60;
+const FLASH_TICKS: u8 = 6;
 
 pub const EMPTY: u8 = 0;
 pub const NORMAL: u8 = 1;
 pub const STEEL: u8 = 2;
 pub const CRACKED: u8 = 3;
 
+/// Power-up che cadono.
+pub const DROP_WIDE: u8 = 0;
+pub const DROP_MULTI: u8 = 1;
+
 /// Livelli: '0' vuoto, '1' mattone normale, '2' acciaio (due colpi).
-pub const LEVELS: [[&[u8; COLS]; ROWS]; 4] = [
+pub const LEVELS: [[&[u8; COLS]; ROWS]; 6] = [
     [b"111111111", b"111111111", b"111111111", b"121111121", b"111111111", b"111111111"],
     [b"000010000", b"000111000", b"001111100", b"011111110", b"111111111", b"101010101"],
     [b"222022022", b"111111111", b"202020202", b"111111111", b"222222222", b"010101010"],
     [b"000020000", b"000222000", b"002222200", b"022222220", b"222222222", b"022222220"],
+    [b"111010111", b"011111110", b"110111011", b"111010111", b"011111110", b"111111111"],
+    [b"222222222", b"212121212", b"222222222", b"121212121", b"222222222", b"010101010"],
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -63,7 +73,16 @@ pub enum Cmd {
     Fire,
 }
 
-/// Particella di distruzione (subunità). `tone` = indice riga, 6 = acciaio.
+/// Palla, in subunità (posizione del centro, velocità per tick; y negativo = su).
+#[derive(Clone, Copy, Default, Debug)]
+pub struct Ball {
+    pub x: i32,
+    pub y: i32,
+    pub vx: i32,
+    pub vy: i32,
+}
+
+/// Particella di distruzione. `tone` = indice riga, 6 = acciaio.
 #[derive(Clone, Copy, Default)]
 pub struct Part {
     pub x: i32,
@@ -72,6 +91,14 @@ pub struct Part {
     pub vy: i32,
     pub life: u32,
     pub tone: u8,
+}
+
+/// Power-up in caduta.
+#[derive(Clone, Copy)]
+pub struct Drop {
+    pub x: i32,
+    pub y: i32,
+    pub kind: u8,
 }
 
 #[derive(Clone, Copy)]
@@ -84,17 +111,17 @@ pub struct Game {
     pub paddle: i32,
     /// Tick rimanenti della racchetta larga.
     pub wide: u32,
-    /// Centro della palla, subunità.
-    pub ball: (i32, i32),
-    /// Velocità della palla, subunità per tick (y negativo = su).
-    pub vel: (i32, i32),
+    pub balls: [Option<Ball>; MAX_BALLS],
     pub cells: [[u8; COLS]; ROWS],
-    /// Power-up che cadono.
-    pub drops: [Option<(i32, i32)>; 4],
+    /// Tick di lampo residuo per ogni mattone colpito.
+    pub flash: [[u8; COLS]; ROWS],
+    pub drops: [Option<Drop>; 4],
+    pub parts: [Part; PARTS],
+    pub trail: [(i32, i32); TRAIL],
+    /// Tick di scossa residua dello schermo.
+    pub shake: u32,
     /// Fire premuto durante la perdita di vita: lancia alla fine della pausa.
     pub launch: bool,
-    pub trail: [(i32, i32); TRAIL],
-    pub parts: [Part; PARTS],
     timer: u32,
     rng: u32,
 }
@@ -109,13 +136,14 @@ impl Game {
             lives: LIVES,
             paddle: PW * SUB / 2,
             wide: 0,
-            ball: (0, 0),
-            vel: (0, 0),
+            balls: [None; MAX_BALLS],
             cells: [[EMPTY; COLS]; ROWS],
+            flash: [[0; COLS]; ROWS],
             drops: [None; 4],
-            launch: false,
-            trail: [(0, 0); TRAIL],
             parts: [Part::default(); PARTS],
+            trail: [(0, 0); TRAIL],
+            shake: 0,
+            launch: false,
             timer: 0,
             rng: seed | 1,
         };
@@ -135,6 +163,16 @@ impl Game {
         (if self.wide > 0 { PAD_WIDE } else { PAD_W }) * SUB / 2
     }
 
+    /// Palla di riferimento (la prima in gioco).
+    pub fn lead(&self) -> Option<Ball> {
+        self.balls.iter().flatten().next().copied()
+    }
+
+    /// Velocità verticale del livello corrente.
+    pub fn speed(&self) -> i32 {
+        VY + self.level as i32
+    }
+
     pub fn bricks_left(&self) -> usize {
         self.cells.iter().flatten().filter(|&&c| c != EMPTY).count()
     }
@@ -147,12 +185,11 @@ impl Game {
                 }
             }
             Phase::Ready | Phase::Play => match c {
-                Cmd::Left => self.move_paddle(-PAD_STEP),
-                Cmd::Right => self.move_paddle(PAD_STEP),
+                Cmd::Left => self.move_paddle(-3 * SUB),
+                Cmd::Right => self.move_paddle(3 * SUB),
                 Cmd::Fire => {
                     if self.phase == Phase::Ready {
-                        self.phase = Phase::Play;
-                        self.vel = (VX_MAX / 2, -VY);
+                        self.launch_ball();
                     }
                 }
             },
@@ -166,21 +203,33 @@ impl Game {
 
     pub fn tick(&mut self) {
         match self.phase {
-            Phase::Ready => self.ball.0 = self.paddle,
+            Phase::Ready => {
+                if let Some(b) = self.balls[0].as_mut() {
+                    b.x = self.paddle;
+                }
+            }
             Phase::Lost => {
                 self.timer = self.timer.saturating_sub(1);
                 if self.timer == 0 {
                     self.phase = Phase::Ready;
                     if self.launch {
                         self.launch = false;
-                        self.phase = Phase::Play;
-                        self.vel = (VX_MAX / 2, -VY);
+                        self.launch_ball();
                     }
                 }
             }
             Phase::Play => self.play(),
             _ => {}
         }
+    }
+
+    fn launch_ball(&mut self) {
+        let vy = -self.speed();
+        if let Some(b) = self.balls[0].as_mut() {
+            b.vx = VX_MAX / 2;
+            b.vy = vy;
+        }
+        self.phase = Phase::Play;
     }
 
     fn start_at(&mut self, l: usize) {
@@ -197,6 +246,7 @@ impl Game {
                 self.cells[r][c] = LEVELS[l][r][c] - b'0';
             }
         }
+        self.flash = [[0; COLS]; ROWS];
         self.wide = 0;
         self.drops = [None; 4];
         self.parts = [Part::default(); PARTS];
@@ -204,9 +254,10 @@ impl Game {
     }
 
     fn reset_ball(&mut self) {
-        self.ball = (self.paddle, PAD_Y * SUB - BALL_R);
-        self.vel = (0, 0);
-        self.trail = [self.ball; TRAIL];
+        let b = Ball { x: self.paddle, y: PAD_Y * SUB - BALL_R, vx: 0, vy: 0 };
+        self.balls = [None; MAX_BALLS];
+        self.balls[0] = Some(b);
+        self.trail = [(b.x, b.y); TRAIL];
     }
 
     fn move_paddle(&mut self, d: i32) {
@@ -245,22 +296,63 @@ impl Game {
         if self.wide > 0 {
             self.wide -= 1;
         }
-        let (px, py) = self.ball;
-        self.trail.copy_within(0..TRAIL - 1, 1);
-        self.trail[0] = self.ball;
-        for p in self.parts.iter_mut() {
-            if p.life > 0 {
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 2;
-                p.life -= 1;
+        self.shake = self.shake.saturating_sub(1);
+        for r in 0..ROWS {
+            for c in 0..COLS {
+                self.flash[r][c] = self.flash[r][c].saturating_sub(1);
             }
         }
-        let (mut x, mut y) = (px + self.vel.0, py + self.vel.1);
-        let (mut vx, mut vy) = self.vel;
+        for p in self.parts.iter_mut().filter(|p| p.life > 0) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 2;
+            p.life -= 1;
+        }
+        if let Some(b) = self.lead() {
+            self.trail.copy_within(0..TRAIL - 1, 1);
+            self.trail[0] = (b.x, b.y);
+        }
+
+        for i in 0..MAX_BALLS {
+            if let Some(b) = self.balls[i] {
+                self.balls[i] = self.step_ball(b);
+            }
+        }
+
+        if self.balls.iter().all(|b| b.is_none()) {
+            self.lives -= 1;
+            self.wide = 0;
+            self.drops = [None; 4];
+            self.shake = 16;
+            self.reset_ball();
+            if self.lives == 0 {
+                self.phase = Phase::Over;
+            } else {
+                self.phase = Phase::Lost;
+                self.timer = LOST_TICKS;
+            }
+            return;
+        }
+
+        if self.bricks_left() == 0 {
+            if self.level + 1 < LEVELS.len() {
+                self.load(self.level + 1);
+                self.phase = Phase::Ready;
+            } else {
+                self.phase = Phase::Won;
+            }
+            return;
+        }
+
+        self.update_drops();
+    }
+
+    /// Un passo di una palla: muri, racchetta, mattoni. `None` se è uscita dal campo.
+    fn step_ball(&mut self, b: Ball) -> Option<Ball> {
+        let (px, py) = (b.x, b.y);
+        let (mut x, mut y, mut vx, mut vy) = (px + b.vx, py + b.vy, b.vx, b.vy);
         let top = PAD_Y * SUB;
 
-        // Pareti.
         if x < BALL_R {
             x = BALL_R;
             vx = vx.abs();
@@ -283,14 +375,14 @@ impl Game {
             && x <= self.paddle + half
         {
             y = top - BALL_R;
-            vy = -VY;
+            vy = -self.speed();
             vx = ((x - self.paddle) * VX_MAX / half).clamp(-VX_MAX, VX_MAX);
             if vx.abs() < VX_MIN {
                 vx = if x < self.paddle { -VX_MIN } else { VX_MIN };
             }
         }
 
-        // Mattoni: il primo colpo rimbalza; gli altri mattoni sfiorati nello stesso tick si rompono senza rimbalzo.
+        // Mattoni: il primo colpo rimbalza; gli altri mattoni toccati nello stesso tick si rompono senza rimbalzo.
         let mut bounced = false;
         for r in 0..ROWS {
             for c in 0..COLS {
@@ -300,11 +392,14 @@ impl Game {
                 let bx0 = (BX0 + c as i32 * (BW + BGX)) * SUB;
                 let by0 = (BY0 + r as i32 * (BH + BGY)) * SUB;
                 let (bx1, by1) = (bx0 + BW * SUB, by0 + BH * SUB);
-                if x < bx0 - BALL_R || x > bx1 + BALL_R || y < by0 - BALL_R || y > by1 + BALL_R {
+                // Punto del rettangolo più vicino al centro della palla.
+                let (cx, cy) = (x.clamp(bx0, bx1), y.clamp(by0, by1));
+                let (dx, dy) = (x - cx, y - cy);
+                if dx * dx + dy * dy > BALL_R * BALL_R {
                     continue;
                 }
                 if !bounced {
-                    // Colpo da sopra/sotto: rimbalzo verticale. Da lato: orizzontale. Angolo: solo verticale.
+                    // Dal sopra/sotto: rimbalzo verticale. Dal lato: orizzontale. Angolo: asse da cui arrivava la palla.
                     let from_above_below = !(py >= by0 && py <= by1);
                     let from_side = !(px >= bx0 && px <= bx1);
                     let vertical = from_above_below || !from_side;
@@ -328,69 +423,71 @@ impl Game {
                     _ => EMPTY,
                 };
                 self.score += pts;
+                self.flash[r][c] = FLASH_TICKS;
+                self.shake = self.shake.max(4);
                 let tone = if cell == NORMAL { r as u8 } else { 6 };
-                self.burst(bx0 + BW / 2 * SUB, by0 + BH / 2 * SUB, tone);
+                let (mx, my) = (bx0 + BW / 2 * SUB, by0 + BH / 2 * SUB);
+                self.burst(mx, my, tone);
                 if self.cells[r][c] == EMPTY && self.rand() % 5 == 0 {
+                    let kind = if self.rand() % 3 == 0 { DROP_MULTI } else { DROP_WIDE };
                     if let Some(slot) = self.drops.iter_mut().find(|d| d.is_none()) {
-                        *slot = Some((bx0 + BW / 2 * SUB, by0));
+                        *slot = Some(Drop { x: mx, y: by0, kind });
                     }
                 }
             }
         }
-        self.ball = (x, y);
-        self.vel = (vx, vy);
 
-        if self.bricks_left() == 0 {
-            if self.level + 1 < LEVELS.len() {
-                self.load(self.level + 1);
-                self.phase = Phase::Ready;
-            } else {
-                self.phase = Phase::Won;
-            }
-            return;
+        // Palla persa: esce sotto il campo.
+        if y - BALL_R > PH * SUB {
+            return None;
         }
+        Some(Ball { x, y, vx, vy })
+    }
 
-        // Power-up: cadono, la racchetta li prende.
+    /// Power-up: cadono e la racchetta li prende.
+    fn update_drops(&mut self) {
+        let top = PAD_Y * SUB;
         for i in 0..self.drops.len() {
-            if let Some((dx, dy)) = self.drops[i] {
-                let ny = dy + DROP_V;
-                if ny >= top && ny <= top + (PAD_H + 2) * SUB && (dx - self.paddle).abs() <= self.half() + 4 * SUB {
-                    self.wide = WIDE_TICKS;
+            if let Some(d) = self.drops[i] {
+                let ny = d.y + DROP_V;
+                if ny >= top && ny <= top + (PAD_H + 2) * SUB && (d.x - self.paddle).abs() <= self.half() + 4 * SUB {
                     self.drops[i] = None;
-                    self.move_paddle(0); // la racchetta larga non deve sporgere dal campo
+                    if d.kind == DROP_MULTI {
+                        self.spawn_extra_balls();
+                    } else {
+                        self.wide = WIDE_TICKS;
+                        self.move_paddle(0); // la racchetta larga non deve sporgere dal campo
+                    }
                 } else if ny > PH * SUB {
                     self.drops[i] = None;
                 } else {
-                    self.drops[i] = Some((dx, ny));
+                    self.drops[i] = Some(Drop { y: ny, ..d });
                 }
             }
         }
+    }
 
-        // Palla persa.
-        if y - BALL_R > PH * SUB {
-            self.lives -= 1;
-            self.wide = 0;
-            self.drops = [None; 4];
-            self.reset_ball();
-            if self.lives == 0 {
-                self.phase = Phase::Over;
-            } else {
-                self.phase = Phase::Lost;
-                self.timer = LOST_TICKS;
+    /// Multipalla: copia la palla di riferimento in due direzioni, fino a `MAX_BALLS`.
+    fn spawn_extra_balls(&mut self) {
+        let Some(b) = self.lead() else { return };
+        for sign in [-1, 1] {
+            if let Some(slot) = self.balls.iter_mut().find(|s| s.is_none()) {
+                *slot = Some(Ball { vx: -b.vx * sign, ..b });
             }
         }
     }
 }
 
-/// Giocatore automatico: segue la palla e lancia. Serve per i test e gli screenshot.
+/// Giocatore automatico: segue la palla di riferimento e lancia. Serve per i test e gli screenshot.
 pub fn autoplay(g: &mut Game) {
     match g.phase {
         Phase::Title | Phase::Over | Phase::Won | Phase::Ready => g.input(Cmd::Fire),
         Phase::Play => {
-            let d = g.ball.0 - g.paddle;
-            if d < -PAD_STEP {
+            let target = g.lead().map_or(g.paddle, |b| b.x);
+            let d = target - g.paddle;
+            if d < -3 * SUB {
                 g.input(Cmd::Left);
-            } else if d > PAD_STEP {
+            } else if d > 3 * SUB {
                 g.input(Cmd::Right);
             }
         }
@@ -407,7 +504,7 @@ mod tests {
     fn bot_clears_all_levels() {
         let mut g = Game::new(7);
         g.input(Cmd::Fire);
-        for _ in 0..600_000 {
+        for _ in 0..900_000 {
             if matches!(g.phase, Phase::Won | Phase::Over) {
                 break;
             }
@@ -439,9 +536,9 @@ mod tests {
     fn ball_bounces_off_side_wall() {
         let mut g = Game::at_level(1, 0);
         g.phase = Phase::Play;
-        g.ball = (BALL_R + 1, 100 * SUB);
-        g.vel = (-VY, 0);
+        g.balls = [None; MAX_BALLS];
+        g.balls[0] = Some(Ball { x: BALL_R + 1, y: 100 * SUB, vx: -VY, vy: 0 });
         g.tick();
-        assert!(g.vel.0 > 0);
+        assert!(g.lead().map_or(false, |b| b.vx > 0));
     }
 }

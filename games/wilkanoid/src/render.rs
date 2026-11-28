@@ -2,7 +2,7 @@
 //! Coordinate logiche -> pixel con scala uniforme (letterbox).
 
 use crate::{
-    Game, Phase, BALL_R, BGX, BGY, BH, BW, BX0, BY0, COLS, CRACKED, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB, TRAIL,
+    Game, Phase, BALL_R, BGX, BGY, BH, BW, BX0, BY0, COLS, CRACKED, DROP_MULTI, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB, TRAIL,
 };
 
 const BG_T: u32 = 0xFF0E1433;
@@ -21,6 +21,8 @@ const PAD_T: u32 = 0xFFF4F7FF;
 const PAD_B: u32 = 0xFF5B6BF0;
 const BALL: u32 = 0xFFFFFFFF;
 const DROP_T: u32 = 0xFFFFE08A;
+const MULTI_T: u32 = 0xFF9BF5C8;
+const MULTI_B: u32 = 0xFF2A9D8F;
 const DROP_B: u32 = 0xFFF28F3B;
 const TXT: u32 = 0xFFFFFFFF;
 const PANEL: u32 = 0xFF0B1030;
@@ -263,6 +265,13 @@ const STARS: u32 = 90;
 /// Disegna una scena completa nel buffer `px` (`w` x `h`).
 pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     let mut c = Cv::new(px, w, h);
+    // Scossa: offset decrescente, deterministico.
+    if g.shake > 0 {
+        let amp = g.shake as f32 * 0.12;
+        let k = hash(g.shake.wrapping_mul(31) ^ g.score);
+        c.ox += ((k % 3) as f32 - 1.0) * amp * c.s;
+        c.oy += (((k >> 4) % 3) as f32 - 1.0) * amp * c.s;
+    }
     c.bg();
     let pw = PW as f32;
     let ph = PH as f32;
@@ -310,6 +319,10 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             };
             c.rr(x, y, x + BW as f32, y + BH as f32, 1.0, t, b);
             c.rr(x + 1.0, y + 0.5, x + BW as f32 - 1.0, y + 1.5, 0.5, 0xFFFFFFFF, 0xFFFFFFFF);
+            let f = g.flash[r][col];
+            if f > 0 {
+                c.rr_a(x, y, x + BW as f32, y + BH as f32, 1.0, 0xFFFFFFFF, 0xFFFFFFFF, f as f32 / 10.0);
+            }
             if k == CRACKED {
                 c.rr(x + 6.0, y + 1.0, x + 8.0, y + 4.0, 0.5, CRACK_LINE, CRACK_LINE);
                 c.rr(x + 14.0, y + 3.0, x + 17.0, y + 6.0, 0.5, CRACK_LINE, CRACK_LINE);
@@ -334,9 +347,10 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     }
 
     for d in g.drops.iter().flatten() {
-        let (dx, dy) = (d.0 as f32 / sub, d.1 as f32 / sub);
-        c.rr_a(dx - 4.0, dy - 2.5, dx + 4.0, dy + 2.5, 2.5, DROP_B, DROP_B, 0.25);
-        c.rr(dx - 3.0, dy - 1.5, dx + 3.0, dy + 1.5, 1.5, DROP_T, DROP_B);
+        let (dx, dy) = (d.x as f32 / sub, d.y as f32 / sub);
+        let (top, bot) = if d.kind == DROP_MULTI { (MULTI_T, MULTI_B) } else { (DROP_T, DROP_B) };
+        c.rr_a(dx - 4.0, dy - 2.5, dx + 4.0, dy + 2.5, 2.5, bot, bot, 0.25);
+        c.rr(dx - 3.0, dy - 1.5, dx + 3.0, dy + 1.5, 1.5, top, bot);
     }
 
     let hw = g.half() as f32 / sub;
@@ -352,9 +366,11 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     c.text(num(g.score, &mut buf), 4.0, 11.0, 1.0, TXT);
 
     if g.phase != Phase::Title {
-        let (bx, by) = (g.ball.0 as f32 / sub, g.ball.1 as f32 / sub);
-        c.disc_a(bx, by, 3.5, 0xFFFFFFFF, 0.22);
-        c.disc(bx, by, BALL_R as f32 / sub, BALL);
+        for b in g.balls.iter().flatten() {
+            let (bx, by) = (b.x as f32 / sub, b.y as f32 / sub);
+            c.disc_a(bx, by, 3.5, 0xFFFFFFFF, 0.22);
+            c.disc(bx, by, BALL_R as f32 / sub, BALL);
+        }
     }
 
     for i in 0..g.lives as usize {
