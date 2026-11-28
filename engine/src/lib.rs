@@ -90,6 +90,13 @@ fn sweep(b: &mut Body, m: &Map, d: Fx, horizontal: bool) -> bool {
 
 /// Un tick fisso di simulazione: gravità, poi X, poi Y. Non dipende dal tempo reale.
 pub fn step(b: &mut Body, m: &Map) {
+    // Un corpo nato dentro un solido viene spinto su di 1 px alla volta (al massimo 16 px).
+    for _ in 0..16 {
+        if !m.hits(to_px(b.x), to_px(b.y), b.w, b.h) {
+            break;
+        }
+        b.y -= ONE;
+    }
     b.vy = (b.vy + GRAVITY).min(MAX_FALL);
     sweep(b, m, b.vx, true);
     let falling = b.vy > 0;
@@ -203,6 +210,20 @@ mod tests {
         }
         assert!(b.on_ground);
         assert_eq!(to_px(b.y) + b.h, 5 * 16); // appoggiato sul bordo superiore del pavimento
+    }
+
+    #[test]
+    fn body_spawned_inside_solid_is_freed() {
+        let cells = level();
+        let m = Map { w: W, h: H, tile: 16, cells: &cells };
+        // nato dentro il pavimento (riga 5 = y 80..96)
+        let mut b = Body { x: px(16), y: px(84), w: 8, h: 8, ..Default::default() };
+        step(&mut b, &m);
+        assert!(!m.hits(to_px(b.x), to_px(b.y), b.w, b.h));
+        for _ in 0..200 {
+            step(&mut b, &m);
+        }
+        assert!(b.on_ground);
     }
 
     #[test]
