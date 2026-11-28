@@ -47,6 +47,14 @@ impl Device {
         }
     }
 
+    pub fn block_bytes(&self) -> usize {
+        self.block_bytes
+    }
+
+    pub fn block_count(&self) -> usize {
+        self.blocks.len()
+    }
+
     /// Ferma le scritture. Le letture restano per svuotare il disco.
     pub fn halt(&mut self) {
         self.running = false;

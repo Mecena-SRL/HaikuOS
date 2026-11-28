@@ -31,8 +31,14 @@ pub mod fonts;
 pub mod opentype;
 #[cfg(feature = "std")]
 pub mod raster;
+pub mod fence;
+#[cfg(feature = "std")]
+pub mod geom;
 #[cfg(feature = "std")]
 pub mod gpu;
+pub mod gpu_ring;
+#[cfg(feature = "std")]
+pub mod virtio_blk;
 pub mod input;
 pub mod ip;
 pub mod cpu;
