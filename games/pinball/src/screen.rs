@@ -152,6 +152,13 @@ fn paint(buf: &mut [Rgb], w: usize, h: usize, m: Map, prims: &[Prim]) {
         for y in y0..=y1 {
             for x in x0..=x1 {
                 let q = (((x as f32 + 0.5) - m.ox) / m.s, ((y as f32 + 0.5) - m.oy) / m.s);
+                // cerchi: scarta gli angoli del riquadro senza radice quadrata
+                if let Shape::Circ(c, r) = pr.s {
+                    let d = sub(q, c);
+                    if dot(d, d) > (r + 1.0) * (r + 1.0) {
+                        continue;
+                    }
+                }
                 let cov = (0.5 - sdf(&pr.s, q) * m.s).clamp(0.0, 1.0) * pr.a;
                 if cov > 0.0 {
                     let c = &mut buf[y * w + x];

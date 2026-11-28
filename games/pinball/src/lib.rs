@@ -203,6 +203,8 @@ impl Pinball {
                         pts += 10;
                     }
                 }
+                // ogni impulso può superare VMAX dentro il sottopasso: limita subito
+                b.vel = (clamp(b.vel.0), clamp(b.vel.1));
             }
             for (j, s) in SENSORS.iter().enumerate() {
                 let (dx, dy) = (b.pos.0 - s.0 * FP, b.pos.1 - s.1 * FP);
@@ -489,6 +491,24 @@ mod tests {
         let high = g.high;
         g.reset();
         assert_eq!((g.score, g.lives, g.high), (0, 3, high));
+    }
+
+    #[test]
+    fn speed_is_capped_after_impulses() {
+        let mut g = Pinball::new();
+        let mut seed: u64 = 7;
+        for _ in 0..20_000 {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let bits = seed >> 33;
+            let inp = Input { left: bits & 1 == 1, right: bits & 2 == 2, plunger: bits & 4 == 4 };
+            if g.state == State::Over {
+                g.reset();
+            }
+            g.tick(inp);
+            for b in g.balls.iter().filter(|b| b.live) {
+                assert!(b.vel.0.abs() <= VMAX && b.vel.1.abs() <= VMAX, "velocità oltre VMAX: {:?}", b.vel);
+            }
+        }
     }
 
     #[test]
