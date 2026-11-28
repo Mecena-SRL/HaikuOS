@@ -1,24 +1,16 @@
-//! Host grafico (solo std): il tavolo, titolo, pausa e HUD passano dal trait `Canvas` di `haiku-gui`.
-//! Il disegno è in coordinate del tavolo (1 px = 1 unità); il PPM è ingrandito di `SCALE`.
+//! Host vettoriale (solo std). Ogni elemento è una forma analitica (segmento, cerchio,
+//! rettangolo, triangolo) valutata con la distanza con bordo antialias: nessuna texture,
+//! nessun bitmap, nitido a qualsiasi risoluzione (1920×1080, 800×480, ...).
+//! Coordinate del tavolo: unità = px logici del core.
 
-use haiku_gui::layout::{Rect, MENU_ROW};
-use haiku_gui::palette::Tok;
-use haiku_gui::render::Canvas;
-use pinball::{Pinball, BUMPERS, FP, TABLE_H, TABLE_W};
-
-#[path = "../../../gba/src/font.rs"]
-mod font;
-
-/// Ingrandimento del PPM di uscita.
-pub const SCALE: usize = 3;
-/// Altezza dell'em del testo di sistema, in unità del tavolo.
-const TEXT_EM: i32 = 8;
+use pinball::{Pinball, BUMPERS, BUMPER_R, FP, KICKERS, SENSORS, TABLE_H, TABLE_W, WALLS};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Screen {
     Title,
     Play,
     Pause,
+    Over,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,147 +20,340 @@ pub enum Next {
     Stay,
 }
 
-/// Titolo: invio avvia (la pallina è già in `Ready`, la lancia la leva). Pausa: `r` o invio riprende, `q` esce.
+/// Titolo: invio avvia. Pausa: `r` o invio riprende. Fine: `r` o invio ricomincia. `q` esce.
 pub fn on_menu_key(s: Screen, key: &str) -> Next {
     match (s, key) {
-        (Screen::Title | Screen::Pause, "q") => Next::Quit,
+        (Screen::Play, _) => Next::Stay,
+        (_, "q") => Next::Quit,
         (Screen::Title, _) => Next::Go(Screen::Play),
-        (Screen::Pause, "r" | "") => Next::Go(Screen::Play),
+        (Screen::Pause | Screen::Over, "r" | "") => Next::Go(Screen::Play),
         _ => Next::Stay,
     }
 }
 
-/// Fotogramma RGB del tavolo, più piccolo dell'uscita di `SCALE`.
-pub struct Img {
+type P = (f32, f32);
+type Rgb = [f32; 3];
+
+#[derive(Clone, Copy)]
+enum Shape {
+    Seg(P, P, f32),
+    Circ(P, f32),
+    /// centro, semilati, raggio d'angolo
+    Rect(P, P, f32),
+    /// convesso, antiorario (vedi `tri`)
+    Tri([P; 3]),
+}
+
+#[derive(Clone, Copy)]
+struct Prim {
+    s: Shape,
+    col: Rgb,
+    a: f32,
+}
+
+fn p(s: Shape, col: Rgb) -> Prim {
+    Prim { s, col, a: 1.0 }
+}
+
+fn tri(mut v: [P; 3]) -> Shape {
+    let area = (v[1].0 - v[0].0) * (v[2].1 - v[0].1) - (v[1].1 - v[0].1) * (v[2].0 - v[0].0);
+    if area < 0.0 {
+        v.swap(1, 2);
+    }
+    Shape::Tri(v)
+}
+
+fn sub(a: P, b: P) -> P {
+    (a.0 - b.0, a.1 - b.1)
+}
+
+fn dot(a: P, b: P) -> f32 {
+    a.0 * b.0 + a.1 * b.1
+}
+
+/// Distanza con segno (negativa dentro), in unità del tavolo.
+fn sdf(s: &Shape, q: P) -> f32 {
+    match *s {
+        Shape::Seg(a, b, r) => {
+            let (pa, ba) = (sub(q, a), sub(b, a));
+            let h = (dot(pa, ba) / dot(ba, ba)).clamp(0.0, 1.0);
+            let d = sub(pa, (ba.0 * h, ba.1 * h));
+            dot(d, d).sqrt() - r
+        }
+        Shape::Circ(c, r) => {
+            let d = sub(q, c);
+            dot(d, d).sqrt() - r
+        }
+        Shape::Rect(c, h, r) => {
+            let d = sub(q, c);
+            let (qx, qy) = (d.0.abs() - h.0 + r, d.1.abs() - h.1 + r);
+            let (ox, oy) = (qx.max(0.0), qy.max(0.0));
+            (ox * ox + oy * oy).sqrt() + qx.max(qy).min(0.0) - r
+        }
+        Shape::Tri(v) => {
+            // massimo delle distanze dai lati uscenti: esatta dentro, approssimata fuori
+            let mut d = f32::MIN;
+            for i in 0..3 {
+                let (a, b) = (v[i], v[(i + 1) % 3]);
+                let e = sub(b, a);
+                let l = dot(e, e).sqrt();
+                d = d.max(dot(sub(q, a), (e.1 / l, -e.0 / l)));
+            }
+            d
+        }
+    }
+}
+
+fn bbox(s: &Shape) -> (P, P) {
+    match *s {
+        Shape::Seg(a, b, r) => ((a.0.min(b.0) - r, a.1.min(b.1) - r), (a.0.max(b.0) + r, a.1.max(b.1) + r)),
+        Shape::Circ(c, r) => ((c.0 - r, c.1 - r), (c.0 + r, c.1 + r)),
+        Shape::Rect(c, h, r) => ((c.0 - h.0 - r, c.1 - h.1 - r), (c.0 + h.0 + r, c.1 + h.1 + r)),
+        Shape::Tri(v) => (
+            (v[0].0.min(v[1].0).min(v[2].0), v[0].1.min(v[1].1).min(v[2].1)),
+            (v[0].0.max(v[1].0).max(v[2].0), v[0].1.max(v[1].1).max(v[2].1)),
+        ),
+    }
+}
+
+/// Fotogramma RGB.
+pub struct Frame {
     pub w: usize,
     pub h: usize,
     pub px: Vec<[u8; 3]>,
 }
 
-fn rgb(t: Tok) -> [u8; 3] {
-    let c = t.rgb();
-    [(c >> 16) as u8, (c >> 8) as u8, c as u8]
-}
-
-impl Img {
-    fn put(&mut self, x: i32, y: i32, w: i32, h: i32, c: [u8; 3]) {
-        for yy in y.max(0)..(y + h).min(self.h as i32) {
-            for xx in x.max(0)..(x + w).min(self.w as i32) {
-                self.px[yy as usize * self.w + xx as usize] = c;
-            }
-        }
-    }
-
-    /// Scurisce il fotogramma (fondo dei menu).
-    fn dim(&mut self) {
-        for p in &mut self.px {
-            *p = p.map(|c| c / 3);
-        }
-    }
-
-    /// PPM P6 ingrandito di `SCALE` (vicino più prossimo).
+impl Frame {
     pub fn write_ppm(&self, out: &mut impl std::io::Write) -> std::io::Result<()> {
-        let (w, h) = (self.w * SCALE, self.h * SCALE);
-        write!(out, "P6\n{w} {h}\n255\n")?;
-        for y in 0..h {
-            for x in 0..w {
-                out.write_all(&self.px[(y / SCALE) * self.w + x / SCALE])?;
-            }
+        write!(out, "P6\n{} {}\n255\n", self.w, self.h)?;
+        for c in &self.px {
+            out.write_all(c)?;
         }
         Ok(())
     }
 }
 
-impl Canvas for Img {
-    fn fill(&mut self, r: Rect, t: Tok) {
-        self.put(r.x, r.y, r.w, r.h, rgb(t));
-    }
+/// Mappa tavolo→pixel: scala `s`, offset `ox`, `oy`.
+#[derive(Clone, Copy)]
+struct Map {
+    s: f32,
+    ox: f32,
+    oy: f32,
+}
 
-    /// Rettangolo con angoli arrotondati di raggio `radius` (raggio = metà lato: cerchio).
-    fn rect_rounded(&mut self, r: Rect, radius: i32, t: Tok) {
-        let c = rgb(t);
-        let rad = radius.min(r.w / 2).min(r.h / 2).max(0);
-        for y in r.y.max(0)..(r.y + r.h).min(self.h as i32) {
-            for x in r.x.max(0)..(r.x + r.w).min(self.w as i32) {
-                let (dx, dy) = (x - r.x, y - r.y);
-                let ox = if dx < rad { rad - 1 - dx } else if dx >= r.w - rad { dx - (r.w - rad) } else { 0 };
-                let oy = if dy < rad { rad - 1 - dy } else if dy >= r.h - rad { dy - (r.h - rad) } else { 0 };
-                if ox * ox + oy * oy < rad * rad || (ox == 0 && oy == 0) {
-                    self.px[y as usize * self.w + x as usize] = c;
+/// Disegna le forme nel buffer; ognuna tocca solo il suo riquadro.
+fn paint(buf: &mut [Rgb], w: usize, h: usize, m: Map, prims: &[Prim]) {
+    for pr in prims {
+        let (lo, hi) = bbox(&pr.s);
+        let x0 = ((m.ox + lo.0 * m.s).floor() as isize - 1).clamp(0, w as isize - 1) as usize;
+        let x1 = ((m.ox + hi.0 * m.s).ceil() as isize + 1).clamp(0, w as isize - 1) as usize;
+        let y0 = ((m.oy + lo.1 * m.s).floor() as isize - 1).clamp(0, h as isize - 1) as usize;
+        let y1 = ((m.oy + hi.1 * m.s).ceil() as isize + 1).clamp(0, h as isize - 1) as usize;
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let q = (((x as f32 + 0.5) - m.ox) / m.s, ((y as f32 + 0.5) - m.oy) / m.s);
+                // cerchi: scarta gli angoli del riquadro senza radice quadrata
+                if let Shape::Circ(c, r) = pr.s {
+                    let d = sub(q, c);
+                    if dot(d, d) > (r + 1.0) * (r + 1.0) {
+                        continue;
+                    }
+                }
+                let cov = (0.5 - sdf(&pr.s, q) * m.s).clamp(0.0, 1.0) * pr.a;
+                if cov > 0.0 {
+                    let c = &mut buf[y * w + x];
+                    for k in 0..3 {
+                        c[k] += (pr.col[k] - c[k]) * cov;
+                    }
                 }
             }
         }
     }
-    /// Testo di sistema (Inter, `fonts/README.md`) al posto del 3×5 di gba.
-    fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
-        haiku_gui::vfont::draw_text(self, x, y, TEXT_EM, s, t);
-    }
-
-    /// Miscela con copertura `a` (antialiasing del testo di sistema).
-    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
-        if x < 0 || y < 0 || x as usize >= self.w || y as usize >= self.h {
-            return;
-        }
-        let c = rgb(t);
-        let p = &mut self.px[y as usize * self.w + x as usize];
-        for k in 0..3 {
-            p[k] = ((p[k] as u32 * (255 - a as u32) + c[k] as u32 * a as u32) / 255) as u8;
-        }
-    }
 }
 
-/// Menu sovrapposto: fondo scurito, pannello con titolo e voci, la prima voce selezionata.
-/// Le voci sono disegnate qui (centrate nella riga): `Canvas::menu` di gui ha il testo fuori riga.
-fn overlay(im: &mut Img, s: Screen) {
-    im.dim();
-    let (title, rows): (&str, &[&str]) = match s {
-        Screen::Title => ("PINBALL", &["INIZIA", "ESCI"]),
-        _ => ("PAUSA", &["RIPRENDI", "ESCI"]),
-    };
-    let p = Rect::new(12, 70, 136, 18 + MENU_ROW * rows.len() as i32 + 4);
-    im.rect_rounded(p, 4, Tok::T0);
-    im.text(p.x + 8, p.y + 5, title, Tok::A(1));
-    for (i, label) in rows.iter().enumerate() {
-        let y = p.y + 16 + i as i32 * MENU_ROW;
-        let (bg, fg) = if i == 0 { (Tok::T2, Tok::T0) } else { (Tok::T0, Tok::T2) };
-        im.fill(Rect::new(p.x + 4, y, p.w - 8, MENU_ROW), bg);
-        im.text(p.x + 8, y + 2, label, fg);
-    }
+const WALL: Rgb = [0.36, 0.44, 0.66];
+const KICK: Rgb = [0.45, 0.95, 1.0];
+const FLIP_REST: Rgb = [0.80, 0.42, 0.14];
+const FLIP_UP: Rgb = [1.0, 0.86, 0.38];
+const BUMP: Rgb = [0.95, 0.22, 0.56];
+const LIT: Rgb = [0.35, 1.0, 0.55];
+const UNLIT: Rgb = [0.20, 0.30, 0.46];
+const BALL: Rgb = [0.92, 0.95, 1.0];
+const HUD: Rgb = [1.0, 0.95, 0.62];
+const DARK: Rgb = [0.03, 0.04, 0.10];
+
+fn mix(a: Rgb, b: Rgb, t: f32) -> Rgb {
+    [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 }
 
-/// Fotogramma del tavolo (1 px = 1 unità) con HUD in gioco o menu sovrapposto.
-pub fn frame(g: &Pinball, screen: Screen) -> Img {
-    let (w, h) = (TABLE_W as usize, TABLE_H as usize);
-    let mut im = Img { w, h, px: vec![[10, 14, 30]; w * h] };
-    let to = |v: (i64, i64)| ((v.0 / FP) as i32, (v.1 / FP) as i32);
+/// Segmenti del display a sette segmenti (a b c d e f g = bit 0..6), per le cifre 0..9.
+const DIGIT: [u8; 10] = [63, 6, 91, 79, 102, 109, 125, 7, 127, 111];
+
+/// Numero a sette segmenti vettoriali. `hgt` in unità del tavolo; ritorna la larghezza.
+fn digits(out: &mut Vec<Prim>, n: u32, x: f32, y: f32, hgt: f32, col: Rgb) -> f32 {
+    let (w, m, t) = (hgt * 0.6, hgt * 0.5, hgt * 0.09);
+    let gap = hgt * 0.35;
+    let mut cx = x;
+    for ch in n.to_string().bytes() {
+        let mask = DIGIT[(ch - b'0') as usize];
+        let at = |a: P| (cx + a.0, y + a.1);
+        let segs: [(P, P); 7] = [
+            ((0.0, 0.0), (w, 0.0)),
+            ((w, 0.0), (w, m)),
+            ((w, m), (w, hgt)),
+            ((0.0, hgt), (w, hgt)),
+            ((0.0, m), (0.0, hgt)),
+            ((0.0, 0.0), (0.0, m)),
+            ((0.0, m), (w, m)),
+        ];
+        for (k, (a, b)) in segs.iter().enumerate() {
+            if mask & (1 << k) != 0 {
+                out.push(p(Shape::Seg(at(*a), at(*b), t), col));
+            }
+        }
+        cx += w + gap;
+    }
+    cx - x - gap
+}
+
+fn digits_width(n: u32, hgt: f32) -> f32 {
+    let k = n.to_string().len() as f32;
+    k * hgt * 0.6 + (k - 1.0) * hgt * 0.35
+}
+
+/// Tavolo: sempre disegnato.
+fn table(g: &Pinball, out: &mut Vec<Prim>) {
+    let f = |v: f32| v / FP as f32;
+    let fp = |v: (i64, i64)| (f(v.0 as f32), f(v.1 as f32));
+    // sfondo a tema: aloni morbidi e stelle, dietro al tavolo
+    for (c, r, col, a) in [
+        ((80.0, 60.0), 150.0, [0.10, 0.25, 0.45], 0.35),
+        ((120.0, 200.0), 120.0, [0.35, 0.08, 0.30], 0.30),
+    ] {
+        out.push(Prim { s: Shape::Circ(c, r), col, a });
+    }
+    for k in 0..24u32 {
+        let x = -60.0 + (k * 37 % 280) as f32;
+        let y = -50.0 + (k * 53 % 340) as f32;
+        out.push(Prim { s: Shape::Circ((x, y), 0.6 + (k % 3) as f32 * 0.3), col: [0.85, 0.9, 1.0], a: 0.5 });
+    }
+    out.push(p(Shape::Rect((80.0, 120.0), (80.0, 120.0), 4.0), DARK));
+    for w in WALLS {
+        out.push(p(Shape::Seg((w[0] as f32, w[1] as f32), (w[2] as f32, w[3] as f32), 0.9), WALL));
+    }
+    for k in KICKERS {
+        out.push(p(Shape::Seg((k[0] as f32, k[1] as f32), (k[2] as f32, k[3] as f32), 2.0), KICK));
+    }
     for c in BUMPERS {
-        let (x, y) = (c.0 as i32, c.1 as i32);
-        im.rect_rounded(Rect::new(x - 8, y - 8, 16, 16), 8, Tok::A(7));
+        let ctr = (c.0 as f32, c.1 as f32);
+        let r = f(BUMPER_R as f32);
+        out.push(Prim { s: Shape::Circ(ctr, r + 7.0), col: BUMP, a: 0.07 });
+        out.push(Prim { s: Shape::Circ(ctr, r + 3.0), col: BUMP, a: 0.18 });
+        out.push(p(Shape::Circ(ctr, r), BUMP));
+        out.push(p(Shape::Circ(ctr, r - 2.4), DARK));
+        out.push(p(Shape::Circ(ctr, 2.0), [1.0, 0.8, 0.9]));
     }
-    for f in &g.flips {
-        let (a, b) = (to(f.pivot), to(f.tip()));
-        im.line(a.0, a.1, b.0, b.1, 4, Tok::T1);
+    for (j, s) in SENSORS.iter().enumerate() {
+        let lit = g.lit & (1u8 << j) != 0;
+        let ctr = (s.0 as f32, s.1 as f32);
+        out.push(p(Shape::Circ(ctr, 3.0), if lit { LIT } else { UNLIT }));
+        out.push(p(Shape::Circ(ctr, 1.4), DARK));
+    }
+    for fl in &g.flips {
+        let (a, b) = (fp(fl.pivot), fp(fl.tip()));
+        let up = (fl.dps.abs() as f32 / 20.0).min(1.0);
+        out.push(Prim { s: Shape::Seg(a, b, 5.0), col: FLIP_UP, a: 0.12 + 0.12 * up });
+        out.push(p(Shape::Seg(a, b, 2.8), mix(FLIP_REST, FLIP_UP, up)));
+        out.push(p(Shape::Circ(a, 3.6), [0.2, 0.12, 0.05]));
+        out.push(p(Shape::Circ(a, 1.4), FLIP_UP));
     }
     for b in g.balls.iter().filter(|b| b.live) {
-        let (x, y) = to(b.pos);
-        im.rect_rounded(Rect::new(x - 3, y - 3, 6, 6), 3, Tok::A(1));
-    }
-    match screen {
-        Screen::Play => {
-            let s = format!("PUNTI {}  VITE {}", g.score, g.lives);
-            im.rect_rounded(Rect::new(1, 1, s.len() as i32 * font::ADVANCE as i32 + 6, 9), 3, Tok::T0);
-            im.text(4, 3, &s, Tok::T1);
+        let c = fp(b.pos);
+        let v = fp(b.vel);
+        let sp = (v.0 * v.0 + v.1 * v.1).sqrt().max(1e-3);
+        let u = (v.0 / sp, v.1 / sp);
+        for k in 1..=4u32 {
+            let kk = k as f32;
+            let at = (c.0 - u.0 * kk * 1.6, c.1 - u.1 * kk * 1.6);
+            out.push(Prim { s: Shape::Circ(at, 2.6 - kk * 0.4), col: [0.7, 0.9, 1.0], a: 0.30 - kk * 0.06 });
         }
-        s => overlay(&mut im, s),
+        out.push(Prim { s: Shape::Circ(c, 4.2), col: [0.6, 0.8, 1.0], a: 0.15 });
+        out.push(p(Shape::Circ(c, 3.0), BALL));
+        out.push(p(Shape::Circ((c.0 - 0.9, c.1 - 0.9), 1.0), [1.0, 1.0, 1.0]));
     }
-    im
+}
+
+/// HUD in gioco: punteggio e vite in alto nel tavolo.
+fn hud(g: &Pinball, out: &mut Vec<Prim>) {
+    digits(out, g.score, 6.0, 5.0, 10.0, HUD);
+    for i in 0..3u8 {
+        let on = i < g.lives;
+        out.push(p(Shape::Circ((150.0 - i as f32 * 8.0, 10.0), 2.5), if on { BALL } else { UNLIT }));
+    }
+}
+
+/// Pannello di menu centrato nel tavolo, con il contenuto della schermata.
+fn overlay(g: &Pinball, s: Screen, out: &mut Vec<Prim>) {
+    let c = (80.0, 120.0);
+    out.push(p(Shape::Rect(c, (62.0, 48.0), 5.0), [0.9, 0.55, 0.2]));
+    out.push(p(Shape::Rect(c, (60.0, 46.0), 4.0), [0.04, 0.05, 0.12]));
+    match s {
+        Screen::Title => out.push(p(tri([(70.0, 88.0), (70.0, 112.0), (92.0, 100.0)]), FLIP_UP)),
+        Screen::Pause => {
+            out.push(p(Shape::Rect((74.0, 110.0), (3.0, 11.0), 1.0), FLIP_UP));
+            out.push(p(Shape::Rect((86.0, 110.0), (3.0, 11.0), 1.0), FLIP_UP));
+        }
+        Screen::Over => {
+            let w = digits_width(g.score, 12.0);
+            digits(out, g.score, c.0 - w / 2.0, 96.0, 12.0, HUD);
+            let w = digits_width(g.high, 6.0);
+            digits(out, g.high, c.0 - w / 2.0, 116.0, 6.0, UNLIT);
+        }
+        Screen::Play => {}
+    }
+    out.push(p(Shape::Rect((80.0, 132.0), (36.0, 1.5), 1.5), KICK));
+}
+
+/// Fotogramma `w`×`h`, qualsiasi risoluzione. Il tavolo è centrato in proporzione, con bordi neri.
+pub fn render(g: &Pinball, screen: Screen, w: usize, h: usize) -> Frame {
+    let s = (w as f32 / TABLE_W as f32).min(h as f32 / TABLE_H as f32);
+    let m = Map {
+        s,
+        ox: (w as f32 - TABLE_W as f32 * s) / 2.0,
+        oy: (h as f32 - TABLE_H as f32 * s) / 2.0,
+    };
+    let mut buf = vec![[0.0f32; 3]; w * h];
+    for y in 0..h {
+        let row = mix([0.02, 0.03, 0.08], [0.07, 0.09, 0.20], y as f32 / h as f32);
+        buf[y * w..(y + 1) * w].fill(row);
+    }
+    let mut tab = Vec::with_capacity(64);
+    table(g, &mut tab);
+    if screen == Screen::Play {
+        hud(g, &mut tab);
+    }
+    paint(&mut buf, w, h, m, &tab);
+    if screen != Screen::Play {
+        for c in buf.iter_mut() {
+            *c = [c[0] * 0.35, c[1] * 0.35, c[2] * 0.35];
+        }
+        let mut ov = Vec::with_capacity(32);
+        overlay(g, screen, &mut ov);
+        paint(&mut buf, w, h, m, &ov);
+    }
+    let px = buf
+        .iter()
+        .map(|c| [(c[0] * 255.0 + 0.5) as u8, (c[1] * 255.0 + 0.5) as u8, (c[2] * 255.0 + 0.5) as u8])
+        .collect();
+    Frame { w, h, px }
 }
 
 /// Testo dei menu per il terminale.
-pub fn menu_text(s: Screen) {
+pub fn menu_text(s: Screen, g: &Pinball) {
     match s {
         Screen::Title => println!("PINBALL\nINVIO per iniziare (leva: invio), q per uscire"),
         Screen::Pause => println!("PAUSA: r riprendi, q esci"),
+        Screen::Over => println!("FINE: punti {}  record {}. INVIO ricomincia, q esci", g.score, g.high),
         Screen::Play => {}
     }
 }
@@ -178,18 +363,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn titolo_pausa_e_tasti() {
+    fn titolo_pausa_fine_e_tasti() {
         assert_eq!(on_menu_key(Screen::Title, ""), Next::Go(Screen::Play));
         assert_eq!(on_menu_key(Screen::Title, "q"), Next::Quit);
         assert_eq!(on_menu_key(Screen::Pause, "r"), Next::Go(Screen::Play));
         assert_eq!(on_menu_key(Screen::Pause, "x"), Next::Stay);
+        assert_eq!(on_menu_key(Screen::Over, ""), Next::Go(Screen::Play));
     }
 
     #[test]
-    fn fotogramma_ha_dimensioni_del_tavolo() {
-        let im = frame(&Pinball::new(), Screen::Pause);
-        assert_eq!((im.w, im.h), (TABLE_W as usize, TABLE_H as usize));
-        assert_eq!(im.px.len(), im.w * im.h);
+    fn fotogramma_a_ogni_risoluzione() {
+        for (w, h) in [(320, 480), (800, 480), (1920, 1080)] {
+            let f = render(&Pinball::new(), Screen::Play, w, h);
+            assert_eq!((f.w, f.h, f.px.len()), (w, h, w * h));
+        }
+    }
+
+    #[test]
+    fn fine_mostra_punteggio() {
+        let mut g = Pinball::new();
+        g.score = 1234;
+        let a = render(&g, Screen::Over, 160, 240);
+        let b = render(&Pinball::new(), Screen::Over, 160, 240);
+        assert_ne!(a.px, b.px);
     }
 }
 
@@ -197,15 +393,15 @@ mod tests {
 mod bench {
     use super::*;
 
-    /// Costo di un fotogramma (tavolo + HUD): `cargo test --release -- --ignored --nocapture bench`.
+    /// `cargo test --release -- --ignored --nocapture bench`
     #[test]
     #[ignore]
     fn bench_frame() {
         let g = Pinball::new();
         let t = std::time::Instant::now();
-        for _ in 0..2000 {
-            std::hint::black_box(frame(&g, Screen::Play));
+        for _ in 0..50 {
+            std::hint::black_box(render(&g, Screen::Play, 800, 480));
         }
-        println!("BENCH pinball {:.1} us/frame", t.elapsed().as_secs_f64() * 1e6 / 2000.0);
+        println!("BENCH pinball 800x480 {:.1} us/frame", t.elapsed().as_secs_f64() * 1e6 / 50.0);
     }
 }
