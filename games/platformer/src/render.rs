@@ -384,18 +384,18 @@ fn cloud(c: &mut Fb, x: i32, y: i32, col: u32) {
 /// Sfondo a 5 piani di parallasse: cielo a gradiente, sole, montagne, colline, cespugli, nuvole.
 fn backdrop(c: &mut Fb, cam: i32) {
     sky(c);
-    c.disc(p(206), p(40), p(30), SUN_HALO);
-    c.disc(p(206), p(40), p(18), SUN);
+    c.disc(p(206), p(48), p(30), SUN_HALO);
+    c.disc(p(206), p(48), p(18), SUN);
     for k in -1..5 {
         let x = k * 140 + 70 - (cam / 6).rem_euclid(140);
         c.ell(p(x), p(190), p(90), p(60), MOUNT_FAR);
     }
     for k in 0..6 {
         let x = (k * 75 - cam / 5).rem_euclid(VIEW_W + 140) - 70;
-        cloud(c, x, 18 + (k % 2) * 14, CLOUD_FAR);
+        cloud(c, x, 26 + (k % 2) * 14, CLOUD_FAR);
     }
     for k in -1..6 {
-        let x = k * 120 + 60 - (cam / 2).rem_euclid(120);
+        let x = k * 120 + 60 - (cam / 4).rem_euclid(120);
         c.ell(p(x), p(200), p(70), p(48), HILL_FAR);
     }
     for k in -1..5 {
@@ -404,7 +404,7 @@ fn backdrop(c: &mut Fb, cam: i32) {
     }
     for k in -1..10 {
         let x = k * 56 + 20 - (cam * 4 / 5).rem_euclid(56);
-        c.ell(p(x), p(218), p(18), p(12), BUSH);
+        c.ell(p(x), p(186), p(18), p(12), BUSH);
     }
     for k in 0..5 {
         let x = (k * 90 - cam * 3 / 10).rem_euclid(VIEW_W + 120) - 60;
@@ -455,7 +455,7 @@ fn tiles(g: &Game, c: &mut Fb) {
                     c.rrect(p(x), p(y), p(16), p(16), p(2), QUEST);
                     c.rrect(p(x + 2), p(y + 2), p(12), p(12), p(1), QUEST_IN);
                     c.ring(p(x + 8), p(y + 6), p(3) + 8, p(2), 8, 16, INK);
-                    c.seg(p(x + 8), p(y + 6), p(x + 8), p(y + 10), p(2), INK);
+                    c.seg(p(x + 8), p(y + 3), p(x + 8), p(y + 10), p(2), INK);
                     c.disc(p(x + 8), p(y + 12) + 4, p(1) + 4, INK);
                 }
                 Tile::Used => {
@@ -467,7 +467,7 @@ fn tiles(g: &Game, c: &mut Fb) {
                 Tile::Coin => coin(c, p(x + 8), p(y + 8), g.frame),
                 Tile::Flag => {
                     c.rect(x + 7, y, 2, TILE, POLE);
-                    c.poly(&[(x + 9, y + 1), (x + 16, y + 4), (x + 9, y + 7)], FLAG);
+                    c.poly(&[(p(x + 9), p(y + 1)), (p(x + 16), p(y + 4)), (p(x + 9), p(y + 7))], FLAG);
                     c.disc(p(x + 8), p(y), p(1), POLE);
                 }
                 Tile::Air => {}
@@ -530,7 +530,7 @@ fn player(g: &Game, c: &mut Fb) {
     let (by, bh) = (pl.b.y / SUB, pl.b.h);
     let moving = pl.b.vx.abs() > 4;
     let s = if !pl.on_ground {
-        2
+        -1
     } else if moving {
         (g.frame / 4 % 2) as i32
     } else {

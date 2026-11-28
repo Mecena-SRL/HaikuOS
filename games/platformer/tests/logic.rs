@@ -112,3 +112,19 @@ fn map_moves_to_next_level_after_clear() {
     assert_eq!(g.state, State::Map);
     assert_eq!((g.cursor, g.unlocked), (1, 2));
 }
+
+#[test]
+fn game_over_after_last_life() {
+    let mut g = custom("P.\n..\n..\n..\n.#");
+    g.lives = 1;
+    run(&mut g, 0, 25);
+    assert_eq!(g.state, State::Over);
+    assert_eq!(g.lives, 0);
+}
+
+#[test]
+fn flag_clears_level() {
+    let mut g = custom("P..F\n####");
+    run(&mut g, BTN_RIGHT | BTN_RUN, 120);
+    assert_eq!(g.state, State::Clear);
+}

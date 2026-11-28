@@ -609,6 +609,10 @@ impl Game {
         self.p.big = big;
         let d = 10 * SUB;
         if big {
+            // Non cresce se il soffitto è basso: resterebbe incastrato nel tile.
+            if self.lvl.blocked(self.p.b.x, self.p.b.y - d, self.p.b.w * SUB, 24 * SUB) {
+                return;
+            }
             self.p.b.y -= d;
             self.p.b.h = 24;
         } else {

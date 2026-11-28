@@ -108,7 +108,15 @@ fn interactive() {
             Screen::Play => match key {
                 "p" => screen = Screen::Pause,
                 "q" => break,
-                _ => (0..60).for_each(|_| advance(&mut g, &mut bot, &mut k)),
+                _ => {
+                    // Si ferma appena la partita finisce, così Over/Won resta visibile.
+                    for _ in 0..60 {
+                        advance(&mut g, &mut bot, &mut k);
+                        if g.state != State::Playing {
+                            break;
+                        }
+                    }
+                }
             },
         }
         render::draw(&g, &mut fb, BENCH_W, BENCH_H);
