@@ -9,6 +9,6 @@ Brick breaker in stile Arkanoid. Vettoriale, `no_std`, senza allocazione, a punt
 
 Test: `cargo test -p wilkanoid`. Il bot in `autoplay` completa tutti i livelli (test `bot_clears_all_levels`).
 
-Screenshot in `screenshots/`: 7" 1920x1080 e 5" 1372x772 (stessa densità, ~315 PPI).
+Screenshot in `screenshots/`: 1920x1080 e 800x480 (stelle, bagliori, scia e particelle).
 
 Non ancora fatto: loop in tempo reale sul framebuffer HaikuOS e backend GBA (serve un `poll_key` non bloccante nel trait `Platform`).

@@ -2,7 +2,7 @@
 //! Coordinate logiche -> pixel con scala uniforme (letterbox).
 
 use crate::{
-    Game, Phase, BALL_R, BGX, BGY, BH, BW, BX0, BY0, COLS, CRACKED, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB,
+    Game, Phase, BALL_R, BGX, BGY, BH, BW, BX0, BY0, COLS, CRACKED, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB, TRAIL,
 };
 
 const BG_T: u32 = 0xFF0E1433;
@@ -170,6 +170,12 @@ impl<'a> Cv<'a> {
     /// Rettangolo arrotondato (coordinate logiche), gradiente verticale top->bot.
     #[allow(clippy::too_many_arguments)]
     pub fn rr(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, r: f32, top: u32, bot: u32) {
+        self.rr_a(x0, y0, x1, y1, r, top, bot, 1.0);
+    }
+
+    /// Come `rr`, con opacità `alpha` (0..1).
+    #[allow(clippy::too_many_arguments)]
+    pub fn rr_a(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, r: f32, top: u32, bot: u32, alpha: f32) {
         let (dx0, dx1) = self.span(x0, x1, self.ox, self.w);
         let (dy0, dy1) = self.span(y0, y1, self.oy, self.h);
         for yi in dy0..dy1 {
@@ -177,7 +183,7 @@ impl<'a> Cv<'a> {
             let col = lerp(top, bot, clamp01((ly - y0) / (y1 - y0)));
             for xi in dx0..dx1 {
                 let lx = ((xi as f32) + 0.5 - self.ox) / self.s;
-                let a = rr_cov(lx, ly, x0, y0, x1, y1, r);
+                let a = rr_cov(lx, ly, x0, y0, x1, y1, r) * alpha;
                 if a > 0.0 {
                     let i = yi * self.w + xi;
                     self.px[i] = mix(self.px[i], col, a);
@@ -188,6 +194,11 @@ impl<'a> Cv<'a> {
 
     /// Cerchio antialiasato (coordinate logiche).
     pub fn disc(&mut self, cx: f32, cy: f32, r: f32, col: u32) {
+        self.disc_a(cx, cy, r, col, 1.0);
+    }
+
+    /// Come `disc`, con opacità `alpha`.
+    pub fn disc_a(&mut self, cx: f32, cy: f32, r: f32, col: u32, alpha: f32) {
         let (dx0, dx1) = self.span(cx - r, cx + r, self.ox, self.w);
         let (dy0, dy1) = self.span(cy - r, cy + r, self.oy, self.h);
         for yi in dy0..dy1 {
@@ -195,7 +206,7 @@ impl<'a> Cv<'a> {
             for xi in dx0..dx1 {
                 let lx = ((xi as f32) + 0.5 - self.ox) / self.s;
                 let (dx, dy) = (lx - cx, ly - cy);
-                let a = clamp01(0.5 + (r * r - dx * dx - dy * dy) / (2.0 * r));
+                let a = clamp01(0.5 + (r * r - dx * dx - dy * dy) / (2.0 * r)) * alpha;
                 if a > 0.0 {
                     let i = yi * self.w + xi;
                     self.px[i] = mix(self.px[i], col, a);
@@ -232,16 +243,58 @@ impl<'a> Cv<'a> {
     }
 }
 
+fn tone_col(t: u8) -> u32 {
+    if (t as usize) < ROWS {
+        ROW[t as usize]
+    } else {
+        STEEL_T
+    }
+}
+
+/// Hash intero per posizioni pseudo-casuali fisse (stelle).
+fn hash(mut x: u32) -> u32 {
+    x = x.wrapping_mul(0x9E37_79B1) ^ (x >> 15);
+    x = x.wrapping_mul(0x85EB_CA77);
+    x ^ (x >> 13)
+}
+
+const STARS: u32 = 90;
+
 /// Disegna una scena completa nel buffer `px` (`w` x `h`).
 pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     let mut c = Cv::new(px, w, h);
     c.bg();
     let pw = PW as f32;
     let ph = PH as f32;
+    let sub = SUB as f32;
 
     c.rr(-3.0, -3.0, pw + 3.0, ph + 3.0, 4.0, FRAME_T, FRAME_B);
     c.rr(0.0, 0.0, pw, ph, 2.0, FIELD_T, FIELD_B);
 
+    // Campo stellato: posizioni fisse, deterministiche.
+    for i in 0..STARS {
+        let a = hash(i);
+        let b = hash(a);
+        let x = (a % PW as u32) as f32 + 0.5;
+        let y = (b % PH as u32) as f32 + 0.5;
+        let br = 0.12 + ((b >> 8) % 100) as f32 / 100.0 * 0.45;
+        let r = if i % 7 == 0 { 0.6 } else { 0.35 };
+        c.disc_a(x, y, r, 0xFFDDE6FF, br);
+    }
+
+    // Bagliori sotto i mattoni, poi i mattoni.
+    for r in 0..ROWS {
+        for col in 0..COLS {
+            let k = g.cells[r][col];
+            if k == EMPTY {
+                continue;
+            }
+            let x = (BX0 + col as i32 * (BW + BGX)) as f32;
+            let y = (BY0 + r as i32 * (BH + BGY)) as f32;
+            let t = if k == NORMAL { ROW[r] } else { STEEL_T };
+            c.rr_a(x - 2.0, y - 2.0, x + BW as f32 + 2.0, y + BH as f32 + 2.0, 3.0, t, t, 0.18);
+        }
+    }
     for r in 0..ROWS {
         for col in 0..COLS {
             let k = g.cells[r][col];
@@ -256,6 +309,7 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
                 _ => (STEEL_T, STEEL_B),
             };
             c.rr(x, y, x + BW as f32, y + BH as f32, 1.0, t, b);
+            c.rr(x + 1.0, y + 0.5, x + BW as f32 - 1.0, y + 1.5, 0.5, 0xFFFFFFFF, 0xFFFFFFFF);
             if k == CRACKED {
                 c.rr(x + 6.0, y + 1.0, x + 8.0, y + 4.0, 0.5, CRACK_LINE, CRACK_LINE);
                 c.rr(x + 14.0, y + 3.0, x + 17.0, y + 6.0, 0.5, CRACK_LINE, CRACK_LINE);
@@ -263,14 +317,33 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         }
     }
 
+    // Particelle di distruzione.
+    for p in g.parts.iter().filter(|p| p.life > 0) {
+        let a = (p.life as f32 / 30.0).min(1.0);
+        c.disc_a(p.x as f32 / sub, p.y as f32 / sub, 0.7, tone_col(p.tone), a);
+    }
+
+    // Scia della palla.
+    if g.phase == Phase::Play {
+        for k in 1..TRAIL {
+            let (tx, ty) = g.trail[k];
+            let t = 1.0 - k as f32 / (TRAIL as f32 + 1.0);
+            let r = BALL_R as f32 / sub * (0.4 + 0.6 * t);
+            c.disc_a(tx as f32 / sub, ty as f32 / sub, r, 0xFFBFD8FF, 0.35 * t);
+        }
+    }
+
     for d in g.drops.iter().flatten() {
-        let (dx, dy) = (d.0 as f32 / SUB as f32, d.1 as f32 / SUB as f32);
+        let (dx, dy) = (d.0 as f32 / sub, d.1 as f32 / sub);
+        c.rr_a(dx - 4.0, dy - 2.5, dx + 4.0, dy + 2.5, 2.5, DROP_B, DROP_B, 0.25);
         c.rr(dx - 3.0, dy - 1.5, dx + 3.0, dy + 1.5, 1.5, DROP_T, DROP_B);
     }
 
-    let hw = g.half() as f32 / SUB as f32;
-    let px_ = g.paddle as f32 / SUB as f32;
-    c.rr(px_ - hw, PAD_Y as f32, px_ + hw, (PAD_Y + PAD_H) as f32, 1.5, PAD_T, PAD_B);
+    let hw = g.half() as f32 / sub;
+    let pad_x = g.paddle as f32 / sub;
+    let (py0, py1) = (PAD_Y as f32, (PAD_Y + PAD_H) as f32);
+    c.rr_a(pad_x - hw - 2.0, py0 - 2.0, pad_x + hw + 2.0, py1 + 2.0, 3.0, PAD_B, PAD_B, 0.3);
+    c.rr(pad_x - hw, py0, pad_x + hw, py1, 1.5, PAD_T, PAD_B);
 
     let mut buf = [0u8; 10];
     c.text(b"LIVELLO", 4.0, 3.0, 1.0, TXT);
@@ -279,8 +352,9 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     c.text(num(g.score, &mut buf), 4.0, 11.0, 1.0, TXT);
 
     if g.phase != Phase::Title {
-        let (bx, by) = (g.ball.0 as f32 / SUB as f32, g.ball.1 as f32 / SUB as f32);
-        c.disc(bx, by, BALL_R as f32 / SUB as f32, BALL);
+        let (bx, by) = (g.ball.0 as f32 / sub, g.ball.1 as f32 / sub);
+        c.disc_a(bx, by, 3.5, 0xFFFFFFFF, 0.22);
+        c.disc(bx, by, BALL_R as f32 / sub, BALL);
     }
 
     for i in 0..g.lives as usize {

@@ -3,7 +3,7 @@
 use std::{env, fs};
 use wilkanoid::{autoplay, render::render, Cmd, Game, Phase};
 
-const SIZES: [(usize, usize, &str); 2] = [(1920, 1080, "7in"), (1372, 772, "5in")];
+const SIZES: [(usize, usize, &str); 2] = [(1920, 1080, "1920x1080"), (800, 480, "800x480")];
 
 fn scenes() -> Vec<(&'static str, Game)> {
     let mut v = vec![("titolo", Game::new(1))];

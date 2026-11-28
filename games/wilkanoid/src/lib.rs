@@ -22,6 +22,9 @@ pub const PAD_W: i32 = 28;
 pub const PAD_WIDE: i32 = 44;
 pub const BALL_R: i32 = 24; // 1.5 px
 pub const LIVES: u8 = 3;
+/// Posizioni precedenti della palla per la scia.
+pub const TRAIL: usize = 5;
+pub const PARTS: usize = 32;
 const PAD_STEP: i32 = 3 * SUB;
 const VY: i32 = 20;
 const VX_MAX: i32 = 18;
@@ -60,6 +63,17 @@ pub enum Cmd {
     Fire,
 }
 
+/// Particella di distruzione (subunità). `tone` = indice riga, 6 = acciaio.
+#[derive(Clone, Copy, Default)]
+pub struct Part {
+    pub x: i32,
+    pub y: i32,
+    pub vx: i32,
+    pub vy: i32,
+    pub life: u32,
+    pub tone: u8,
+}
+
 #[derive(Clone, Copy)]
 pub struct Game {
     pub phase: Phase,
@@ -77,6 +91,8 @@ pub struct Game {
     pub cells: [[u8; COLS]; ROWS],
     /// Power-up che cadono.
     pub drops: [Option<(i32, i32)>; 4],
+    pub trail: [(i32, i32); TRAIL],
+    pub parts: [Part; PARTS],
     timer: u32,
     rng: u32,
 }
@@ -95,6 +111,8 @@ impl Game {
             vel: (0, 0),
             cells: [[EMPTY; COLS]; ROWS],
             drops: [None; 4],
+            trail: [(0, 0); TRAIL],
+            parts: [Part::default(); PARTS],
             timer: 0,
             rng: seed | 1,
         };
@@ -169,12 +187,14 @@ impl Game {
         }
         self.wide = 0;
         self.drops = [None; 4];
+        self.parts = [Part::default(); PARTS];
         self.reset_ball();
     }
 
     fn reset_ball(&mut self) {
         self.ball = (self.paddle, PAD_Y * SUB - BALL_R);
         self.vel = (0, 0);
+        self.trail = [self.ball; TRAIL];
     }
 
     fn move_paddle(&mut self, d: i32) {
@@ -198,11 +218,32 @@ impl Game {
         x
     }
 
+    fn burst(&mut self, x: i32, y: i32, tone: u8) {
+        for _ in 0..6 {
+            let vx = (self.rand() % 41) as i32 - 20;
+            let vy = -((self.rand() % 20) as i32) - 6;
+            let life = 18 + self.rand() % 12;
+            if let Some(p) = self.parts.iter_mut().find(|p| p.life == 0) {
+                *p = Part { x, y, vx, vy, life, tone };
+            }
+        }
+    }
+
     fn play(&mut self) {
         if self.wide > 0 {
             self.wide -= 1;
         }
         let (px, py) = self.ball;
+        self.trail.copy_within(0..TRAIL - 1, 1);
+        self.trail[0] = self.ball;
+        for p in self.parts.iter_mut() {
+            if p.life > 0 {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 2;
+                p.life -= 1;
+            }
+        }
         let (mut x, mut y) = (px + self.vel.0, py + self.vel.1);
         let (mut vx, mut vy) = self.vel;
         let top = PAD_Y * SUB;
@@ -268,6 +309,8 @@ impl Game {
                     _ => EMPTY,
                 };
                 self.score += pts;
+                let tone = if cell == NORMAL { r as u8 } else { 6 };
+                self.burst(bx0 + BW / 2 * SUB, by0 + BH / 2 * SUB, tone);
                 if self.cells[r][c] == EMPTY && self.rand() % 5 == 0 {
                     if let Some(slot) = self.drops.iter_mut().find(|d| d.is_none()) {
                         *slot = Some((bx0 + BW / 2 * SUB, by0));
