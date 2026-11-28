@@ -7,6 +7,7 @@
 
 pub mod ai;
 pub mod cards;
+pub mod run;
 
 use cards::{Kind, Row, DECK_A, DECK_B, DEFS};
 
