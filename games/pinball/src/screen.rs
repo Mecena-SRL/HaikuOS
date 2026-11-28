@@ -225,6 +225,18 @@ fn digits_width(n: u32, hgt: f32) -> f32 {
 fn table(g: &Pinball, out: &mut Vec<Prim>) {
     let f = |v: f32| v / FP as f32;
     let fp = |v: (i64, i64)| (f(v.0 as f32), f(v.1 as f32));
+    // sfondo a tema: aloni morbidi e stelle, dietro al tavolo
+    for (c, r, col, a) in [
+        ((80.0, 60.0), 150.0, [0.10, 0.25, 0.45], 0.35),
+        ((120.0, 200.0), 120.0, [0.35, 0.08, 0.30], 0.30),
+    ] {
+        out.push(Prim { s: Shape::Circ(c, r), col, a });
+    }
+    for k in 0..24u32 {
+        let x = -60.0 + (k * 37 % 280) as f32;
+        let y = -50.0 + (k * 53 % 340) as f32;
+        out.push(Prim { s: Shape::Circ((x, y), 0.6 + (k % 3) as f32 * 0.3), col: [0.85, 0.9, 1.0], a: 0.5 });
+    }
     out.push(p(Shape::Rect((80.0, 120.0), (80.0, 120.0), 4.0), DARK));
     for w in WALLS {
         out.push(p(Shape::Seg((w[0] as f32, w[1] as f32), (w[2] as f32, w[3] as f32), 0.9), WALL));
@@ -235,6 +247,7 @@ fn table(g: &Pinball, out: &mut Vec<Prim>) {
     for c in BUMPERS {
         let ctr = (c.0 as f32, c.1 as f32);
         let r = f(BUMPER_R as f32);
+        out.push(Prim { s: Shape::Circ(ctr, r + 7.0), col: BUMP, a: 0.07 });
         out.push(Prim { s: Shape::Circ(ctr, r + 3.0), col: BUMP, a: 0.18 });
         out.push(p(Shape::Circ(ctr, r), BUMP));
         out.push(p(Shape::Circ(ctr, r - 2.4), DARK));
@@ -249,12 +262,21 @@ fn table(g: &Pinball, out: &mut Vec<Prim>) {
     for fl in &g.flips {
         let (a, b) = (fp(fl.pivot), fp(fl.tip()));
         let up = (fl.dps.abs() as f32 / 20.0).min(1.0);
+        out.push(Prim { s: Shape::Seg(a, b, 5.0), col: FLIP_UP, a: 0.12 + 0.12 * up });
         out.push(p(Shape::Seg(a, b, 2.8), mix(FLIP_REST, FLIP_UP, up)));
         out.push(p(Shape::Circ(a, 3.6), [0.2, 0.12, 0.05]));
         out.push(p(Shape::Circ(a, 1.4), FLIP_UP));
     }
     for b in g.balls.iter().filter(|b| b.live) {
         let c = fp(b.pos);
+        let v = fp(b.vel);
+        let sp = (v.0 * v.0 + v.1 * v.1).sqrt().max(1e-3);
+        let u = (v.0 / sp, v.1 / sp);
+        for k in 1..=4u32 {
+            let kk = k as f32;
+            let at = (c.0 - u.0 * kk * 1.6, c.1 - u.1 * kk * 1.6);
+            out.push(Prim { s: Shape::Circ(at, 2.6 - kk * 0.4), col: [0.7, 0.9, 1.0], a: 0.30 - kk * 0.06 });
+        }
         out.push(Prim { s: Shape::Circ(c, 4.2), col: [0.6, 0.8, 1.0], a: 0.15 });
         out.push(p(Shape::Circ(c, 3.0), BALL));
         out.push(p(Shape::Circ((c.0 - 0.9, c.1 - 0.9), 1.0), [1.0, 1.0, 1.0]));
