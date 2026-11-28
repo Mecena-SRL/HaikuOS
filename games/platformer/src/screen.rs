@@ -1,12 +1,10 @@
-//! Host grafico (solo std): titolo e pausa come overlay ARGB disegnati con `haiku-gui::Canvas`.
+//! Host grafico (solo std): titolo e pausa come overlay ARGB disegnati con `haiku-gui::Canvas` (canvas `render::Fb`).
 
 use haiku_gui::layout::{Rect, MENU_ROW};
 use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
+use platformer::render::Fb;
 use platformer::{VIEW_H, VIEW_W};
-
-#[path = "../../../gba/src/font.rs"]
-mod font;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Screen {
@@ -29,37 +27,6 @@ pub fn on_menu_key(s: Screen, key: &str) -> Next {
         (Screen::Title, _) => Next::Go(Screen::Play),
         (Screen::Pause, "r" | "") => Next::Go(Screen::Play),
         _ => Next::Stay,
-    }
-}
-
-/// Framebuffer ARGB con il trait `Canvas` di gui: rettangoli pieni e testo 3x5 di gba.
-pub struct Fb<'a>(pub &'a mut [u32]);
-
-fn argb(t: Tok) -> u32 {
-    0xFF00_0000 | t.rgb()
-}
-
-impl Canvas for Fb<'_> {
-    fn fill(&mut self, r: Rect, t: Tok) {
-        let c = argb(t);
-        for y in r.y.max(0)..(r.y + r.h).min(VIEW_H) {
-            for x in r.x.max(0)..(r.x + r.w).min(VIEW_W) {
-                self.0[(y * VIEW_W + x) as usize] = c;
-            }
-        }
-    }
-
-    fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
-        for (i, ch) in s.bytes().enumerate() {
-            let gx = x + i as i32 * font::ADVANCE as i32;
-            for (row, bits) in font::glyph(ch).iter().enumerate() {
-                for col in 0..font::GLYPH_W {
-                    if (bits >> (font::GLYPH_W - 1 - col)) & 1 == 1 {
-                        self.fill(Rect::new(gx + col as i32, y + row as i32, 1, 1), t);
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -108,5 +75,25 @@ mod tests {
         assert_eq!(on_menu_key(Screen::Title, "q"), Next::Quit);
         assert_eq!(on_menu_key(Screen::Pause, "r"), Next::Go(Screen::Play));
         assert_eq!(on_menu_key(Screen::Pause, "x"), Next::Stay);
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use super::*;
+
+    /// Misura il costo di un fotogramma (mondo + HUD + menu): `cargo test --release -- --ignored --nocapture bench`.
+    #[test]
+    #[ignore]
+    fn bench_frame() {
+        let g = platformer::Game::from_src(platformer::levels::LEVELS[0]);
+        let mut fb = vec![0u32; (VIEW_W * VIEW_H) as usize];
+        let t = std::time::Instant::now();
+        for _ in 0..2000 {
+            platformer::render::draw(&g, &mut fb);
+            overlay(&mut fb, Screen::Pause);
+            std::hint::black_box(&fb);
+        }
+        println!("BENCH platformer {:.1} us/frame", t.elapsed().as_secs_f64() * 1e6 / 2000.0);
     }
 }
