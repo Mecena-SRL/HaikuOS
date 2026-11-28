@@ -8,8 +8,7 @@ use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
 use std::io::{self, Write};
 
-#[path = "../../../gba/src/font.rs"]
-mod font;
+const TEXT_PX: i32 = 8;
 
 /// Ingrandimento del PPM di uscita (il disegno è a risoluzione logica).
 pub const SCALE: usize = 2;
@@ -78,15 +77,18 @@ impl Canvas for Frame {
     }
 
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
-        for (i, ch) in s.bytes().enumerate() {
-            let gx = x + i as i32 * font::ADVANCE as i32;
-            for (row, bits) in font::glyph(ch).iter().enumerate() {
-                for col in 0..font::GLYPH_W {
-                    if (bits >> (font::GLYPH_W - 1 - col)) & 1 == 1 {
-                        self.fill(Rect::new(gx + col as i32, y + row as i32, 1, 1), t);
-                    }
-                }
-            }
+        self.vtext(x, y, TEXT_PX, s, t);
+    }
+
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        if x < 0 || y < 0 || x as usize >= self.w || y as usize >= self.h {
+            return;
+        }
+        let c = rgb(t);
+        let p = &mut self.px[y as usize * self.w + x as usize];
+        let a = a as u16;
+        for k in 0..3 {
+            p[k] = ((c[k] as u16 * a + p[k] as u16 * (255 - a)) / 255) as u8;
         }
     }
 }
