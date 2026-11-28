@@ -1,9 +1,16 @@
-//! Host grafico (solo std): titolo, pausa e fotogramma PPM. Il core non conosce menu né schermate.
+//! Host grafico (solo std): il tavolo, titolo, pausa e HUD passano dal trait `Canvas` di `haiku-gui`.
+//! Il disegno è in coordinate del tavolo (1 px = 1 unità); il PPM è ingrandito di `SCALE`.
 
+use haiku_gui::layout::{Rect, MENU_ROW};
+use haiku_gui::palette::Tok;
+use haiku_gui::render::Canvas;
 use pinball::{Pinball, BUMPERS, FP, TABLE_H, TABLE_W};
 
-/// Scala: 1 unità di tavolo = `S` px.
-pub const S: i64 = 3;
+#[path = "../../../gba/src/font.rs"]
+mod font;
+
+/// Ingrandimento del PPM di uscita.
+pub const SCALE: usize = 3;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Screen {
@@ -29,91 +36,122 @@ pub fn on_menu_key(s: Screen, key: &str) -> Next {
     }
 }
 
+/// Fotogramma RGB del tavolo, più piccolo dell'uscita di `SCALE`.
 pub struct Img {
     pub w: usize,
     pub h: usize,
     pub px: Vec<[u8; 3]>,
 }
 
-impl Img {
-    fn new(w: usize, h: usize, c: [u8; 3]) -> Self {
-        Img {
-            w,
-            h,
-            px: vec![c; w * h],
-        }
-    }
+fn rgb(t: Tok) -> [u8; 3] {
+    let c = t.rgb();
+    [(c >> 16) as u8, (c >> 8) as u8, c as u8]
+}
 
-    fn rect(&mut self, x: i64, y: i64, w: i64, h: i64, c: [u8; 3]) {
-        for yy in y.max(0)..(y + h).min(self.h as i64) {
-            for xx in x.max(0)..(x + w).min(self.w as i64) {
+impl Img {
+    fn put(&mut self, x: i32, y: i32, w: i32, h: i32, c: [u8; 3]) {
+        for yy in y.max(0)..(y + h).min(self.h as i32) {
+            for xx in x.max(0)..(x + w).min(self.w as i32) {
                 self.px[yy as usize * self.w + xx as usize] = c;
             }
         }
     }
 
-    fn disc(&mut self, cx: i64, cy: i64, r: i64, c: [u8; 3]) {
+    fn disc(&mut self, cx: i32, cy: i32, r: i32, c: [u8; 3]) {
         for dy in -r..=r {
             for dx in -r..=r {
                 if dx * dx + dy * dy <= r * r {
-                    self.rect(cx + dx, cy + dy, 1, 1, c);
+                    self.put(cx + dx, cy + dy, 1, 1, c);
                 }
             }
         }
     }
 
-    fn seg(&mut self, a: (i64, i64), b: (i64, i64), r: i64, c: [u8; 3]) {
+    fn seg(&mut self, a: (i32, i32), b: (i32, i32), r: i32, c: [u8; 3]) {
         let n = (b.0 - a.0).abs().max((b.1 - a.1).abs()).max(1);
         for k in 0..=n {
             self.disc(a.0 + (b.0 - a.0) * k / n, a.1 + (b.1 - a.1) * k / n, r, c);
         }
     }
 
-    /// Scurisce il fotogramma (fondo del menu).
+    /// Scurisce il fotogramma (fondo dei menu).
     fn dim(&mut self) {
         for p in &mut self.px {
             *p = p.map(|c| c / 3);
         }
     }
 
+    /// PPM P6 ingrandito di `SCALE` (vicino più prossimo).
     pub fn write_ppm(&self, out: &mut impl std::io::Write) -> std::io::Result<()> {
-        write!(out, "P6\n{} {}\n255\n", self.w, self.h)?;
-        for p in &self.px {
-            out.write_all(p)?;
+        let (w, h) = (self.w * SCALE, self.h * SCALE);
+        write!(out, "P6\n{w} {h}\n255\n")?;
+        for y in 0..h {
+            for x in 0..w {
+                out.write_all(&self.px[(y / SCALE) * self.w + x / SCALE])?;
+            }
         }
         Ok(())
     }
 }
 
-/// Fotogramma del tavolo (coordinate FP -> px) con il menu sovrapposto se richiesto.
+impl Canvas for Img {
+    fn fill(&mut self, r: Rect, t: Tok) {
+        self.put(r.x, r.y, r.w, r.h, rgb(t));
+    }
+
+    fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
+        let c = rgb(t);
+        for (i, ch) in s.bytes().enumerate() {
+            let gx = x + i as i32 * font::ADVANCE as i32;
+            for (row, bits) in font::glyph(ch).iter().enumerate() {
+                for col in 0..font::GLYPH_W {
+                    if (bits >> (font::GLYPH_W - 1 - col)) & 1 == 1 {
+                        self.put(gx + col as i32, y + row as i32, 1, 1, c);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Menu sovrapposto: fondo scurito, pannello con titolo e voci, la prima voce selezionata.
+/// Le voci sono disegnate qui (centrate nella riga): `Canvas::menu` di gui ha il testo fuori riga.
+fn overlay(im: &mut Img, s: Screen) {
+    im.dim();
+    let (title, rows): (&str, &[&str]) = match s {
+        Screen::Title => ("PINBALL", &["INIZIA", "ESCI"]),
+        _ => ("PAUSA", &["RIPRENDI", "ESCI"]),
+    };
+    let p = Rect::new(12, 70, 136, 18 + MENU_ROW * rows.len() as i32 + 4);
+    im.rect_rounded(p, 4, Tok::T0);
+    im.text(p.x + 8, p.y + 5, title, Tok::A(1));
+    for (i, label) in rows.iter().enumerate() {
+        let y = p.y + 16 + i as i32 * MENU_ROW;
+        let (bg, fg) = if i == 0 { (Tok::T2, Tok::T0) } else { (Tok::T0, Tok::T2) };
+        im.fill(Rect::new(p.x + 4, y, p.w - 8, MENU_ROW), bg);
+        im.text(p.x + 8, y + 2, label, fg);
+    }
+}
+
+/// Fotogramma del tavolo (1 px = 1 unità) con HUD in gioco o menu sovrapposto.
 pub fn frame(g: &Pinball, screen: Screen) -> Img {
-    let (w, h) = (TABLE_W * S, TABLE_H * S);
-    let px = |v: (i64, i64)| (v.0 * S, v.1 * S);
-    let mut im = Img::new(w as usize, h as usize, [10, 14, 30]);
+    let (w, h) = (TABLE_W as usize, TABLE_H as usize);
+    let mut im = Img { w, h, px: vec![[10, 14, 30]; w * h] };
+    let to = |v: (i64, i64)| ((v.0 / FP) as i32, (v.1 / FP) as i32);
     for c in BUMPERS {
-        let (x, y) = px(c);
-        im.disc(x, y, 8 * S, [255, 90, 160]);
+        let (x, y) = (c.0 as i32, c.1 as i32);
+        im.disc(x, y, 8, [255, 90, 160]);
     }
     for f in &g.flips {
-        let (a, t) = (f.pivot, f.tip());
-        let f2 = |v: (i64, i64)| (v.0 * S / FP, v.1 * S / FP);
-        im.seg(f2(a), f2(t), 2 * S, [240, 240, 250]);
+        im.seg(to(f.pivot), to(f.tip()), 2, [240, 240, 250]);
     }
     for b in g.balls.iter().filter(|b| b.live) {
-        im.disc(b.pos.0 * S / FP, b.pos.1 * S / FP, 3 * S, [255, 230, 80]);
+        let (x, y) = to(b.pos);
+        im.disc(x, y, 3, [255, 230, 80]);
     }
-    if screen != Screen::Play {
-        im.dim();
-        let (px0, py0, pw, ph) = (w / 8, h / 4, w * 3 / 4, h / 3);
-        im.rect(px0, py0, pw, ph, [24, 28, 40]);
-        im.rect(px0, py0, pw, 6, [240, 200, 60]);
-        let by = py0 + ph * 2 / 3;
-        if screen == Screen::Title {
-            im.rect(px0 + pw / 4, by, pw / 2, ph / 8, [80, 200, 110]);
-        } else {
-            im.rect(px0 + pw / 8, by, pw * 3 / 8, ph / 8, [80, 200, 110]);
-            im.rect(px0 + pw * 9 / 16, by, pw * 5 / 16, ph / 8, [220, 70, 70]);
-        }
+    match screen {
+        Screen::Play => im.text(2, 2, &format!("PUNTI {}  VITE {}", g.score, g.lives), Tok::T1),
+        s => overlay(&mut im, s),
     }
     im
 }
@@ -141,12 +179,8 @@ mod tests {
 
     #[test]
     fn fotogramma_ha_dimensioni_del_tavolo() {
-        let g = Pinball::new();
-        let im = frame(&g, Screen::Pause);
-        assert_eq!(
-            (im.w, im.h),
-            ((TABLE_W * S) as usize, (TABLE_H * S) as usize)
-        );
+        let im = frame(&Pinball::new(), Screen::Pause);
+        assert_eq!((im.w, im.h), (TABLE_W as usize, TABLE_H as usize));
         assert_eq!(im.px.len(), im.w * im.h);
     }
 }
