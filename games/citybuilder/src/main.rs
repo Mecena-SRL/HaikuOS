@@ -5,6 +5,8 @@ use citybuilder::menu::{on_menu_key, Next, Screen};
 use citybuilder::{Building, Game, Status, Terrain, WIN_POP};
 use std::io::{self, BufRead};
 
+const HELP: &str = "comandi: w a s d cursore | b <casa|fattoria|legno|cava|mercato|biblioteca> costruisce sul cursore | t fine turno | r ricerca | p pausa | q esci | ? aiuto";
+
 fn main() {
     let mut g = Game::new(24, 12, 0x4841494B55);
     // `--shot <file.ppm>` (partita), `--shot-title` e `--shot-pause`: fotogrammi grafici, senza terminale.
@@ -51,7 +53,21 @@ fn main() {
                 menu_text(screen);
                 continue;
             }
-            ["t"] => g.end_turn(),
+            ["t"] => {
+                let before = (g.player.citizens, g.player.stock.food, g.player.stock.wood);
+                g.end_turn();
+                println!(
+                    "Turno {}: cittadini {} -> {}, cibo {} -> {}, legno {} -> {}",
+                    g.turns,
+                    before.0,
+                    g.player.citizens,
+                    before.1,
+                    g.player.stock.food,
+                    before.2,
+                    g.player.stock.wood
+                );
+            }
+            ["?"] => println!("{HELP}"),
             ["r"] => {
                 if !g.player.research_irrigation() {
                     println!("ricerca non disponibile");
@@ -83,9 +99,7 @@ fn main() {
                 None => println!("edificio sconosciuto"),
             },
             ["q"] => break,
-            _ => println!(
-                "comandi: t fine turno | b <casa|fattoria|legno|cava|mercato|biblioteca> <x> <y> | r ricerca | p pausa | q esci"
-            ),
+            _ => println!("comando non valido. Scrivi ? per l'aiuto."),
         }
         draw(&g);
         match g.status() {
@@ -151,16 +165,54 @@ fn menu_text(s: Screen) {
     }
 }
 
+fn terrain_name(t: Option<Terrain>) -> &'static str {
+    match t {
+        Some(Terrain::Grass) => "erba",
+        Some(Terrain::Forest) => "foresta",
+        Some(Terrain::Mountain) => "montagna",
+        Some(Terrain::Water) => "acqua",
+        None => "sconosciuto",
+    }
+}
+
 fn draw(g: &Game) {
     for y in 0..g.map.h {
-        let row: String = (0..g.map.w).map(|x| glyph(g, g.map.idx(x, y))).collect();
+        let row: String = (0..g.map.w)
+            .map(|x| {
+                let c = glyph(g, g.map.idx(x, y));
+                if g.cursor == (x, y) {
+                    format!("[{c}]")
+                } else {
+                    format!(" {c} ")
+                }
+            })
+            .collect();
         println!("{row}");
     }
+    let (cx, cy) = g.cursor;
+    let i = g.map.idx(cx, cy);
+    let occupato = g.player.building_at(i).is_some() || g.rival.building_at(i).is_some();
+    println!(
+        "cursore ({cx},{cy}): {}, {}",
+        terrain_name(g.map.terrain(i)),
+        if occupato { "occupato" } else { "libero" }
+    );
+    println!("legenda: H casa F fattoria L legnaia Q cava M mercato B biblioteca x IA . erba T foresta ^ montagna ~ acqua");
     let s = g.player.stock;
     println!(
-        "pop {}/{WIN_POP}  cibo {}  legno {}  pietra {}  oro {}  conoscenza {}  turno {}",
-        g.player.citizens, s.food, s.wood, s.stone, s.gold, g.player.knowledge, g.turns
+        "pop {}/{WIN_POP}  cibo {}  legno {}  pietra {}  oro {}  conoscenza {}  turno {}/{}",
+        g.player.citizens,
+        s.food,
+        s.wood,
+        s.stone,
+        s.gold,
+        g.player.knowledge,
+        g.turns,
+        citybuilder::MAX_TURNS
     );
+    if let Some(motivo) = g.player.growth_block() {
+        println!("crescita ferma: {motivo}");
+    }
     println!("IA (x): pop {}", g.rival.citizens);
 }
 

@@ -11,6 +11,8 @@ pub const WIN_POP: u32 = 50;
 const IRRIGATION_COST: i32 = 20;
 /// Cibo massimo in magazzino: oltre, la produzione si perde.
 const FOOD_CAP: i32 = 200;
+/// Turni massimi: allo scadere vince chi ha più cittadini, parità = patta.
+pub const MAX_TURNS: u32 = 80;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Terrain {
@@ -178,6 +180,8 @@ pub struct Empire {
     pub irrigation: bool,
     /// Costruzione già fatta in questo turno: al massimo una per impero.
     built_this_turn: bool,
+    /// Traguardi già premiati (bit 0: 10 cittadini, bit 1: 25, bit 2: 40).
+    milestones: u8,
     grid: Vec<Option<Building>>,
 }
 
@@ -189,6 +193,7 @@ impl Empire {
             citizens: 2,
             irrigation: false,
             built_this_turn: false,
+            milestones: 0,
             grid: vec![None; map.w * map.h],
         }
     }
@@ -266,7 +271,33 @@ impl Empire {
             let growth = (1 + self.count(Building::Farm) as u32 / 3).min(3);
             self.citizens = (self.citizens + growth).min(self.capacity());
         }
+        self.check_milestones();
         self.built_this_turn = false;
+    }
+
+    /// Traguardi una tantum: 10 cittadini +10 legno, 25 +5 pietra, 40 +5 oro.
+    fn check_milestones(&mut self) {
+        for (bit, need) in [(1u8, 10u32), (2, 25), (4, 40)] {
+            if self.milestones & bit == 0 && self.citizens >= need {
+                self.milestones |= bit;
+                match bit {
+                    1 => self.stock.wood += 10,
+                    2 => self.stock.stone += 5,
+                    _ => self.stock.gold += 5,
+                }
+            }
+        }
+    }
+
+    /// Perché la popolazione non cresce ora (None = cresce).
+    pub fn growth_block(&self) -> Option<&'static str> {
+        if self.citizens >= self.capacity() {
+            Some("nessuna casa libera")
+        } else if self.stock.food < 2 {
+            Some("cibo sotto 2")
+        } else {
+            None
+        }
     }
 }
 
@@ -337,12 +368,22 @@ impl Game {
             self.player.citizens >= WIN_POP,
             self.rival.citizens >= WIN_POP,
         ) {
-            (true, true) => Status::Draw,
-            (true, false) => Status::Won,
-            (false, true) => Status::Lost,
-            _ if self.player.citizens == 0 => Status::Lost,
-            _ => Status::Playing,
+            (true, true) => return Status::Draw,
+            (true, false) => return Status::Won,
+            (false, true) => return Status::Lost,
+            _ => {}
         }
+        if self.player.citizens == 0 {
+            return Status::Lost;
+        }
+        if self.turns >= MAX_TURNS {
+            return match self.player.citizens.cmp(&self.rival.citizens) {
+                std::cmp::Ordering::Greater => Status::Won,
+                std::cmp::Ordering::Less => Status::Lost,
+                std::cmp::Ordering::Equal => Status::Draw,
+            };
+        }
+        Status::Playing
     }
 }
 
@@ -490,6 +531,17 @@ mod tests {
     }
 
     #[test]
+    fn growth_block_reasons() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(0, 0, 0, 0));
+        assert_eq!(e.growth_block(), Some("nessuna casa libera"));
+        e.grid[0] = Some(Building::House);
+        assert_eq!(e.growth_block(), Some("cibo sotto 2"));
+        e.stock.food = 10;
+        assert_eq!(e.growth_block(), None);
+    }
+
+    #[test]
     fn starvation_shrinks_population() {
         let map = grass(4, 4);
         let mut e = Empire::new(&map, Stock::new(0, 0, 0, 0));
@@ -553,6 +605,28 @@ mod tests {
         let t = g.turns;
         g.end_turn();
         assert_eq!(g.turns, t);
+    }
+
+    #[test]
+    fn traguardi_premiati_una_volta() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(100, 0, 0, 0));
+        e.citizens = 10;
+        e.tick();
+        assert_eq!(e.stock.wood, 10);
+        e.tick();
+        assert_eq!(e.stock.wood, 10, "il traguardo vale una sola volta");
+    }
+
+    #[test]
+    fn tetto_di_turni_vince_chi_ha_piu_cittadini() {
+        let mut g = Game::new(8, 4, 1);
+        g.turns = MAX_TURNS;
+        g.player.citizens = 7;
+        g.rival.citizens = 5;
+        assert_eq!(g.status(), Status::Won);
+        g.rival.citizens = 7;
+        assert_eq!(g.status(), Status::Draw);
     }
 
     #[test]
