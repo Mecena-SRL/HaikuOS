@@ -70,9 +70,9 @@ const APP_CMDS: [(&[u8], usize); 20] = [
     (b"MAPS", 17),
     (b"MEMO", 18),
     (b"UTIL", 19),
-    (b"METEO", 20),
-    (b"AUDIO", 21),
-    (b"VIDEO", 22),
+    (b"METEO", 24),
+    (b"AUDIO", 25),
+    (b"VIDEO", 26),
 ];
 
 fn push(buf: &mut [u8], n: &mut usize, s: &[u8]) {

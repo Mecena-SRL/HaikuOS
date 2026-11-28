@@ -176,12 +176,15 @@ fn keys() -> u16 {
     !unsafe { read_volatile(KEYINPUT) } & 0x03FF
 }
 
-/// Seme per il sale: tempi dei timer e riga di scansione. Entropia debole, da migliorare.
-fn entropia() -> u64 {
+/// Campione di entropia per il seme del vault: timer, riga di scansione e tasti premuti.
+/// Il GBA non ha un generatore hardware: l'entropia è limitata (vedi docs/apps-system.md).
+fn entropia(tasti: u16) -> u64 {
     const TM0: *const u16 = 0x0400_0100 as *const u16;
     const TM1: *const u16 = 0x0400_0104 as *const u16;
     const VCOUNT: *const u16 = 0x0400_0006 as *const u16;
-    unsafe { ((read_volatile(TM0) as u64) << 32) | ((read_volatile(TM1) as u64) << 16) | read_volatile(VCOUNT) as u64 }
+    unsafe {
+        (read_volatile(TM0) as u64) << 32 ^ (read_volatile(TM1) as u64) << 16 ^ read_volatile(VCOUNT) as u64 ^ (tasti as u64) << 48
+    }
 }
 
 /// Scrive il file cifrato della cassaforte nello spazio utente, se è cambiato.
@@ -549,7 +552,7 @@ pub extern "C" fn rust_main() -> ! {
     while keys() & workspace::KEY_START == 0 && !dk.run_requested() {
         sram::vblank();
         let ticked = dk.tick();
-        dk.apps.cassa.seme = entropia();
+        dk.apps.cassa.seme = apps::vault::mescola(dk.apps.cassa.seme, entropia(keys()));
         let cambio = dk.step(keys(), sp.usr.fs()) | ticked;
         salva_cassa(&mut dk.apps.cassa, &mut sp.usr);
         if cambio {

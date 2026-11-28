@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 //! App di sistema: logica pura (note, orologio, impostazioni) e disegno nel corpo della finestra.
+pub mod analisi;
 pub mod archive;
+pub mod caratteri;
+pub mod connessioni;
+pub mod dischi;
 pub mod clock;
 pub mod notes;
 pub mod settings;
@@ -10,6 +14,9 @@ pub mod calendar;
 pub mod camera;
 pub mod dictionary;
 pub mod maps;
+pub mod meteo;
+pub mod player_audio;
+pub mod player_video;
 pub mod memo;
 pub mod monitor;
 pub mod messages;
@@ -17,5 +24,15 @@ pub mod music;
 pub mod passwords;
 pub mod photo_view;
 pub mod photos;
+pub mod registri;
+pub mod aiuto;
+pub mod scanner;
+pub mod software;
+pub mod tour;
 pub mod ui;
 pub mod vault;
+pub mod contatore;
+pub mod distruggi;
+pub mod orologio_scacchi;
+pub mod testo_segnaposto;
+pub mod timer_esercizi;

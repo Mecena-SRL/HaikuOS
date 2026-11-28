@@ -21,7 +21,7 @@ Risorse: RAM = stima di memoria statica; FS = file system; Cifr. = crittografia 
 | 3 | Orologio | Ora su 24 ore, HH:MM | RAM 8 B, timer/frame | nessuna | **Collegata** (`apps/clock.rs`) | Deriva dei 60 fps contro i ~59,73 reali: **da verificare** |
 | 4 | Impostazioni di sistema | Tema (4 palette), nome del sistema | RAM 16 B, FS (salvataggio) | `desktop-concept.md` | **Collegata** (`apps/settings.rs`) | Palette su schermo reale: da verificare |
 | 5 | Archiviatore | Crea, legge, decomprime archivi; cifra file e cartelle | Contenitore fatto; RAM e CPU da misurare | FS, Cifr. (Ascon), quote | Dopo 2–4 | Tempo di cifratura: da verificare |
-| 6 | Gestore password | Archivio cifrato di credenziali | RAM ~ decine di KB (da verificare) | Cifr., FS | Sblocco, voci (nuova, modifica) e salvataggio nel file `vault` (`apps/vault.rs`, Ascon). Sale da seme di sistema (entropia debole, da migliorare) | Costo KDF (`ITER`=512) su ARM7TDMI; dimensione in SRAM |
+| 6 | Gestore password | Archivio cifrato di credenziali | RAM ~ decine di KB (da verificare) | Cifr., FS | Sblocco, voci (nuova, modifica, elimina con doppio L) e salvataggio nel file `vault` (`apps/vault.rs`, Ascon). **Limite di entropia:** il GBA non ha generatore hardware. Il seme del sale mescola timer, riga di scansione e tasti premuti: è prevedibile per chi conosce i tempi di avvio, quindi il sale non è un segreto forte. Da migliorare con un RNG hardware o con più input utente | Costo KDF (`ITER`=512) su ARM7TDMI; dimensione in SRAM |
 | 7 | Terminale | Shell di base (`ls`, `cd`, `cat`) | Superficie a caratteri | FS, superficie | In corso (altro thread) | Griglia 30×16: da verificare |
 | 8 | File manager | Elenca e apre directory | FS (lettura) | FS | In corso (altro thread) | 16 voci a schermo |
 | 9 | Utility disco | Stato dello store, spazio usato | FS (sola lettura) | FS | Media | Costo del conteggio: da verificare |
@@ -114,3 +114,16 @@ Logica pura, testata sull'host (`host/test_apps.rs`, 7 test nuovi). Ogni utility
 | Archiviatore cifrato | nessuno | `archive::seal`/`open` con Ascon-AEAD128 e test. Nessuna voce in UI né terminale. **Da verificare**: tempi su ARM7TDMI |
 
 Nota: una foto piena (240×160×2 B ≈ 75 KB) non entra nello store da 8 KB né in uno slot da 32 KB: per questo la miniatura è 1 bit.
+
+## Logica delle utility di sistema (non collegate)
+
+| Modulo | App | Dati in ingresso | Stato |
+|---|---|---|---|
+| `apps/registri.rs` | Registri | Voci di log (anello fisso, 8 voci) | Logica testata, non nel desktop |
+| `apps/connessioni.rs` | Connessioni | Stato rete e IP (`Offline` finché il net stack non c'è) | Logica testata, non nel desktop |
+| `apps/dischi.rs` | Dischi | Byte usati e totali per spazio (sistema, utente) | Logica testata, non nel desktop |
+| `apps/analisi.rs` | Analizzatore disco | Classifica dei file più grandi (top 3), barra 10 caselle | Logica testata, non nel desktop |
+| `apps/caratteri.rs` | Caratteri | Conteggi da `fontmgr` (installati, attivi) | Logica testata, non nel desktop |
+
+Test host: `cd gba && rustc --edition 2021 --test host/test_sistema.rs -o /tmp/sis_t && /tmp/sis_t` (12 test, tutti ok).
+Il disegno e il collegamento al lanciatore (`desktop.rs`, `ui.rs`) sono il passo successivo: **da verificare** su schermo e memoria.
