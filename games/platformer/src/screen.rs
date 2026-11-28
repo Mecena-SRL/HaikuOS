@@ -30,29 +30,25 @@ pub fn on_menu_key(s: Screen, key: &str) -> Next {
     }
 }
 
-/// Sovrappone il menu: fondo scurito, pannello con titolo e voci (la prima selezionata).
-/// Le voci sono centrate nella riga: `Canvas::menu` di gui mette il testo fuori riga.
-pub fn overlay(fb: &mut [u32], s: Screen) {
+/// Sovrappone il menu: fondo attenuato, pannello con titolo e voci (la prima selezionata).
+pub fn overlay(c: &mut Fb, s: Screen) {
     if s == Screen::Play {
         return;
     }
-    for p in fb.iter_mut() {
-        *p = 0xFF00_0000 | ((*p >> 2) & 0x003F_3F3F);
-    }
+    c.darken();
     let (title, rows): (&str, &[&str]) = match s {
         Screen::Title => ("PLATFORMER", &["INIZIA", "ESCI"]),
         _ => ("PAUSA", &["RIPRENDI", "ESCI"]),
     };
-    let mut c = Fb(fb);
-    let p = Rect::new(VIEW_W / 8, VIEW_H / 4, VIEW_W * 3 / 4, 22 + MENU_ROW * rows.len() as i32 + 4);
-    c.fill(p, Tok::T0);
-    c.fill(Rect::new(p.x, p.y, p.w, 3), Tok::A(1));
-    c.text(p.x + 6, p.y + 6, title, Tok::A(1));
+    let r = Rect::new(VIEW_W / 8, VIEW_H / 4, VIEW_W * 3 / 4, 26 + MENU_ROW * rows.len() as i32 + 4);
+    c.rect_rounded(r, 6, Tok::T0);
+    c.fill(Rect::new(r.x, r.y, r.w, 3), Tok::A(1));
+    c.vtext(r.x + 6, r.y + 5, 11, title, Tok::A(1));
     for (i, label) in rows.iter().enumerate() {
-        let y = p.y + 18 + i as i32 * MENU_ROW;
+        let y = r.y + 22 + i as i32 * MENU_ROW;
         let (bg, fg) = if i == 0 { (Tok::T2, Tok::T0) } else { (Tok::T0, Tok::T2) };
-        c.fill(Rect::new(p.x + 4, y, p.w - 8, MENU_ROW), bg);
-        c.text(p.x + 8, y + 2, label, fg);
+        c.fill(Rect::new(r.x + 4, y, r.w - 8, MENU_ROW), bg);
+        c.vtext(r.x + 8, y + 1, 8, label, fg);
     }
 }
 
@@ -87,11 +83,11 @@ mod bench {
     #[ignore]
     fn bench_frame() {
         let g = platformer::Game::from_src(platformer::levels::LEVELS[0]);
-        let mut fb = vec![0u32; (VIEW_W * VIEW_H) as usize];
+                let mut fb = vec![0u32; 800 * 480];
         let t = std::time::Instant::now();
         for _ in 0..2000 {
-            platformer::render::draw(&g, &mut fb);
-            overlay(&mut fb, Screen::Pause);
+            platformer::render::draw(&g, &mut fb, 800, 480);
+            overlay(&mut Fb::new(&mut fb, 800, 480), Screen::Pause);
             std::hint::black_box(&fb);
         }
         println!("BENCH platformer {:.1} us/frame", t.elapsed().as_secs_f64() * 1e6 / 2000.0);
