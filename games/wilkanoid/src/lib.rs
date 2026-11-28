@@ -54,9 +54,9 @@ pub const DROP_MULTI: u8 = 1;
 /// Livelli: '0' vuoto, '1' normale, '2' acciaio (due colpi), '4' esplosivo.
 pub const LEVELS: [[&[u8; COLS]; ROWS]; 6] = [
     [b"111111111", b"111111111", b"111111111", b"121111121", b"111111111", b"111111111"],
-    [b"000020000", b"000111000", b"001111100", b"011111110", b"111111111", b"101010101"],
+    [b"000020000", b"000111000", b"001111100", b"011141110", b"111111111", b"101010101"],
     [b"222022022", b"111111111", b"202020202", b"111111111", b"222222222", b"010101010"],
-    [b"000020000", b"000222000", b"002222200", b"022222220", b"222222222", b"022222220"],
+    [b"000020000", b"000222000", b"002212200", b"022222220", b"222222222", b"022222220"],
     [b"111010111", b"011414110", b"110111011", b"111010111", b"011111110", b"111111111"],
     [b"222222222", b"212121212", b"222222222", b"141212141", b"222222222", b"010101010"],
 ];
@@ -230,8 +230,9 @@ impl Game {
 
     fn launch_ball(&mut self) {
         let vy = -self.speed();
+        let vx = if self.rand() % 2 == 0 { VX_MAX / 2 } else { -VX_MAX / 2 };
         if let Some(b) = self.balls[0].as_mut() {
-            b.vx = VX_MAX / 2;
+            b.vx = vx;
             b.vy = vy;
         }
         self.phase = Phase::Play;
@@ -393,7 +394,6 @@ impl Game {
 
         // Mattoni: il primo colpo rimbalza; gli altri mattoni toccati nello stesso tick si rompono senza rimbalzo.
         let mut bounced = false;
-        let mut boom: Option<(usize, usize)> = None;
         for r in 0..ROWS {
             for c in 0..COLS {
                 if self.cells[r][c] == EMPTY {
@@ -427,9 +427,6 @@ impl Game {
                     bounced = true;
                 }
                 let cell = self.cells[r][c];
-                if cell == BOMB {
-                    boom = Some((r, c));
-                }
                 let pts = (self.level as u32 + 1)
                     * match cell {
                         NORMAL => 10,
@@ -451,6 +448,9 @@ impl Game {
                 };
                 let (mx, my) = (bx0 + BW / 2 * SUB, by0 + BH / 2 * SUB);
                 self.burst(mx, my, tone);
+                if cell == BOMB {
+                    self.explode(r, c);
+                }
                 if self.cells[r][c] == EMPTY && self.rand() % 5 == 0 {
                     let kind = if self.rand() % 3 == 0 { DROP_MULTI } else { DROP_WIDE };
                     if let Some(slot) = self.drops.iter_mut().find(|d| d.is_none()) {
@@ -460,10 +460,6 @@ impl Game {
             }
         }
 
-        if let Some((r, c)) = boom {
-            self.explode(r, c);
-        }
-
         // Palla persa: esce sotto il campo.
         if y - BALL_R > PH * SUB {
             return None;
@@ -471,14 +467,20 @@ impl Game {
         Some(Ball { x, y, vx, vy })
     }
 
-    /// Esplosione: rompe i mattoni vicini (non l'esplosivo stesso, già rotto).
+    /// Esplosione: rompe i mattoni vicini. Un esplosivo vicino esplode a sua volta.
     fn explode(&mut self, r: usize, c: usize) {
+        self.cells[r][c] = EMPTY;
         for rr in r.saturating_sub(1)..=(r + 1).min(ROWS - 1) {
             for cc in c.saturating_sub(1)..=(c + 1).min(COLS - 1) {
                 if (rr, cc) == (r, c) || self.cells[rr][cc] == EMPTY {
                     continue;
                 }
                 self.score += (self.level as u32 + 1) * 10;
+                if self.cells[rr][cc] == BOMB {
+                    self.cells[rr][cc] = EMPTY;
+                    self.explode(rr, cc);
+                    continue;
+                }
                 self.cells[rr][cc] = EMPTY;
                 self.flash[rr][cc] = FLASH_TICKS;
                 let (mx, my) = ((BX0 + cc as i32 * (BW + BGX)) * SUB + BW / 2 * SUB, (BY0 + rr as i32 * (BH + BGY)) * SUB + BH / 2 * SUB);
@@ -515,8 +517,9 @@ impl Game {
     fn spawn_extra_balls(&mut self) {
         let Some(b) = self.lead() else { return };
         for vx in [-VX_MAX / 2, VX_MAX / 2] {
-            if let Some(slot) = self.balls.iter_mut().find(|s| s.is_none()) {
-                *slot = Some(Ball { vx, ..b });
+            match self.balls.iter_mut().find(|s| s.is_none()) {
+                Some(slot) => *slot = Some(Ball { vx, ..b }),
+                None => self.score += (self.level as u32 + 1) * 50,
             }
         }
     }

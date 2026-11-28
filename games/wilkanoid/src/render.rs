@@ -188,8 +188,10 @@ impl<'a> Cv<'a> {
             for xi in dx0..dx1 {
                 let lx = ((xi as f32) + 0.5 - self.ox) / self.s;
                 let a = rr_cov(lx, ly, x0, y0, x1, y1, r) * alpha;
-                if a > 0.0 {
-                    let i = yi * self.w + xi;
+                let i = yi * self.w + xi;
+                if a >= 1.0 {
+                    self.px[i] = col;
+                } else if a > 0.0 {
                     self.px[i] = mix(self.px[i], col, a);
                 }
             }
@@ -374,6 +376,7 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     c.rr(pad_x - hw, py0, pad_x + hw, py1, 1.5, PAD_T, PAD_B);
 
     let mut buf = [0u8; 10];
+    c.rr_a(-3.0, -3.0, pw + 3.0, 14.0, 0.5, 0xFF000000, 0xFF000000, 0.45);
     c.text(b"LIVELLO", 4.0, 3.0, 1.0, TXT);
     let lvl = [b'0' + g.level as u8 + 1];
     c.text(&lvl, 36.0, 3.0, 1.0, TXT);
