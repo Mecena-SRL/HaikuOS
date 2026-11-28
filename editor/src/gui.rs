@@ -97,14 +97,18 @@ impl<const W: usize, const H: usize, const N: usize, const U: usize> Editor<W, H
     }
 
     pub fn handle(&mut self, k: Key) {
+        if k == Key::Undo {
+            // Solo la riga della modifica annullata cambia.
+            if let Some(e) = self.hist.peek() {
+                self.apply(k);
+                self.dirty.mark_row(e.y as usize);
+            }
+            return;
+        }
         let old_y = self.cy;
         self.apply(k);
-        if k == Key::Undo {
-            self.dirty.mark_all();
-        } else {
-            self.dirty.mark_row(old_y);
-            self.dirty.mark_row(self.cy);
-        }
+        self.dirty.mark_row(old_y);
+        self.dirty.mark_row(self.cy);
     }
 
     fn apply(&mut self, k: Key) {
@@ -220,6 +224,16 @@ mod tests {
         e.draw_dirty(&mut c, 4);
         assert_eq!(buf[0], 0xDEADBEEF); // riga 0 intatta
         assert_eq!(buf[8 * 16], CURSOR_COLOR); // cornice cursore in riga 2
+    }
+
+    #[test]
+    fn undo_marks_only_its_row() {
+        let mut e = E::new(Scene::default());
+        e.cy = 1;
+        e.handle(Key::Paint);
+        e.dirty.clear();
+        e.handle(Key::Undo);
+        assert!(e.dirty.is_dirty(1) && !e.dirty.is_dirty(0) && !e.dirty.is_dirty(2));
     }
 
     #[test]

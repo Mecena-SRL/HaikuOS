@@ -40,6 +40,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn row_boundary_and_all() {
+        let mut d = Dirty::new();
+        d.clear();
+        d.mark_row(63);
+        assert!(d.is_dirty(63) && !d.is_dirty(62) && !d.is_dirty(64));
+        d.clear();
+        d.mark_row(64); // oltre 63: tutto sporco, nessun shift fuori range
+        assert!(d.is_dirty(64) && d.is_dirty(0));
+        d.clear();
+        d.mark_all();
+        assert!(d.is_dirty(5) && d.is_dirty(200));
+    }
+
+    #[test]
     fn marks_and_clears_rows() {
         let mut d = Dirty::new();
         d.clear();

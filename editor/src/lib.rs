@@ -97,6 +97,11 @@ impl<const N: usize> History<N> {
         self.len += 1;
     }
 
+    /// Ultima modifica annullabile, senza rimuoverla.
+    pub fn peek(&self) -> Option<Edit> {
+        self.len.checked_sub(1).and_then(|i| self.ops[i])
+    }
+
     fn pop(&mut self) -> Option<Edit> {
         if self.len == 0 {
             return None;
