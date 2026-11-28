@@ -1,5 +1,5 @@
 // Icone generative: LOD, gerarchia, limiti nella cella, cache (hit/miss/sostituzione).
-use haiku_gui::genicon::{folder, lod_for, Cache, Lod, Prim, MAX_PRIMS};
+use haiku_gui::genicon::{folder, lod_for, unit_for, Cache, Class, Lod, Prim, MAX_PRIMS};
 use haiku_gui::layout::Rect;
 
 fn prims(w: i32, h: i32) -> (usize, Lod, [Prim; MAX_PRIMS]) {
@@ -51,4 +51,17 @@ fn cache_hits_and_replaces_on_resize() {
     c.folder(1, 24, 24); // altro tipo: slot separato
     c.folder(0, 96, 96);
     assert_eq!((c.hits, c.misses), (2, 3));
+}
+
+#[test]
+fn unit_scales_with_surface() {
+    let a = unit_for(240, 160); // GBA
+    assert_eq!((a.u, a.class, a.icon()), (1, Class::Small, 16));
+    let b = unit_for(480, 272); // PSP
+    assert_eq!((b.u, b.class, b.icon()), (2, Class::Small, 32));
+    assert_eq!(b.text_px(), 8);
+    let c = unit_for(1920, 1080);
+    assert_eq!((c.u, c.class, c.icon()), (8, Class::Large, 128));
+    assert_eq!(c.text_px(), 16);
+    assert_eq!(unit_for(1080, 1920).u, 8); // orientamento indifferente
 }

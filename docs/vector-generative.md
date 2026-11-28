@@ -50,17 +50,31 @@ Lato minore `s = min(w, h)`:
 
 Regola di gerarchia: una parte non nasce sotto la soglia del suo genitore. Semplificare è rimuovere parti, mai cambiare forma.
 
-## 5. Vincoli e proporzioni (stile Apple)
+## 5. Unità `u` e classi di schermo
 
-- **Griglia 8 pt**: ogni coordinata è k/16 del lato; su un'icona da 128 pt un passo vale 8 pt.
-- **Raggio icona**: s/8 (12,5%). Raggio ≤ metà del lato corto della forma.
-- **Padding**: s/8 dal bordo della cella. **Spazio fra elementi**: s/16.
+- **Superficie**: lato minore `S = min(w, h)` in pixel fisici.
+- **Unità**: `u = max(1, S / 128)` (divisione intera). Su schermi piccoli `u` è un numero intero di pixel (GBA 240×160 → 1 px; PSP 480×272 → 2 px). Su schermi grandi cresce con la superficie (1080p → 8 px; 4K → 16 px).
+- **Icona** = 16 u (128 px su 1080p, 32 px su 480×272). **Padding** = 2 u (s/8). **Spazio** = 1 u (s/16). **Raggio icona** = 2 u.
+- **Testo** = 2 u, con minimo per classe.
+
+| Classe | Lato minore | Testo minimo | Esempio |
+|---|---|---|---|
+| Small | < 360 px | 8 px | GBA, PSP 480×272 |
+| Medium | 360–999 px | 10 px | 720p |
+| Large | ≥ 1000 px | 12 px | 1080p, 4K |
+
+Tutte le misure di font, spazi e raggi sono in `u`. Nessun valore fisso in pixel nelle app.
+
+## 6. Vincoli e proporzioni (stile Apple)
+
+- **Griglia**: ogni coordinata è k/16 dell'icona (= 1 u per passo).
+- **Raggio icona**: 2 u (s/8). Raggio ≤ metà del lato corto della forma.
 - **Spessore linea**: ≥ 1 px fisico; a L2 si usa s/32.
 - **Palette**: 4 token. Nessun colore RGB nei giochi o nelle app.
-- **Testo e finestre**: stessa unità `U = s/16` per altezza riga, raggio e padding. Il testo non ha LOD proprio: segue il lato della finestra che lo contiene.
+- **Testo e finestre**: stessa unità `u` per altezza riga, raggio e padding. Il testo non ha LOD proprio: segue il lato della finestra che lo contiene.
 - **Figli dentro il genitore**: ogni figlio vive nel rettangolo del genitore; le sue coordinate sono frazioni di esso.
 
-## 6. Cache
+## 7. Cache
 
 - Chiave: `(tipo icona, w, h)`. Un slot fisso per tipo (`Cache<N>`, default 9: 3 dimensioni × 3 schermi).
 - **Hit**: stessa `w`×`h`, si restituisce la voce.
@@ -69,9 +83,16 @@ Regola di gerarchia: una parte non nasce sotto la soglia del suo genitore. Sempl
 - Voce: 120 byte (geometria relativa, nessun pixel). Bitmap RGBA 96×96 equivalente: 36 864 byte.
 - Le coordinate in cache sono relative all'origine: lo spostamento della finestra non invalida nulla.
 
-## 7. Risultati prototipo
+## 8. Risultati prototipo
 
-Icona "cartella", 3 dimensioni logiche × 2 schermi (`design/screens/gen_folder_*.png`):
+Icona "cartella" con unità `u` (`design/screens/gen_folder_*.png`):
+
+| Schermo | u | Classe | Icona | LOD | Parti (w×h@raggio) | Testo | Padding | Spazio |
+|---|---|---|---|---|---|---|---|---|
+| 480×272 | 2 | Small | 32 px | L1 | 28×18@0, 12×6@0, 28×16@0 | 8 px | 4 px | 2 px |
+| 1920×1080 | 8 | Large | 128 px | L2 | 112×72@16, 48×24@12, 112×64@16, 96×8@0 | 16 px | 16 px | 8 px |
+
+Versione precedente a dimensioni fisse (3 dimensioni × 1080p/4K, non più rigenerata; PNG rimosso):
 
 | Schermo | Logico 24 | Logico 48 | Logico 96 |
 |---|---|---|---|
@@ -92,14 +113,14 @@ Conclusione: generare costa quanto leggere la cache. La cache serve per il diseg
 
 Cache: 6 miss al primo giro (3 per schermo), 6 hit al secondo giro: nessuna icona viene rigenerata.
 
-## 8. Limiti noti
+## 9. Limiti noti
 
 - La linguetta a L2 usa raggio pieno e risulta a "pillola". Da fare: raggio solo sugli angoli superiori.
 - Un solo tipo di icona (cartella). Gli altri elementi (finestre, pulsanti, testo) seguono nella prossima fase.
 - Nessuna dipendenza dal formato pixel: i colori arrivano dai token.
 - Il disegno non è ancora nel percorso della scrivania.
 
-## 9. Passi successivi
+## 10. Passi successivi
 
 1. Raggi per angolo; poi icone file, terminale, calcolatrice con gli stessi 4 primitivi.
 2. Finestre e pulsanti con la stessa unità `U`.

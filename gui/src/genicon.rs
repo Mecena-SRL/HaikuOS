@@ -114,3 +114,53 @@ impl<const N: usize> Cache<N> {
         }
     }
 }
+
+/// Unità base `u` derivata dalla superficie: lato minore / 128, minimo 1 px. Interi su schermi piccoli,
+/// cresce con la superficie su quelli grandi. Icona = 16 u; padding = 2 u (s/8); spazio = 1 u (s/16).
+pub const GRID: i32 = 128;
+pub const ICON_U: i32 = 16;
+
+/// Classe di schermo: decide il minimo di leggibilità del testo.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Class {
+    /// lato minore < 360 px (GBA, PSP 480×272)
+    Small,
+    /// 360 ≤ lato minore < 1000 px
+    Medium,
+    /// lato minore ≥ 1000 px (1080p, 4K)
+    Large,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Unit {
+    pub u: i32,
+    pub class: Class,
+}
+
+pub fn unit_for(w: i32, h: i32) -> Unit {
+    let s = w.min(h);
+    let class = if s < 360 {
+        Class::Small
+    } else if s < 1000 {
+        Class::Medium
+    } else {
+        Class::Large
+    };
+    Unit { u: (s / GRID).max(1), class }
+}
+
+impl Unit {
+    /// Lato dell'icona in pixel.
+    pub const fn icon(&self) -> i32 {
+        ICON_U * self.u
+    }
+    /// Testo: 2 u, con minimo per classe (Small 8, Medium 10, Large 12 px).
+    pub fn text_px(&self) -> i32 {
+        let min = match self.class {
+            Class::Small => 8,
+            Class::Medium => 10,
+            Class::Large => 12,
+        };
+        (2 * self.u).max(min)
+    }
+}
