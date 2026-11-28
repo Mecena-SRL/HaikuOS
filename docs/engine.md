@@ -6,6 +6,7 @@
 
 | Tema | Decisione | Motivo |
 |---|---|---|
+| Schermo minimo | 480x272 (prima PSP). GBA solo per demo semplici, non per giochi complessi o suite | Ivan: target minimo PSP |
 | Linguaggio | Rust `no_std`, nessuna allocazione nel core | Stesso linguaggio dell'OS; va da GBA a ARM64/AMD64 |
 | Numeri | Virgola fissa Q16.16 nella fisica | Stessi bit su ogni piattaforma: replay e test deterministici |
 | Grafica v1 | Renderer software su buffer ARGB32 | Nessun driver GPU richiesto; coerente con `docs/graphics-acceleration.md` |
