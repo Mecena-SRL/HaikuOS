@@ -14,6 +14,8 @@ mod settings;
 mod ascon;
 #[path = "../src/apps/sysutil.rs"]
 mod sysutil;
+#[path = "../src/apps/monitor.rs"]
+mod monitor;
 
 use clock::Clock;
 use notes::{Notes, N};
