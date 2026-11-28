@@ -22,6 +22,7 @@ fn main() {
             "--shot" => Some(Screen::Play),
             "--shot-title" => Some(Screen::Title),
             "--shot-pause" => Some(Screen::Pause),
+            "--shot-avanzato" => Some(Screen::Play),
             _ => None,
         };
         if let Some(screen) = screen {
@@ -30,7 +31,11 @@ fn main() {
                 [w, h] => (w.parse().expect("larghezza"), h.parse().expect("altezza")),
                 _ => (1920, 1080),
             };
-            shot(&mut g, path, screen, w, h);
+            if flag == "--shot-avanzato" {
+                shot_avanzata(&mut g, path, w, h);
+            } else {
+                shot(&mut g, path, screen, w, h);
+            }
             return;
         }
     }
@@ -274,6 +279,46 @@ fn draw(g: &Game) {
 }
 
 /// Gioca alcuni turni con poche costruzioni valide e scrive un PPM.
+/// Partita avanzata (45 turni, molte costruzioni), per gli screenshot di gioco maturo.
+fn shot_avanzata(g: &mut Game, path: &str, w: usize, h: usize) {
+    let ciclo = [
+        Building::House,
+        Building::Farm,
+        Building::Lumber,
+        Building::Quarry,
+        Building::Market,
+        Building::Library,
+        Building::Farm,
+        Building::House,
+    ];
+    for t in 0..45 {
+        let b = ciclo[t % ciclo.len()];
+        let spot = (0..g.map.w * g.map.h).find(|&i| {
+            g.player.building_at(i).is_none()
+                && g.player.site_at(i).is_none()
+                && g.map.terrain(i).is_some_and(|tr| tr != Terrain::Water)
+                && b.terrain()
+                    .is_none_or(|need| g.map.terrain(i) == Some(need))
+        });
+        if let Some(i) = spot {
+            let _ = g.player.build(&g.map, i, b);
+        }
+        if t % 5 == 4 {
+            g.player.knowledge += 10;
+            g.player.research_irrigation();
+        }
+        g.end_turn();
+    }
+    let mut frame = citybuilder::view::render(g, w, h);
+    let out = std::fs::File::create(path).expect("impossibile creare il file");
+    let mut out = std::io::BufWriter::new(out);
+    frame.write_ppm(&mut out).expect("scrittura fallita");
+    println!(
+        "fotogramma avanzato {}x{} scritto in {path} (turno {})",
+        frame.w, frame.h, g.turns
+    );
+}
+
 fn shot(g: &mut Game, path: &str, screen: Screen, w: usize, h: usize) {
     for _ in 0..6 {
         g.end_turn();
