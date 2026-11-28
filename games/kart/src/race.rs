@@ -51,7 +51,11 @@ fn lap(k: &mut Kart, seg: usize, n: usize, laps: u8, tick: u32) {
             k.finish = Some(tick);
         }
     } else if k.seg < f && seg >= q {
-        k.count = k.count.saturating_sub(1);
+        // Retromarcia sulla linea a giro 0: niente da annullare, il segmento resta quello di prima.
+        if k.count == 0 {
+            return;
+        }
+        k.count -= 1;
     }
     k.seg = seg;
 }

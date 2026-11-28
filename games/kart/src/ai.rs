@@ -16,17 +16,21 @@ fn lookahead(track: &Track, near: &Near, dist: Fx) -> (Fx, Fx) {
     let step = (ONE / 16) as i64;
     let lim = dist as i64 * dist as i64;
     let mut g = near.seg as i64 * ONE as i64 + near.t as i64;
-    loop {
+    // Limite: un giro completo di linea centrale. Pista corta o tutta dentro `dist`: si ferma.
+    let max_steps = total / step + 1;
+    let (mut x, mut y) = track.point((g >> 16) as usize, (g & 0xFFFF) as Fx);
+    for _ in 0..max_steps {
         g += step;
         if g >= total {
             g -= total;
         }
-        let (x, y) = track.point((g >> 16) as usize, (g & 0xFFFF) as Fx);
+        (x, y) = track.point((g >> 16) as usize, (g & 0xFFFF) as Fx);
         let (ax, ay) = ((x - near.x) as i64, (y - near.y) as i64);
         if ax * ax + ay * ay >= lim {
-            return (x, y);
+            break;
         }
     }
+    (x, y)
 }
 
 pub fn drive(track: &Track, k: &Kart, near: &Near) -> Input {
