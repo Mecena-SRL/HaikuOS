@@ -537,7 +537,7 @@ pub fn draw_motion<C: Canvas>(c: &mut C, s: &Shell, m: &Motion<'_>) {
     for k in 0..count {
         let i = start + k;
         let ic = &s.icons[i];
-        let cell = icon_cell(k);
+        let cell = icon_cell_in(k, s.w);
         if c.rich() {
             if i == s.sel && m.sel.is_none() {
                 c.fill(cell.inset(-1), T1);

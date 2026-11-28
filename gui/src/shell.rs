@@ -560,7 +560,7 @@ impl Shell {
         }
         let (start, count) = self.visible();
         for k in 0..count {
-            if icon_cell(k).contains(x, y) {
+            if icon_cell_in(k, self.w).contains(x, y) {
                 self.sel = start + k;
                 return self.launch(start + k);
             }

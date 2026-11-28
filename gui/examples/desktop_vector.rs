@@ -271,8 +271,9 @@ fn main() {
     if a.get(4).map(String::as_str) == Some("wins2") {
         shell.wm.open(1, "FILE", 120, 80, lw, lh);
         shell.wm.open(3, "CALCOLATRICE", 80, 60, lw, lh);
-        if let Some(i) = shell.wm.find_app(1) { shell.wm.move_win(i, 14, 30, lw, lh); }
-        if let Some(i) = shell.wm.find_app(3) { shell.wm.move_win(i, 140, 42, lw, lh); }
+        let k = (lw / 240).max(1);
+        if let Some(i) = shell.wm.find_app(1) { shell.wm.move_win(i, 14 * k, 30 * k, lw, lh); }
+        if let Some(i) = shell.wm.find_app(3) { shell.wm.move_win(i, 140 * k, 42 * k, lw, lh); }
         draw(&mut v, &shell);
         let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
         write!(f, "P6\n{w} {h}\n255\n").unwrap();

@@ -56,6 +56,14 @@ impl Rect {
 }
 
 /// Cella della griglia icone `i` (4 colonne, passo 48×40, inizio a (8, 24)).
+/// Cella dell'icona `i` su uno schermo largo `w` logici: la griglia cresce con la superficie
+/// (a 240 px di larghezza è la griglia di base; a 480 px il passo raddoppia).
+pub fn icon_cell_in(i: usize, w: i32) -> Rect {
+    let k = (w / 240).max(1);
+    let (col, row) = ((i % COLS) as i32, (i / COLS) as i32);
+    Rect::new(GRID_X * k + col * PITCH_X * k, GRID_Y * k + row * PITCH_Y * k, ICON, ICON)
+}
+
 pub fn icon_cell(i: usize) -> Rect {
     let (col, row) = ((i % COLS) as i32, (i / COLS) as i32);
     Rect::new(GRID_X + col * PITCH_X, GRID_Y + row * PITCH_Y, ICON, ICON)
