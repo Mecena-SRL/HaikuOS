@@ -56,6 +56,9 @@ fn main() {
             ["t"] => {
                 let before = (g.player.citizens, g.player.stock.food, g.player.stock.wood);
                 g.end_turn();
+                if let Some(ev) = g.event {
+                    println!("evento: {}", ev.name());
+                }
                 println!(
                     "Turno {}: cittadini {} -> {}, cibo {} -> {}, legno {} -> {}",
                     g.turns,
@@ -206,9 +209,6 @@ fn draw(g: &Game) {
         if occupato { "occupato" } else { "libero" }
     );
     println!("legenda: H casa F fattoria L legnaia Q cava M mercato B biblioteca _ cantiere x IA . erba T foresta ^ montagna ~ acqua");
-    if let Some(ev) = g.event {
-        println!("evento: {}", ev.name());
-    }
     let s = g.player.stock;
     println!(
         "pop {}/{WIN_POP}  cibo {}  legno {}  pietra {}  oro {}  conoscenza {}  turno {}/{}",
@@ -223,6 +223,9 @@ fn draw(g: &Game) {
     );
     if let Some(motivo) = g.player.growth_block() {
         println!("crescita ferma: {motivo}");
+    }
+    if g.player.stock.food < 2 {
+        println!("attenzione: cibo basso, con zero cibo perdi un cittadino");
     }
     println!(
         "IA (x): pop {}, stile {}",
