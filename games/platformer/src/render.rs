@@ -5,8 +5,7 @@ use haiku_gui::layout::Rect;
 use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
 
-#[path = "../../../gba/src/font.rs"]
-mod font;
+const TEXT_PX: i32 = 8;
 
 const SKY: u32 = 0xFF6BB8F0;
 const GROUND: u32 = 0xFF8B5A2B;
@@ -42,16 +41,22 @@ impl Canvas for Fb<'_> {
     }
 
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
-        for (i, ch) in s.bytes().enumerate() {
-            let gx = x + i as i32 * font::ADVANCE as i32;
-            for (row, bits) in font::glyph(ch).iter().enumerate() {
-                for col in 0..font::GLYPH_W {
-                    if (bits >> (font::GLYPH_W - 1 - col)) & 1 == 1 {
-                        self.fill(Rect::new(gx + col as i32, y + row as i32, 1, 1), t);
-                    }
-                }
-            }
+        self.vtext(x, y, TEXT_PX, s, t);
+    }
+
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        if x < 0 || y < 0 || x >= VIEW_W || y >= VIEW_H {
+            return;
         }
+        let c = t.rgb();
+        let p = &mut self.0[(y * VIEW_W + x) as usize];
+        let a = a as u32;
+        let mix = |d: u32, s: u32| (s * a + d * (255 - a)) / 255;
+        let d = *p;
+        *p = 0xFF00_0000
+            | (mix((d >> 16) & 0xFF, (c >> 16) & 0xFF) << 16)
+            | (mix((d >> 8) & 0xFF, (c >> 8) & 0xFF) << 8)
+            | mix(d & 0xFF, c & 0xFF);
     }
 }
 

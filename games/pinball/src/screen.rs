@@ -6,8 +6,7 @@ use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
 use pinball::{Pinball, BUMPERS, FP, TABLE_H, TABLE_W};
 
-#[path = "../../../gba/src/font.rs"]
-mod font;
+const TEXT_PX: i32 = 8;
 
 /// Ingrandimento del PPM di uscita.
 pub const SCALE: usize = 3;
@@ -99,16 +98,18 @@ impl Canvas for Img {
     }
 
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
+        self.vtext(x, y, TEXT_PX, s, t);
+    }
+
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        if x < 0 || y < 0 || x as usize >= self.w || y as usize >= self.h {
+            return;
+        }
         let c = rgb(t);
-        for (i, ch) in s.bytes().enumerate() {
-            let gx = x + i as i32 * font::ADVANCE as i32;
-            for (row, bits) in font::glyph(ch).iter().enumerate() {
-                for col in 0..font::GLYPH_W {
-                    if (bits >> (font::GLYPH_W - 1 - col)) & 1 == 1 {
-                        self.put(gx + col as i32, y + row as i32, 1, 1, c);
-                    }
-                }
-            }
+        let p = &mut self.px[y as usize * self.w + x as usize];
+        let a = a as u16;
+        for k in 0..3 {
+            p[k] = ((c[k] as u16 * a + p[k] as u16 * (255 - a)) / 255) as u8;
         }
     }
 }
@@ -152,7 +153,7 @@ pub fn frame(g: &Pinball, screen: Screen) -> Img {
     match screen {
         Screen::Play => {
             let s = format!("PUNTI {}  VITE {}", g.score, g.lives);
-            im.rect_rounded(Rect::new(1, 1, s.len() as i32 * font::ADVANCE as i32 + 6, 9), 3, Tok::T0);
+            im.rect_rounded(Rect::new(1, 1, haiku_gui::vfont::advance(TEXT_PX, &s) + 6, 12), 3, Tok::T0);
             im.text(4, 3, &s, Tok::T1);
         }
         s => overlay(&mut im, s),
