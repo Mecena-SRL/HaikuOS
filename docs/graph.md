@@ -16,6 +16,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `trace/` | `no_std` lib | - | buffer circolare fisso per tracce |
 | `discovery/` | `no_std` lib | - | FDT compatible e RSDP ACPI, senza I/O |
 | `gba/` | OS, Game Boy Advance | - | ROM GBA |
+| `games/kart/` | `no_std` lib + host | - | kart 3D: fisica, giri, IA, render a prospettiva (`render.rs`), `docs/kart-3d.md` |
 | `x86/` | OS, x86-64 | - | loader Multiboot2 (CPUID, framebuffer 15/16/24/32 bit), kernel `no_std`, test QEMU |
 | `arm64/uefi/` | OS, ARM64 UEFI | - | app UEFI (`BOOTAA64.EFI`), GOP, stampa su ConOut, test QEMU_EFI + ramfb |
 | `arm64/` | OS, ARM64 | - | kernel `no_std` su QEMU virt: EL1, seriale PL011, timer generico (polling), MMU identità (2 GB, blocchi da 1 GB) |
