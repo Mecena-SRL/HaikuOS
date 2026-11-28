@@ -106,6 +106,8 @@ const NO_MOB: Mob = Mob {
 pub struct Player {
     pub b: Body,
     pub on_ground: bool,
+    /// Frame rimanenti per saltare dopo aver lasciato il bordo (coyote time).
+    pub coyote: u32,
     pub big: bool,
     pub star: u32,
     pub hurt: u32,
@@ -124,6 +126,7 @@ impl Player {
                 h: 14,
             },
             on_ground: false,
+            coyote: 0,
             big: false,
             star: 0,
             hurt: 0,
@@ -265,6 +268,9 @@ fn step_y(lvl: &Level, b: &mut Body) -> VHit {
         if lvl.blocked(b.x, b.y + s, b.w * SUB, b.h * SUB) {
             let t = TILE * SUB;
             return if s > 0 {
+                // Appoggia esattamente sul bordo superiore del tile colpito.
+                let row = (b.y + s + b.h * SUB - 1).div_euclid(t);
+                b.y = row * t - b.h * SUB;
                 VHit::Floor
             } else {
                 VHit::Ceil((b.x + b.w * SUB / 2).div_euclid(t), (b.y + s).div_euclid(t))
@@ -415,13 +421,17 @@ impl Game {
         } else {
             p.b.vx -= p.b.vx.clamp(-FRIC, FRIC);
         }
-        if pressed & BTN_JUMP != 0 && p.on_ground {
+        if pressed & BTN_JUMP != 0 && (p.on_ground || p.coyote > 0) {
             p.b.vy = JUMP_V;
+            p.coyote = 0;
         }
         if input & BTN_JUMP == 0 && p.b.vy < JUMP_CUT {
             p.b.vy = JUMP_CUT;
         }
-        p.b.vy = (p.b.vy + GRAV).min(MAX_FALL);
+        // Caduta più pesante della salita: il salto resta invariato, la discesa è più reattiva.
+        let g = if p.b.vy > 0 { GRAV + GRAV / 2 } else { GRAV };
+        p.b.vy = (p.b.vy + g).min(MAX_FALL);
+        let was_ground = p.on_ground;
         p.on_ground = false;
         let bottom = p.b.y + p.b.h * SUB;
 
@@ -440,6 +450,15 @@ impl Game {
             }
             VHit::None => {}
         }
+        // Coyote time: sul bordo di un passo (non dopo un salto) restano 6 frame per saltare.
+        let c = &mut self.p.coyote;
+        *c = if self.p.on_ground {
+            0
+        } else if was_ground && self.p.b.vy >= 0 {
+            6
+        } else {
+            c.saturating_sub(1)
+        };
         if let Some((tx, ty)) = bump {
             self.bump(tx, ty);
         }
@@ -609,6 +628,10 @@ impl Game {
         self.p.big = big;
         let d = 10 * SUB;
         if big {
+            // Non cresce se il soffitto è basso: resterebbe incastrato nel tile.
+            if self.lvl.blocked(self.p.b.x, self.p.b.y - d, self.p.b.w * SUB, 24 * SUB) {
+                return;
+            }
             self.p.b.y -= d;
             self.p.b.h = 24;
         } else {
