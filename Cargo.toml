@@ -1,5 +1,5 @@
 [workspace]
-members = ["sysapps", "setup", "kernel", "devtools", "engine"]
+members = ["sysapps", "setup", "kernel", "devtools", "engine", "editor"]
 exclude = ["sim", "gba"]
 resolver = "2"
 
