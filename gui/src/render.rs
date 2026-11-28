@@ -47,6 +47,20 @@ pub trait Canvas {
             self.text(r.x + 2, y + MENU_ROW - 2, label, fg);
         }
     }
+    /// Pixel con copertura `a` (0..=255) del token `t`, per l'antialiasing. Di base: soglia a metà (pixel pieno).
+    /// Il backend a 32 bit può ridefinirlo per mescolare col fondo.
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        if a >= 128 {
+            self.fill(Rect::new(x, y, 1, 1), t);
+        }
+    }
+    /// Testo vettoriale con antialiasing (`vfont`): `size` px per em. Ritorna la larghezza in px.
+    fn vtext(&mut self, x: i32, y: i32, size: i32, s: &str, t: Tok) -> i32
+    where
+        Self: Sized,
+    {
+        crate::vfont::draw_text(self, x, y, size, s, t)
+    }
     /// Segmento di spessore `w` (px, minimo 1), da `(x1, y1)` a `(x2, y2)`. Di base: quadrati pieni lungo Bresenham.
     fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, w: i32, t: Tok) {
         let w = w.max(1);

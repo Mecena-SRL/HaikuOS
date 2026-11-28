@@ -12,6 +12,8 @@ pub mod input;
 pub mod layout;
 pub mod palette;
 pub mod render;
+pub mod vfont;
+mod vfont_data;
 pub mod shell;
 pub mod wm;
 
