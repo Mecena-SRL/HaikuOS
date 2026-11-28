@@ -281,7 +281,14 @@ impl Desktop {
                 }
             }
             Some(App::Reminders) => self.rem_keys(pressed),
-            Some(a @ (App::Passwords | App::Dictionary | App::Calendar | App::Photos | App::PhotoView | App::Maps)) => {
+            Some(App::Passwords) => {
+                app_changed = self.apps.key_password(pressed, fs);
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                    self.apps.cassa.chiudi();
+                }
+            }
+            Some(a @ (App::Dictionary | App::Calendar | App::Photos | App::PhotoView | App::Maps)) => {
                 app_changed = self.apps.key(a, pressed);
                 if pressed & KEY_B != 0 {
                     self.win = None;
@@ -996,6 +1003,7 @@ mod tests_apps {
     fn password_mostra_il_segreto_con_a() {
         let mut d = Desktop::new();
         open(&mut d, 9, App::Passwords);
+        d.apps.cassa.aperta = true;
         assert!(!d.apps.mostra);
         assert!(d.step(KEY_A, &Fs::new()));
         assert!(d.apps.mostra);

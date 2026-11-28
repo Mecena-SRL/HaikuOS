@@ -176,6 +176,23 @@ fn keys() -> u16 {
     !unsafe { read_volatile(KEYINPUT) } & 0x03FF
 }
 
+/// Scrive il file cifrato della cassaforte nello spazio utente, se è cambiato.
+fn salva_cassa(c: &mut apps::vault::Cassa, p: &mut persist::Persist<space::Window<'_, sram::Sram>>) {
+    if !c.da_salvare {
+        return;
+    }
+    if p.fs().find_name(apps::vault::NOME).is_none() && p.create(apps::vault::NOME, 0).is_err() {
+        c.esito = b"ERRORE SALVATAGGIO";
+        c.da_salvare = false;
+        return;
+    }
+    let ok = p.write(apps::vault::NOME, 0, apps::vault::CAP, &c.blob[..c.blob_len]).is_ok() && p.sync().is_ok();
+    c.da_salvare = false;
+    if !ok {
+        c.esito = b"ERRORE SALVATAGGIO";
+    }
+}
+
 fn draw_workspace(ws: &Workspace, p: &persist::Persist<space::Window<'_, sram::Sram>>) {
     // Solo le 4 tinte della bibbia: T0 sfondo, T3 barra, T1 selezione, T2 file, T3 cartelle.
     use desktop::{T0, T1, T2, T3};
@@ -524,7 +541,9 @@ pub extern "C" fn rust_main() -> ! {
     while keys() & workspace::KEY_START == 0 && !dk.run_requested() {
         sram::vblank();
         let ticked = dk.tick();
-        if dk.step(keys(), sp.usr.fs()) | ticked {
+        let cambio = dk.step(keys(), sp.usr.fs()) | ticked;
+        salva_cassa(&mut dk.apps.cassa, &mut sp.usr);
+        if cambio {
             dk.draw_calc(surf);
             dk.draw_media(media);
     desktop::paint(fb, &dk, surf, media, sp.usr.fs());

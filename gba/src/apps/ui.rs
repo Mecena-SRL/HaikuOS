@@ -5,16 +5,19 @@
 use crate::apps::calendar::{Calendario, Data, Mese, Ora};
 use crate::apps::dictionary::Sfoglia;
 use crate::apps::maps::{Cursore, Mappa};
-use crate::apps::passwords::Archivio;
+use crate::apps::vault::{self, Cassa};
+use crate::fs::Fs;
 use crate::apps::photo_view::PhotoView;
 use crate::apps::photos::Photos;
 use crate::desktop::{App, KEY_A, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_SELECT, KEY_UP};
 
 /// Passo di spostamento della vista foto, in pixel della foto.
 const PASSO_PAN: i32 = 4;
+/// Tasto L (sblocco della cassaforte, vedi `key_password`).
+const KEY_L: u16 = 1 << 9;
 
 pub struct AppsUi {
-    pub pass: Archivio,
+    pub cassa: Cassa,
     /// Segreto visibile (A nella finestra password).
     pub mostra: bool,
     pub dict: Sfoglia,
@@ -29,8 +32,6 @@ pub struct AppsUi {
 impl AppsUi {
     /// Dati di prova: una password, un evento, tre foto, una mappa di seme fisso.
     pub fn new() -> Self {
-        let mut pass = Archivio::new();
-        let _ = pass.aggiungi(b"MAIL", b"ANNA", b"DEMO");
         let mut cal = Calendario::new();
         if let (Some(d), Some(o)) = (Data::new(2026, 11, 25), Ora::new(10, 0)) {
             cal.aggiungi(b"TELEFONA ANNA", d, o);
@@ -40,7 +41,7 @@ impl AppsUi {
         foto.aggiungi(b"CASA", 96, 64, 1);
         foto.aggiungi(b"MARE", 48, 48, 2);
         Self {
-            pass,
+            cassa: Cassa::new(),
             mostra: false,
             dict: Sfoglia::tutte(),
             cal,
@@ -52,6 +53,50 @@ impl AppsUi {
         }
     }
 
+    /// Tasti della finestra password. Chiusa: su/giù cambia il carattere, A lo aggiunge, Select cancella,
+    /// L sblocca (o crea l'archivio se non esiste). Aperta: tasti normali. Ritorna true se cambia lo schermo.
+    pub fn key_password(&mut self, pressed: u16, fs: &Fs) -> bool {
+        if !self.cassa.aperta {
+            let mut cambiato = true;
+            if pressed & KEY_UP != 0 {
+                self.cassa.ingresso.su();
+            } else if pressed & KEY_DOWN != 0 {
+                self.cassa.ingresso.giu();
+            } else if pressed & KEY_A != 0 {
+                self.cassa.ingresso.aggiungi();
+            } else if pressed & KEY_SELECT != 0 {
+                self.cassa.ingresso.cancella();
+            } else if pressed & KEY_L != 0 {
+                self.sblocca(fs);
+            } else {
+                cambiato = false;
+            }
+            return cambiato;
+        }
+        self.key(App::Passwords, pressed)
+    }
+
+    /// Legge il file cifrato da `fs` e prova a sbloccare. Se il file esiste ma non si legge, non lo sovrascrive.
+    fn sblocca(&mut self, fs: &Fs) {
+        let mut buf = [0u8; vault::CAP];
+        match fs.find_name(vault::NOME) {
+            None => self.cassa.sblocca(None),
+            Some(id) => {
+                let letto = fs
+                    .len_of(id)
+                    .filter(|&n| n <= vault::CAP)
+                    .and_then(|n| fs.read(id, 0, &mut buf[..n]).ok().filter(|&m| m == n).map(|_| n));
+                match letto {
+                    Some(n) => self.cassa.sblocca(Some(&buf[..n])),
+                    None => {
+                        self.cassa.esito = b"ARCHIVIO NON LEGGIBILE";
+                        self.cassa.ingresso.azzera();
+                    }
+                }
+            }
+        }
+    }
+
     /// Tasti dell'app `app`. B chiude la finestra e lo fa il desktop.
     /// Ritorna true se lo stato è cambiato (la finestra va ridisegnata).
     pub fn key(&mut self, app: App, pressed: u16) -> bool {
@@ -59,10 +104,10 @@ impl AppsUi {
         match app {
             App::Passwords => {
                 if pressed & KEY_UP != 0 {
-                    self.pass.su();
+                    self.cassa.archivio.su();
                 }
                 if pressed & KEY_DOWN != 0 {
-                    self.pass.giu();
+                    self.cassa.archivio.giu();
                 }
                 if pressed & KEY_A != 0 {
                     self.mostra = !self.mostra;
