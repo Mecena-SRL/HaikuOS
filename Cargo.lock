@@ -12,3 +12,10 @@ dependencies = [
 [[package]]
 name = "haiku-editor"
 version = "0.1.0"
+
+[[package]]
+name = "rpg"
+version = "0.1.0"
+dependencies = [
+ "haiku-editor",
+]

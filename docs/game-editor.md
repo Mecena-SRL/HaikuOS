@@ -3,6 +3,7 @@
 - `editor/` (`haiku-editor`): motore dati `no_std`, senza allocazione. Griglia di tile, scena con sprite, undo a pila fissa, salvataggio binario (`HGS1`).
 - `editor/src/main.rs`: CLI host. Esempio: `haiku-editor scena.hgs new`, poi `paint X Y V`, `fill X0 Y0 X1 Y1 V`, `sprite KIND X Y`, `show`.
 - `games/chess/` (`chess`): regole degli scacchi `no_std` sulla `Grid` dell'editor. Mancano arrocco ed en passant; la promozione è sempre a donna. Test: perft iniziale (20/400/8902).
+- `games/rpg/` (`rpg`): RPG stile giallo `no_std`: mappa a tile (Verdepoli, Percorso 1), NPC con dialoghi, battaglia a turni con tipi, cattura, allenatore CPU. Gioco da terminale (`cargo run -p rpg`, w/a/s/d, z, x) e screenshot (`rpg shot`). Test: `cargo test -p rpg`.
 
 Test: `cargo test --workspace`. Gioco: `cargo run -p chess`.
 
