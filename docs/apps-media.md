@@ -15,12 +15,13 @@
 |---|---|---|---|---|---|---|
 | 1 | Scacchi | Partita locale, mosse legali, matto e stallo | nessuno (logica pura), superficie | n/a | Sì: 8×8 su una superficie, mosse con keypad (**da verificare** lo spazio in RAM) | Prototipo: `sim/src/chess.rs` |
 | 2 | Ebook (testo) | Lettura paginata di testo semplice | storage (lettura), superficie | TXT, UTF-8 | Sì per TXT corto; file grandi no (**da verificare**: 8 KB nello store) | Prototipo: `sim/src/ebook.rs` |
-| 3 | Lettore audio | Riproduzione di PCM grezzo | audio (mixer, canale), storage | PCM i16 mono (WAV senza compressione) | Forse: solo campioni brevi in SRAM/ROM (**da verificare**) | Prototipo: `sim/src/player.rs` sul mixer |
+| 3 | Lettore audio | Riproduzione di PCM grezzo | audio (mixer, canale), storage | PCM i16 mono (WAV senza compressione) | Forse: solo campioni brevi in SRAM/ROM (**da verificare**) | Logica: `gba/src/apps/player_audio.rs` (test host); prototipo `sim/src/player.rs` |
+| 3b | Meteo | Previsioni 3 giorni con cache offline | rete (da fare), storage | dati già decodificati | Sì: poche decine di byte | Logica e cache: `gba/src/apps/meteo.rs` (test host). Rete: **da fare** (nessuno stack di rete) |
 | 4 | Libreria musicale | Elenco e riproduzione di brani | audio, storage | come 3 | Solo lista | Da fare, dopo 3 |
 | 5 | Visualizzatore immagini | Mostra immagini | GPU/video, storage | 15 bit grezzo; PNG/JPG da fare | Sì per 15 bit piccoli (vedi `docs/base-programs.md`) | Da fare |
 | 6 | Lettore foto e documenti | Anteprime di foto e documenti | GPU/video, storage | come 5, più PDF | Solo anteprime piccole | Da fare |
 | 7 | Libreria fotografica | Indice e miniature delle foto | storage, GPU/video | come 5 | No (miniature e indice troppo grandi) | Da fare |
-| 8 | Lettore video | Riproduzione video | GPU/video, audio, storage | da definire | **No** | Da fare, solo ARM64/x86 |
+| 8 | Lettore video | Riproduzione video | GPU/video, audio, storage | da definire | **No** | Logica linea temporale: `gba/src/apps/player_video.rs` (test host). Decoder da fare, solo ARM64/x86 |
 | 9 | Memo vocali | Registrazione e riproduzione | audio (ingresso e uscita), storage | PCM | **No** (microfono assente sul GBA: **da verificare**) | Da fare |
 
 ## Prototipi (sull'host)
