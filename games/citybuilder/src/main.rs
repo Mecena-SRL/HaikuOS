@@ -5,7 +5,7 @@ use citybuilder::menu::{on_menu_key, Next, Screen};
 use citybuilder::{Building, Game, Status, Terrain, WIN_POP};
 use std::io::{self, BufRead};
 
-const HELP: &str = "comandi: w a s d cursore | b <casa|fattoria|legno|cava|mercato|biblioteca> costruisce sul cursore | t fine turno | r ricerca | p pausa | q esci | ? aiuto";
+const HELP: &str = "comandi: w a s d cursore | b <casa|fattoria|legno|cava|mercato|biblioteca> cantiere sul cursore | x demolisci | t fine turno | r ricerca | p pausa | q esci | ? aiuto";
 
 fn main() {
     let mut g = Game::new(24, 12, 0x4841494B55);
@@ -84,6 +84,11 @@ fn main() {
                     _ => println!("coordinate o edificio non validi"),
                 }
             }
+            ["x"] => {
+                if let Err(e) = g.demolish_cursor() {
+                    println!("impossibile: {e}");
+                }
+            }
             ["w"] => g.move_cursor(0, -1),
             ["s"] => g.move_cursor(0, 1),
             ["a"] => g.move_cursor(-1, 0),
@@ -144,6 +149,9 @@ fn glyph(g: &Game, i: usize) -> char {
             Building::Library => 'B',
         };
     }
+    if g.player.site_at(i).is_some() || g.rival.site_at(i).is_some() {
+        return '_';
+    }
     if g.rival.building_at(i).is_some() {
         return 'x';
     }
@@ -197,7 +205,10 @@ fn draw(g: &Game) {
         terrain_name(g.map.terrain(i)),
         if occupato { "occupato" } else { "libero" }
     );
-    println!("legenda: H casa F fattoria L legnaia Q cava M mercato B biblioteca x IA . erba T foresta ^ montagna ~ acqua");
+    println!("legenda: H casa F fattoria L legnaia Q cava M mercato B biblioteca _ cantiere x IA . erba T foresta ^ montagna ~ acqua");
+    if let Some(ev) = g.event {
+        println!("evento: {}", ev.name());
+    }
     let s = g.player.stock;
     println!(
         "pop {}/{WIN_POP}  cibo {}  legno {}  pietra {}  oro {}  conoscenza {}  turno {}/{}",
@@ -213,7 +224,11 @@ fn draw(g: &Game) {
     if let Some(motivo) = g.player.growth_block() {
         println!("crescita ferma: {motivo}");
     }
-    println!("IA (x): pop {}", g.rival.citizens);
+    println!(
+        "IA (x): pop {}, stile {}",
+        g.rival.citizens,
+        g.rival_style.name()
+    );
 }
 
 /// Gioca alcuni turni con poche costruzioni valide e scrive un PPM.

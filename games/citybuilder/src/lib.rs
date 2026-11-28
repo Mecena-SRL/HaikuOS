@@ -156,17 +156,19 @@ pub enum BuildError {
     Unbuildable,
     WrongTerrain,
     NoResources,
+    NothingToDemolish,
 }
 
 impl std::fmt::Display for BuildError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BuildError::OutOfBounds => write!(f, "fuori dalla mappa"),
-            BuildError::TurnLimit => write!(f, "un edificio per turno: passa il turno con t"),
+            BuildError::TurnLimit => write!(f, "un'azione per turno: passa il turno con t"),
             BuildError::Occupied => write!(f, "casella già occupata"),
             BuildError::Unbuildable => write!(f, "l'acqua non si costruisce"),
             BuildError::WrongTerrain => write!(f, "terreno sbagliato per questo edificio"),
             BuildError::NoResources => write!(f, "risorse insufficienti"),
+            BuildError::NothingToDemolish => write!(f, "niente da demolire"),
         }
     }
 }
@@ -178,11 +180,13 @@ pub struct Empire {
     pub knowledge: i32,
     pub citizens: u32,
     pub irrigation: bool,
-    /// Costruzione già fatta in questo turno: al massimo una per impero.
+    /// Costruzione o demolizione già fatta in questo turno: al massimo una per impero.
     built_this_turn: bool,
     /// Traguardi già premiati (bit 0: 10 cittadini, bit 1: 25, bit 2: 40).
     milestones: u8,
     grid: Vec<Option<Building>>,
+    /// Cantieri: (casella, edificio, turni che mancano). Completano dopo due fine turno.
+    sites: Vec<(usize, Building, u8)>,
 }
 
 impl Empire {
@@ -195,22 +199,39 @@ impl Empire {
             built_this_turn: false,
             milestones: 0,
             grid: vec![None; map.w * map.h],
+            sites: Vec::new(),
         }
     }
 
+    /// Edificio completo in `i` (i cantieri non contano).
     pub fn building_at(&self, i: usize) -> Option<Building> {
         self.grid.get(i).copied().flatten()
     }
 
+    /// Cantiere in `i`, se c'è.
+    pub fn site_at(&self, i: usize) -> Option<Building> {
+        self.sites.iter().find(|s| s.0 == i).map(|s| s.1)
+    }
+
+    /// Edifici completi e in cantiere di quel tipo.
     pub fn count(&self, b: Building) -> usize {
         self.grid.iter().flatten().filter(|&&x| x == b).count()
+            + self.sites.iter().filter(|s| s.1 == b).count()
     }
 
     pub fn capacity(&self) -> u32 {
         self.grid.iter().flatten().map(|b| b.housing()).sum()
     }
 
-    /// Costruisce in `i` (ordine dei controlli: mappa, turno, casella, acqua, terreno, risorse).
+    /// Prezzo attuale: ogni due edifici dello stesso tipo, il successivo costa un legno in più.
+    pub fn price(&self, b: Building) -> Stock {
+        let mut c = b.cost();
+        let copies = self.count(b) as i32;
+        c.wood += copies / 2;
+        c
+    }
+
+    /// Avvia un cantiere in `i` (ordine dei controlli: mappa, turno, casella, acqua, terreno, risorse).
     pub fn build(&mut self, map: &Map, i: usize, b: Building) -> Result<(), BuildError> {
         let t = map.terrain(i).ok_or(BuildError::OutOfBounds)?;
         if i >= self.grid.len() {
@@ -219,7 +240,7 @@ impl Empire {
         if self.built_this_turn {
             return Err(BuildError::TurnLimit);
         }
-        if self.grid[i].is_some() {
+        if self.grid[i].is_some() || self.site_at(i).is_some() {
             return Err(BuildError::Occupied);
         }
         if t == Terrain::Water {
@@ -228,10 +249,26 @@ impl Empire {
         if b.terrain().is_some_and(|need| need != t) {
             return Err(BuildError::WrongTerrain);
         }
-        if !self.stock.pay(&b.cost()) {
+        if !self.stock.pay(&self.price(b)) {
             return Err(BuildError::NoResources);
         }
-        self.grid[i] = Some(b);
+        self.sites.push((i, b, 2));
+        self.built_this_turn = true;
+        Ok(())
+    }
+
+    /// Demolisce l'edificio completo in `i`: rimborso di metà del legno base, e la capienza si adegua.
+    pub fn demolish(&mut self, i: usize) -> Result<(), BuildError> {
+        if i >= self.grid.len() {
+            return Err(BuildError::OutOfBounds);
+        }
+        if self.built_this_turn {
+            return Err(BuildError::TurnLimit);
+        }
+        let b = self.grid[i].ok_or(BuildError::NothingToDemolish)?;
+        self.grid[i] = None;
+        self.stock.wood += b.cost().wood / 2;
+        self.citizens = self.citizens.min(self.capacity());
         self.built_this_turn = true;
         Ok(())
     }
@@ -248,6 +285,16 @@ impl Empire {
 
     /// Un turno di produzione, consumo e crescita.
     fn tick(&mut self) {
+        let grid = &mut self.grid;
+        self.sites.retain_mut(|(i, b, left)| {
+            *left -= 1;
+            if *left == 0 {
+                grid[*i] = Some(*b);
+                false
+            } else {
+                true
+            }
+        });
         for b in self.grid.iter().flatten() {
             match b {
                 Building::Farm => {
@@ -301,6 +348,100 @@ impl Empire {
     }
 }
 
+/// Mescola un seme (splitmix64): stesso input, stesso risultato, niente stato.
+fn mix(x: u64) -> u64 {
+    let mut s = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    s = (s ^ (s >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    s = (s ^ (s >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    s ^ (s >> 31)
+}
+
+/// Evento che colpisce entrambi gli imperi allo stesso modo (equità).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Event {
+    Raccolto,
+    Siccita,
+    Epidemia,
+    Festa,
+    Tempesta,
+}
+
+impl Event {
+    /// Ogni 10 turni un evento, scelto dal seme: stessa partita, stessi eventi.
+    pub fn of_turn(seed: u64, turn: u32) -> Option<Event> {
+        if turn == 0 || turn % 10 != 0 {
+            return None;
+        }
+        Some(match mix(seed ^ turn as u64) % 5 {
+            0 => Event::Raccolto,
+            1 => Event::Siccita,
+            2 => Event::Epidemia,
+            3 => Event::Festa,
+            _ => Event::Tempesta,
+        })
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Event::Raccolto => "raccolto abbondante: +12 cibo",
+            Event::Siccita => "siccità: -8 cibo",
+            Event::Epidemia => "epidemia: -1 cittadino",
+            Event::Festa => "festa: +4 oro",
+            Event::Tempesta => "tempesta: -6 legno",
+        }
+    }
+
+    fn apply(self, e: &mut Empire) {
+        match self {
+            Event::Raccolto => e.stock.food = (e.stock.food + 12).min(FOOD_CAP),
+            Event::Siccita => e.stock.food = (e.stock.food - 8).max(0),
+            Event::Epidemia => {
+                if e.citizens > 2 {
+                    e.citizens -= 1;
+                }
+            }
+            Event::Festa => e.stock.gold += 4,
+            Event::Tempesta => e.stock.wood = (e.stock.wood - 6).max(0),
+        }
+    }
+}
+
+/// Personalità dell'IA, scelta dal seme. Cambia solo l'ordine delle costruzioni.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Style {
+    Agricola,
+    Mercante,
+    Costruttore,
+}
+
+impl Style {
+    pub fn from_seed(seed: u64) -> Self {
+        match mix(seed ^ 0xA5A5) % 3 {
+            0 => Style::Agricola,
+            1 => Style::Mercante,
+            _ => Style::Costruttore,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Style::Agricola => "agricola",
+            Style::Mercante => "mercante",
+            Style::Costruttore => "costruttore",
+        }
+    }
+
+    fn prefers(self, b: Building) -> bool {
+        match self {
+            Style::Agricola => b == Building::Farm,
+            Style::Mercante => matches!(b, Building::Market | Building::Library),
+            Style::Costruttore => {
+                matches!(b, Building::House | Building::Lumber | Building::Quarry)
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Status {
     Playing,
@@ -316,6 +457,11 @@ pub struct Game {
     pub turns: u32,
     /// Cursore del giocatore (x, y): dove agisce `b <edificio>`.
     pub cursor: (usize, usize),
+    pub seed: u64,
+    /// Personalità dell'IA (dal seme).
+    pub rival_style: Style,
+    /// Evento dell'ultimo turno, se ce n'è stato uno.
+    pub event: Option<Event>,
 }
 
 impl Game {
@@ -339,7 +485,17 @@ impl Game {
             rival,
             turns: 0,
             cursor: (px, py),
+            seed,
+            rival_style: Style::from_seed(seed),
+            event: None,
         }
+    }
+
+    /// Demolisce l'edificio sotto il cursore del giocatore.
+    pub fn demolish_cursor(&mut self) -> Result<(), BuildError> {
+        let (x, y) = self.cursor;
+        let i = self.map.idx(x, y);
+        self.player.demolish(i)
     }
 
     /// Sposta il cursore di un passo, senza uscire dalla mappa.
@@ -358,7 +514,12 @@ impl Game {
         self.player.tick();
         self.rival.tick();
         self.turns += 1;
-        ai_turn(&mut self.rival, &self.map);
+        self.event = Event::of_turn(self.seed, self.turns);
+        if let Some(ev) = self.event {
+            ev.apply(&mut self.player);
+            ev.apply(&mut self.rival);
+        }
+        ai_turn(&mut self.rival, &self.map, self.rival_style);
     }
 
     /// Vince chi arriva a `WIN_POP`; se entrambi ci arrivano nello stesso turno è patta.
@@ -389,11 +550,11 @@ impl Game {
 
 /// IA semplice e deterministica: al massimo una costruzione per turno, nell'ordine di bisogno,
 /// sempre nella casella libera più vicina alla propria capitale (regole uguali al giocatore).
-fn ai_turn(e: &mut Empire, map: &Map) {
+fn ai_turn(e: &mut Empire, map: &Map, style: Style) {
     if e.research_irrigation() {
         return;
     }
-    let plan = [
+    let mut plan = [
         (Building::House, e.capacity() <= e.citizens),
         (
             Building::Farm,
@@ -404,6 +565,8 @@ fn ai_turn(e: &mut Empire, map: &Map) {
         (Building::Library, e.count(Building::Library) < 1),
         (Building::Market, e.count(Building::Market) < 2),
     ];
+    // La personalità mette in testa le sue costruzioni preferite; l'ordine resto è invariato.
+    plan.sort_by_key(|(b, _)| !style.prefers(*b));
     let capital = (3 * map.w / 4, map.h / 2);
     for (b, wanted) in plan {
         if !wanted {
@@ -422,6 +585,7 @@ fn find_spot(e: &Empire, map: &Map, b: Building, near: (usize, usize)) -> Option
     (0..map.w * map.h)
         .filter(|&i| {
             e.building_at(i).is_none()
+                && e.site_at(i).is_none()
                 && map.terrain(i).is_some_and(|t| {
                     t != Terrain::Water && b.terrain().is_none_or(|need| need == t)
                 })
@@ -450,7 +614,75 @@ mod tests {
         let mut e = Empire::new(&map, Stock::new(0, 20, 0, 0));
         assert_eq!(e.build(&map, 0, Building::Farm), Ok(()));
         assert_eq!(e.stock.wood, 15);
+        assert_eq!(e.site_at(0), Some(Building::Farm));
+        assert_eq!(
+            e.building_at(0),
+            None,
+            "il cantiere non è ancora una fattoria"
+        );
+    }
+
+    #[test]
+    fn cantiere_completa_dopo_due_turni() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(0, 100, 0, 0));
+        e.build(&map, 0, Building::Farm).unwrap();
+        e.tick();
+        assert_eq!(e.building_at(0), None);
+        e.tick();
         assert_eq!(e.building_at(0), Some(Building::Farm));
+        assert_eq!(e.site_at(0), None);
+    }
+
+    #[test]
+    fn costo_cresce_con_le_copie() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(0, 100, 0, 0));
+        assert_eq!(e.price(Building::Farm).wood, 5);
+        e.grid[0] = Some(Building::Farm);
+        e.grid[1] = Some(Building::Farm);
+        assert_eq!(e.price(Building::Farm).wood, 6);
+        e.build(&map, 2, Building::Farm).unwrap();
+        assert_eq!(e.stock.wood, 100 - 6);
+    }
+
+    #[test]
+    fn demolizione_rimborsa_e_libera_la_casella() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(0, 0, 0, 0));
+        e.grid[0] = Some(Building::House);
+        e.citizens = 5;
+        assert_eq!(e.demolish(1), Err(BuildError::NothingToDemolish));
+        assert_eq!(e.demolish(0), Ok(()));
+        assert_eq!(e.building_at(0), None);
+        assert_eq!(e.stock.wood, 5);
+        assert_eq!(e.citizens, 0, "senza case la capienza scende a zero");
+        assert_eq!(e.demolish(1), Err(BuildError::TurnLimit));
+    }
+
+    #[test]
+    fn evento_ogni_dieci_turni_uguale_per_entrambi() {
+        assert_eq!(Event::of_turn(5, 9), None);
+        assert!(Event::of_turn(5, 10).is_some());
+        let mut a = Empire::new(&grass(4, 4), Stock::new(30, 0, 0, 0));
+        let mut b = a.clone();
+        let ev = Event::Siccita;
+        ev.apply(&mut a);
+        ev.apply(&mut b);
+        assert_eq!(a.stock, b.stock);
+        assert_eq!(a.stock.food, 22);
+    }
+
+    #[test]
+    fn personalita_cambia_l_ordine_dell_ia() {
+        let mut g = Game::new(24, 12, 7);
+        g.rival_style = Style::Mercante;
+        g.end_turn();
+        assert_eq!(g.rival.count(Building::Market), 1);
+        let mut g = Game::new(24, 12, 7);
+        g.rival_style = Style::Agricola;
+        g.end_turn();
+        assert_eq!(g.rival.count(Building::Farm), 1);
     }
 
     #[test]
@@ -515,6 +747,7 @@ mod tests {
         let mut e = Empire::new(&map, Stock::new(0, 5, 0, 0));
         e.citizens = 0;
         e.build(&map, 0, Building::Farm).unwrap();
+        e.tick();
         e.tick();
         assert_eq!(e.stock.food, 4);
     }

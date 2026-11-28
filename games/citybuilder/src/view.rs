@@ -220,6 +220,16 @@ fn building(f: &mut Frame, s: &Sprite, b: Building) {
 }
 
 /// Ombra morbida a due strati, spostata verso destra in basso (luce da sinistra-alto).
+/// Cantiere: piazzola di legno con due montanti e una trave.
+fn scaffold(f: &mut Frame, s: &Sprite) {
+    let pad: Vec<(f32, f32)> = TILE.iter().map(|&(x, y)| (x * 0.62, y * 0.62)).collect();
+    s.poly(f, &pad, [150, 110, 60]);
+    for dx in [-18.0f32, 18.0] {
+        s.rect(f, dx - 2.0, -34.0, dx + 2.0, -6.0, [110, 80, 40]);
+    }
+    s.rect(f, -20.0, -34.0, 20.0, -30.0, [200, 160, 90]);
+}
+
 fn shadow(f: &mut Frame, s: &Sprite) {
     s.poly_a(
         f,
@@ -360,6 +370,12 @@ pub fn render(g: &Game, w: usize, h: usize) -> Frame {
             k,
             tint: None,
         };
+        if g.player.building_at(i).is_none() && g.rival.building_at(i).is_none() {
+            if g.player.site_at(i).is_some() || g.rival.site_at(i).is_some() {
+                scaffold(&mut f, &s);
+            }
+            continue;
+        }
         let (b, tint) = match (g.player.building_at(i), g.rival.building_at(i)) {
             (Some(b), _) => (b, None),
             (None, Some(b)) => (b, Some(RIVAL)),
