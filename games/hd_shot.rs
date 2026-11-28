@@ -5,7 +5,14 @@
 use std::io::{self, Write};
 
 /// Scrive un PPM P6 `ow`×`oh` con il fotogramma `px` (`w`×`h`) ingrandito al massimo intero che entra.
-pub fn write_fit(out: &mut impl Write, w: usize, h: usize, px: &[[u8; 3]], ow: usize, oh: usize) -> io::Result<()> {
+pub fn write_fit(
+    out: &mut impl Write,
+    w: usize,
+    h: usize,
+    px: &[[u8; 3]],
+    ow: usize,
+    oh: usize,
+) -> io::Result<()> {
     let s = (ow / w).min(oh / h).max(1);
     let (dw, dh) = (w * s, h * s);
     let (x0, y0) = ((ow - dw) / 2, (oh - dh) / 2);

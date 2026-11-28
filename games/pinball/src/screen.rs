@@ -1,15 +1,12 @@
 //! Host grafico (solo std): il tavolo, titolo, pausa e HUD passano dal trait `Canvas` di `haiku-gui`.
-//! Il disegno è in coordinate del tavolo (1 px = 1 unità); il PPM è ingrandito di `SCALE`.
+//! Il disegno è in coordinate del tavolo (1 px = 1 unità); ogni unità è `k` pixel di uscita (HD).
 
 use haiku_gui::layout::{Rect, MENU_ROW};
 use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
 use pinball::{Pinball, BUMPERS, FP, TABLE_H, TABLE_W};
 
-#[path = "../../../gba/src/font.rs"]
-mod font;
-
-/// Ingrandimento del PPM di uscita.
+/// Ingrandimento predefinito (PPM senza W H).
 pub const SCALE: usize = 3;
 /// Altezza dell'em del testo di sistema, in unità del tavolo.
 const TEXT_EM: i32 = 8;
@@ -19,6 +16,7 @@ pub enum Screen {
     Title,
     Play,
     Pause,
+    Over,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,10 +36,11 @@ pub fn on_menu_key(s: Screen, key: &str) -> Next {
     }
 }
 
-/// Fotogramma RGB del tavolo, più piccolo dell'uscita di `SCALE`.
+/// Fotogramma RGB in pixel di uscita: `w`×`h` = tavolo × `k`. Le coordinate del disegno restano del tavolo.
 pub struct Img {
     pub w: usize,
     pub h: usize,
+    pub k: i32,
     pub px: Vec<[u8; 3]>,
 }
 
@@ -52,6 +51,8 @@ fn rgb(t: Tok) -> [u8; 3] {
 
 impl Img {
     fn put(&mut self, x: i32, y: i32, w: i32, h: i32, c: [u8; 3]) {
+        let k = self.k;
+        let (x, y, w, h) = (x * k, y * k, w * k, h * k);
         for yy in y.max(0)..(y + h).min(self.h as i32) {
             for xx in x.max(0)..(x + w).min(self.w as i32) {
                 self.px[yy as usize * self.w + xx as usize] = c;
@@ -65,18 +66,6 @@ impl Img {
             *p = p.map(|c| c / 3);
         }
     }
-
-    /// PPM P6 ingrandito di `SCALE` (vicino più prossimo).
-    pub fn write_ppm(&self, out: &mut impl std::io::Write) -> std::io::Result<()> {
-        let (w, h) = (self.w * SCALE, self.h * SCALE);
-        write!(out, "P6\n{w} {h}\n255\n")?;
-        for y in 0..h {
-            for x in 0..w {
-                out.write_all(&self.px[(y / SCALE) * self.w + x / SCALE])?;
-            }
-        }
-        Ok(())
-    }
 }
 
 impl Canvas for Img {
@@ -86,13 +75,28 @@ impl Canvas for Img {
 
     /// Rettangolo con angoli arrotondati di raggio `radius` (raggio = metà lato: cerchio).
     fn rect_rounded(&mut self, r: Rect, radius: i32, t: Tok) {
+        let k = self.k;
+        let r = Rect::new(r.x * k, r.y * k, r.w * k, r.h * k);
+        let radius = radius * k;
         let c = rgb(t);
         let rad = radius.min(r.w / 2).min(r.h / 2).max(0);
         for y in r.y.max(0)..(r.y + r.h).min(self.h as i32) {
             for x in r.x.max(0)..(r.x + r.w).min(self.w as i32) {
                 let (dx, dy) = (x - r.x, y - r.y);
-                let ox = if dx < rad { rad - 1 - dx } else if dx >= r.w - rad { dx - (r.w - rad) } else { 0 };
-                let oy = if dy < rad { rad - 1 - dy } else if dy >= r.h - rad { dy - (r.h - rad) } else { 0 };
+                let ox = if dx < rad {
+                    rad - 1 - dx
+                } else if dx >= r.w - rad {
+                    dx - (r.w - rad)
+                } else {
+                    0
+                };
+                let oy = if dy < rad {
+                    rad - 1 - dy
+                } else if dy >= r.h - rad {
+                    dy - (r.h - rad)
+                } else {
+                    0
+                };
                 if ox * ox + oy * oy < rad * rad || (ox == 0 && oy == 0) {
                     self.px[y as usize * self.w + x as usize] = c;
                 }
@@ -101,7 +105,8 @@ impl Canvas for Img {
     }
     /// Testo di sistema (Inter, `fonts/README.md`) al posto del 3×5 di gba.
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
-        haiku_gui::vfont::draw_text(self, x, y, TEXT_EM, s, t);
+        let k = self.k;
+        haiku_gui::vfont::draw_text(self, x * k, y * k, TEXT_EM * k, s, t);
     }
 
     /// Miscela con copertura `a` (antialiasing del testo di sistema).
@@ -123,6 +128,7 @@ fn overlay(im: &mut Img, s: Screen) {
     im.dim();
     let (title, rows): (&str, &[&str]) = match s {
         Screen::Title => ("PINBALL", &["INIZIA", "ESCI"]),
+        Screen::Over => ("FINE", &["RIGIOCA", "ESCI"]),
         _ => ("PAUSA", &["RIPRENDI", "ESCI"]),
     };
     let p = Rect::new(12, 70, 136, 18 + MENU_ROW * rows.len() as i32 + 4);
@@ -130,16 +136,26 @@ fn overlay(im: &mut Img, s: Screen) {
     im.text(p.x + 8, p.y + 5, title, Tok::A(1));
     for (i, label) in rows.iter().enumerate() {
         let y = p.y + 16 + i as i32 * MENU_ROW;
-        let (bg, fg) = if i == 0 { (Tok::T2, Tok::T0) } else { (Tok::T0, Tok::T2) };
+        let (bg, fg) = if i == 0 {
+            (Tok::T2, Tok::T0)
+        } else {
+            (Tok::T0, Tok::T2)
+        };
         im.fill(Rect::new(p.x + 4, y, p.w - 8, MENU_ROW), bg);
-        im.text(p.x + 8, y + 2, label, fg);
+        im.text(p.x + 8, y, label, fg);
     }
 }
 
 /// Fotogramma del tavolo (1 px = 1 unità) con HUD in gioco o menu sovrapposto.
-pub fn frame(g: &Pinball, screen: Screen) -> Img {
+pub fn frame(g: &Pinball, screen: Screen, k: i32) -> Img {
     let (w, h) = (TABLE_W as usize, TABLE_H as usize);
-    let mut im = Img { w, h, px: vec![[10, 14, 30]; w * h] };
+    let (ow, oh) = (w * k as usize, h * k as usize);
+    let mut im = Img {
+        w: ow,
+        h: oh,
+        k,
+        px: vec![[10, 14, 30]; ow * oh],
+    };
     let to = |v: (i64, i64)| ((v.0 / FP) as i32, (v.1 / FP) as i32);
     for c in BUMPERS {
         let (x, y) = (c.0 as i32, c.1 as i32);
@@ -156,8 +172,9 @@ pub fn frame(g: &Pinball, screen: Screen) -> Img {
     match screen {
         Screen::Play => {
             let s = format!("PUNTI {}  VITE {}", g.score, g.lives);
-            im.rect_rounded(Rect::new(1, 1, s.len() as i32 * font::ADVANCE as i32 + 6, 9), 3, Tok::T0);
-            im.text(4, 3, &s, Tok::T1);
+            let bw = haiku_gui::vfont::advance(TEXT_EM * k, &s) / k + 6;
+            im.rect_rounded(Rect::new(1, 1, bw, TEXT_EM + 4), 3, Tok::T0);
+            im.text(4, 2, &s, Tok::T1);
         }
         s => overlay(&mut im, s),
     }
@@ -169,6 +186,7 @@ pub fn menu_text(s: Screen) {
     match s {
         Screen::Title => println!("PINBALL\nINVIO per iniziare (leva: invio), q per uscire"),
         Screen::Pause => println!("PAUSA: r riprendi, q esci"),
+        Screen::Over => println!("FINE PARTITA"),
         Screen::Play => {}
     }
 }
@@ -187,7 +205,7 @@ mod tests {
 
     #[test]
     fn fotogramma_ha_dimensioni_del_tavolo() {
-        let im = frame(&Pinball::new(), Screen::Pause);
+        let im = frame(&Pinball::new(), Screen::Pause, 1);
         assert_eq!((im.w, im.h), (TABLE_W as usize, TABLE_H as usize));
         assert_eq!(im.px.len(), im.w * im.h);
     }
@@ -204,8 +222,11 @@ mod bench {
         let g = Pinball::new();
         let t = std::time::Instant::now();
         for _ in 0..2000 {
-            std::hint::black_box(frame(&g, Screen::Play));
+            std::hint::black_box(frame(&g, Screen::Play, 1));
         }
-        println!("BENCH pinball {:.1} us/frame", t.elapsed().as_secs_f64() * 1e6 / 2000.0);
+        println!(
+            "BENCH pinball {:.1} us/frame",
+            t.elapsed().as_secs_f64() * 1e6 / 2000.0
+        );
     }
 }

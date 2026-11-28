@@ -2,9 +2,9 @@
 //! (titolo, gioco, pausa); con `--shot-title|--shot-play|--shot-pause <file.ppm>` scrive un fotogramma.
 //! Il rendering sta qui (std); il core `pinball` è `no_std`.
 
-mod screen;
 #[path = "../../hd_shot.rs"]
 mod hd_shot;
+mod screen;
 
 use pinball::{Input, Pinball, State, BUMPERS, FP, TABLE_H, TABLE_W};
 use screen::{frame, menu_text, on_menu_key, Next, Screen};
@@ -91,7 +91,7 @@ fn interactive() {
     for line in io::stdin().lock().lines().map_while(Result::ok) {
         let key = line.trim();
         match screen {
-            Screen::Title | Screen::Pause => match on_menu_key(screen, key) {
+            Screen::Title | Screen::Pause | Screen::Over => match on_menu_key(screen, key) {
                 Next::Go(s) => screen = s,
                 Next::Quit => break,
                 Next::Stay => {}
@@ -124,16 +124,26 @@ fn interactive() {
 fn shot(path: &str, screen: Screen, hd: Option<(usize, usize)>) {
     let mut g = Pinball::new();
     let (mut charge, mut games) = (0u32, 0u32);
-    for f in 0..600 {
-        step(&mut g, &mut charge, f, &mut games);
+    if screen == Screen::Over {
+        // Partita persa: il bot gioca finché il tavolo non passa a `Over` (senza riavviare).
+        let mut f = 0;
+        while g.state != State::Over && f < 2_000_000 {
+            let inp = bot(&g, &mut charge, f);
+            g.tick(inp);
+            f += 1;
+        }
+    } else {
+        for f in 0..600 {
+            step(&mut g, &mut charge, f, &mut games);
+        }
     }
-    let im = frame(&g, screen);
+    // Uscita: risoluzione (ow, oh); il tavolo è scalato del massimo intero che entra.
+    let (ow, oh) = hd.unwrap_or((TABLE_W as usize * 3, TABLE_H as usize * 3));
+    let k = (ow / TABLE_W as usize).min(oh / TABLE_H as usize).max(1) as i32;
+    let im = frame(&g, screen, k);
     let mut out = std::fs::File::create(path).expect("impossibile creare il file");
-    match hd {
-        Some((ow, oh)) => hd_shot::write_fit(&mut out, im.w, im.h, &im.px, ow, oh).expect("scrittura fallita"),
-        None => im.write_ppm(&mut out).expect("scrittura fallita"),
-    }
-    println!("fotogramma {}x{} scritto in {path}", im.w, im.h);
+    hd_shot::write_fit(&mut out, im.w, im.h, &im.px, ow, oh).expect("scrittura fallita");
+    println!("fotogramma {}x{} scritto in {path}", ow, oh);
 }
 
 fn bench(frames: u32) {
@@ -166,7 +176,10 @@ fn main() {
                 "--shot-title" => shot(path, Screen::Title, hd),
                 "--shot-play" => shot(path, Screen::Play, hd),
                 "--shot-pause" => shot(path, Screen::Pause, hd),
-                _ => eprintln!("uso: pinball [N] | --shot-title|--shot-play|--shot-pause <file.ppm> [W H]"),
+                "--shot-over" => shot(path, Screen::Over, hd),
+                _ => eprintln!(
+                    "uso: pinball [N] | --shot-title|--shot-play|--shot-pause <file.ppm> [W H]"
+                ),
             }
         }
         [_, n] => bench(n.parse().unwrap_or(600_000)),
