@@ -1,0 +1,340 @@
+[
+  {
+    "category": "Tipografia",
+    "subcategory": "Famiglia",
+    "question": "Quale famiglia di caratteri usa l'interfaccia di sistema?",
+    "formula": "corpo = 2u; titoli = 2.5u; famiglia unica per tutta l'interfaccia",
+    "options": [
+      {"id": "tipo-sans-ottica-dinamica", "label": "Sans di sistema con ottica dinamica", "sources": ["macOS"], "customizable": false},
+      {"id": "tipo-sans-umanista", "label": "Sans umanista ottimizzato per schermo", "sources": ["Windows"], "customizable": true},
+      {"id": "tipo-sans-open-source", "label": "Sans open source con hinting", "sources": ["GNOME", "KDE"], "customizable": true},
+      {"id": "tipo-stessa-famiglia-pesi", "label": "Una sola famiglia in pesi diversi", "sources": ["GNOME", "Windows"], "customizable": false},
+      {"id": "tipo-cifre-tabulari", "label": "Sans con cifre tabulari di default", "sources": ["Windows", "KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Tipografia",
+    "subcategory": "Dimensioni",
+    "question": "Quale scala di dimensioni adotta il testo dell'interfaccia?",
+    "formula": "corpo = 2u; rapporto tra livelli = 1.2; minimo 1.5u",
+    "options": [
+      {"id": "scala-compatta", "label": "Scala compatta con rapporto basso", "sources": ["KDE"], "customizable": true},
+      {"id": "scala-classica-fissa", "label": "Scala classica a corpo fisso", "sources": ["macOS"], "customizable": false},
+      {"id": "scala-windows-pt", "label": "Scala Windows con corpo a 9 pt", "sources": ["Windows"], "customizable": false},
+      {"id": "scala-adwaita-titoli", "label": "Titoli a 1,25 volte il corpo", "sources": ["GNOME"], "customizable": false},
+      {"id": "scala-ampia-passo", "label": "Scala ampia, corpo di un passo maggiore", "sources": ["Windows", "GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Tipografia",
+    "subcategory": "Pesi e interlinea",
+    "question": "Quali pesi e interlinea usa il testo corrente?",
+    "formula": "interlinea = 1.4 * corpo; pesi 400 per testo, 600 per titoli",
+    "options": [
+      {"id": "peso-regular-semibold", "label": "Regular per il testo, semibold per i titoli", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "peso-medium-etichette", "label": "Medium come peso delle etichette", "sources": ["KDE"], "customizable": false},
+      {"id": "interlinea-stretta", "label": "Interlinea stretta, 1,2 volte il corpo", "sources": ["Windows"], "customizable": false},
+      {"id": "interlinea-ampia", "label": "Interlinea ampia, 1,6 volte il corpo", "sources": ["GNOME"], "customizable": true},
+      {"id": "peso-variabile", "label": "Peso variabile in base alla dimensione", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Colore e tema",
+    "subcategory": "Palette",
+    "question": "Quale palette di base usano superfici e testo?",
+    "formula": "T0 sfondo; T1 superficie = T0 + 4%; T2 testo; T3 testo secondario",
+    "options": [
+      {"id": "palette-neutri-sistema", "label": "Neutri di sistema con più livelli di grigio", "sources": ["macOS"], "customizable": false},
+      {"id": "palette-mica-tinta", "label": "Superficie con tinta dello sfondo", "sources": ["Windows"], "customizable": true},
+      {"id": "palette-adwaita-grigi", "label": "Tre grigi Adwaita", "sources": ["GNOME"], "customizable": false},
+      {"id": "palette-breeze-accento-fondo", "label": "Neutri Breeze con accento di sfondo", "sources": ["KDE"], "customizable": true},
+      {"id": "palette-bianco-grigio", "label": "Bianco e grigio chiaro senza tinta", "sources": ["macOS", "GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Colore e tema",
+    "subcategory": "Modo chiaro e scuro",
+    "question": "Come si sceglie tra modo chiaro e modo scuro?",
+    "formula": "tema = chiaro | scuro | automatico; T0 e T2 si invertono",
+    "options": [
+      {"id": "modo-automatico-sistema", "label": "Automatico, segue sistema e orario", "sources": ["macOS"], "customizable": true},
+      {"id": "modo-scelta-manuale", "label": "Scelta manuale senza automatico", "sources": ["Windows"], "customizable": true},
+      {"id": "modo-preferenza-globale", "label": "Preferenza globale letta dalle app", "sources": ["GNOME"], "customizable": true},
+      {"id": "modo-tema-globale-pacchetto", "label": "Tema globale da pacchetto con colori", "sources": ["KDE"], "customizable": false},
+      {"id": "modo-barra-separata", "label": "Modo app e modo barra separati", "sources": ["Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Colore e tema",
+    "subcategory": "Accenti",
+    "question": "Quale colore d'accento evidenzia i controlli attivi?",
+    "formula": "A(1) = accento utente; A(2) = A(1) scurito del 15%",
+    "options": [
+      {"id": "accento-otto-preimpostati", "label": "Scelto tra otto colori preimpostati", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "accento-da-sfondo", "label": "Ricavato dal colore dello sfondo", "sources": ["Windows"], "customizable": true},
+      {"id": "accento-blu-fisso", "label": "Accento fisso, blu di sistema", "sources": ["GNOME"], "customizable": false},
+      {"id": "accento-selettore-libero", "label": "Colore libero con selettore", "sources": ["KDE"], "customizable": true},
+      {"id": "accento-per-tipo-controllo", "label": "Accento assegnato per tipo di controllo", "sources": ["KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Icone",
+    "subcategory": "Stile",
+    "question": "Quale stile hanno le icone di sistema?",
+    "formula": "griglia = 6u; tratto = 0.4u; angoli arrotondati = 1u",
+    "options": [
+      {"id": "icone-lineari-sottili", "label": "Lineari a tratto sottile", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "icone-piene-colorate", "label": "Piene con colore per tipo di file", "sources": ["Windows"], "customizable": true},
+      {"id": "icone-duotono-accento", "label": "Duotono con colore d'accento", "sources": ["Windows"], "customizable": false},
+      {"id": "icone-simboli-medio", "label": "Simboli monocromatici a tratto medio", "sources": ["KDE"], "customizable": false},
+      {"id": "icone-illustrate-colori", "label": "Illustrate con dettagli a colori", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Icone",
+    "subcategory": "Dimensione e griglia",
+    "question": "Quale dimensione e griglia hanno le icone in barra e in elenco?",
+    "formula": "barra = 2u; elenco = 1.5u; cella di griglia = 3u",
+    "options": [
+      {"id": "icone-piccole-corpo", "label": "Piccole, un passo sotto il corpo", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "icone-medie-corpo", "label": "Medie, allineate al passo del corpo", "sources": ["macOS"], "customizable": false},
+      {"id": "icone-grandi-tocco", "label": "Grandi per uso con tocco", "sources": ["Windows"], "customizable": true},
+      {"id": "icone-scalate-percentuale", "label": "Scalate con la percentuale utente", "sources": ["Windows", "GNOME", "KDE"], "customizable": true},
+      {"id": "icone-con-etichetta", "label": "Icona con etichetta sotto", "sources": ["macOS"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Spaziatura e griglia",
+    "subcategory": "Margini",
+    "question": "Quali margini separano i controlli dal bordo della finestra?",
+    "formula": "margine = 1u; padding controllo = 0.5u; gruppo = 2u",
+    "options": [
+      {"id": "margine-un-u", "label": "1u tra bordo e contenuto", "sources": ["macOS"], "customizable": false},
+      {"id": "margine-due-u", "label": "2u per finestre ampie", "sources": ["Windows"], "customizable": true},
+      {"id": "margine-contenuto-bordo", "label": "Contenuto fino al bordo, margini interni", "sources": ["GNOME"], "customizable": false},
+      {"id": "margine-proporzionale", "label": "Margine proporzionale alla larghezza", "sources": ["KDE"], "customizable": true},
+      {"id": "griglia-dodici-colonne", "label": "Griglia a 12 colonne con canale di 1u", "sources": ["Windows", "KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Spaziatura e griglia",
+    "subcategory": "Densità",
+    "question": "Quale densità hanno liste e tabelle?",
+    "formula": "altezza riga = 2.5u normale; 2u compatta; 3u larga",
+    "options": [
+      {"id": "densita-normale", "label": "Normale, riga di 2,5u", "sources": ["macOS"], "customizable": true},
+      {"id": "densita-compatta", "label": "Compatta, riga di 2u", "sources": ["Windows"], "customizable": true},
+      {"id": "densita-larga-tocco", "label": "Larga per tocco, riga di 3u", "sources": ["Windows"], "customizable": false},
+      {"id": "densita-adattiva-input", "label": "Adattiva a puntatore o tocco", "sources": ["Windows"], "customizable": false},
+      {"id": "densita-tre-livelli", "label": "Tre livelli scelti dall'utente", "sources": ["GNOME", "KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Movimento",
+    "subcategory": "Durate",
+    "question": "Quanto durano le animazioni di apertura?",
+    "formula": "t = 150ms; zero con riduzione movimento attiva",
+    "options": [
+      {"id": "durata-breve-150", "label": "Breve, sotto 150 ms", "sources": ["macOS"], "customizable": true},
+      {"id": "durata-media-200", "label": "Media, circa 200 ms", "sources": ["Windows"], "customizable": false},
+      {"id": "durata-lunga-300", "label": "Lunga, circa 300 ms", "sources": ["macOS"], "customizable": false},
+      {"id": "durata-variabile-distanza", "label": "Durata variabile con la distanza", "sources": ["GNOME"], "customizable": false},
+      {"id": "durata-disattivata", "label": "Nessuna animazione di apertura", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Movimento",
+    "subcategory": "Curve",
+    "question": "Quale curva di movimento usano le transizioni?",
+    "formula": "curva = cubic-bezier(0.2, 0, 0, 1); uscita morbida",
+    "options": [
+      {"id": "curva-decelerazione", "label": "Decelerazione morbida in uscita", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "curva-molla-smorzata", "label": "Molla smorzata con leggero rimbalzo", "sources": ["macOS"], "customizable": false},
+      {"id": "curva-lineare", "label": "Lineare, senza accelerazione", "sources": ["KDE"], "customizable": false},
+      {"id": "curva-simmetrica", "label": "Simmetrica, accelera e poi rallenta", "sources": ["GNOME"], "customizable": false},
+      {"id": "curva-dal-tema", "label": "Curva definita dal tema", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Movimento",
+    "subcategory": "Animazioni globali",
+    "question": "Quali elementi hanno animazioni di sistema?",
+    "formula": "animati = {apertura, chiusura, scorrimento}; sfondo = 0",
+    "options": [
+      {"id": "animazioni-tutto", "label": "Finestre, menu e transizioni", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "animazioni-solo-finestre", "label": "Solo apertura e chiusura di finestre", "sources": ["GNOME"], "customizable": false},
+      {"id": "animazioni-scorrimento-inerzia", "label": "Scorrimento con inerzia", "sources": ["macOS"], "customizable": false},
+      {"id": "animazioni-solo-a-fuoco", "label": "Solo sull'elemento a fuoco", "sources": ["KDE"], "customizable": false},
+      {"id": "animazioni-solo-stato", "label": "Solo cambi di stato, niente spostamenti", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Cursore e puntatore",
+    "subcategory": "Forma",
+    "question": "Quale forma assume il cursore in base al contesto?",
+    "formula": "cursore = 1u; forme: freccia, I-beam, mano, attesa",
+    "options": [
+      {"id": "cursore-forme-standard", "label": "Freccia, I per il testo, mano sui link", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "cursore-contorno-contrasto", "label": "Freccia con contorno per il contrasto", "sources": ["Windows"], "customizable": true},
+      {"id": "cursore-ingrandito", "label": "Puntatore ingrandito", "sources": ["macOS"], "customizable": true},
+      {"id": "cursore-attesa-cerchio", "label": "Cerchio o clessidra durante l'attesa", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "cursore-invertito-scuro", "label": "Puntatore invertito su sfondi scuri", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Cursore e puntatore",
+    "subcategory": "Velocità",
+    "question": "Quale velocità e accelerazione ha il puntatore?",
+    "formula": "velocità = 1 + k/10; accelerazione = 0 oppure 1",
+    "options": [
+      {"id": "puntatore-lineare", "label": "Lineare, senza accelerazione", "sources": ["macOS"], "customizable": false},
+      {"id": "puntatore-accelerazione-leggera", "label": "Accelerazione leggera", "sources": ["Windows"], "customizable": true},
+      {"id": "puntatore-sei-livelli", "label": "Velocità regolabile su sei livelli", "sources": ["Windows"], "customizable": true},
+      {"id": "puntatore-curva-due-tratti", "label": "Profilo adattivo a curva a due tratti", "sources": ["KDE"], "customizable": false},
+      {"id": "puntatore-flat-velocita", "label": "Profilo flat con velocità scelta", "sources": ["GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Stati",
+    "subcategory": "Focus",
+    "question": "Come appare il focus da tastiera?",
+    "formula": "anello focus = 0.5u; colore A(1); offset = 0.5u",
+    "options": [
+      {"id": "focus-anello-accento", "label": "Anello d'accento attorno al controllo", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "focus-contorno-doppio", "label": "Contorno doppio bianco e scuro", "sources": ["Windows"], "customizable": false},
+      {"id": "focus-sottolineatura-fondo", "label": "Sottolineatura o sfondo evidenziato", "sources": ["GNOME"], "customizable": false},
+      {"id": "focus-solo-tastiera", "label": "Anello visibile solo da tastiera", "sources": ["macOS", "GNOME"], "customizable": true},
+      {"id": "focus-anello-spesso", "label": "Anello spesso e contrastato", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Stati",
+    "subcategory": "Hover e pressed",
+    "question": "Come cambia il controllo al passaggio e alla pressione?",
+    "formula": "hover = T1 +4%; pressed = T1 -8%; transizione 80ms",
+    "options": [
+      {"id": "stato-schiarisce-scurisce", "label": "Schiarisce o scurisce il fondo", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "stato-ombra-sollevata", "label": "Ombra leggera che solleva il controllo", "sources": ["Windows"], "customizable": false},
+      {"id": "stato-riduzione-scala", "label": "Leggera riduzione di scala alla pressione", "sources": ["KDE"], "customizable": false},
+      {"id": "stato-solo-click", "label": "Nessun cambio al passaggio, solo al click", "sources": ["GNOME"], "customizable": false},
+      {"id": "stato-bordo-accento", "label": "Bordo colorato al passaggio", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Stati",
+    "subcategory": "Disabilitato ed errore",
+    "question": "Come appaiono controlli disabilitati ed errori di campo?",
+    "formula": "disabilitato = T3 al 40%; errore = A(err) su bordo e testo",
+    "options": [
+      {"id": "disabilitato-grigio-opaco", "label": "Grigio opaco al 40%", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "disabilitato-testo-attenuato", "label": "Solo testo attenuato, senza sfondo", "sources": ["GNOME"], "customizable": false},
+      {"id": "errore-bordo-messaggio", "label": "Bordo rosso con messaggio sotto il campo", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "errore-icona-avviso", "label": "Icona di avviso accanto al campo", "sources": ["macOS"], "customizable": true},
+      {"id": "errore-banner-alto", "label": "Banner in alto nella finestra", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Accessibilità",
+    "subcategory": "Scala del testo",
+    "question": "Quale scala del testo è disponibile per l'utente?",
+    "formula": "pct = 100 | 125 | 150 | 200; u scala con pct",
+    "options": [
+      {"id": "scala-tre-valori", "label": "Scelta tra 100, 125 e 150 per cento", "sources": ["Windows"], "customizable": true},
+      {"id": "scala-cursore-continuo", "label": "Cursore continuo da 100 a 200 per cento", "sources": ["macOS", "GNOME"], "customizable": true},
+      {"id": "scala-solo-testo", "label": "Solo testo, icone invariate", "sources": ["Windows"], "customizable": true},
+      {"id": "scala-fissa", "label": "Nessuna scala, dimensione fissa", "sources": ["KDE"], "customizable": false},
+      {"id": "scala-per-app", "label": "Scala impostata per singola app", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Accessibilità",
+    "subcategory": "Riduzione del movimento",
+    "question": "Come si attenua il movimento per chi lo preferisce?",
+    "formula": "durata = 0; dissolvenza 100ms al posto dello scorrimento",
+    "options": [
+      {"id": "movimento-dissolvenza", "label": "Dissolvenza al posto dello scorrimento", "sources": ["macOS"], "customizable": true},
+      {"id": "movimento-azzera", "label": "Azzera tutte le animazioni", "sources": ["Windows", "GNOME"], "customizable": true},
+      {"id": "movimento-solo-stato", "label": "Mantiene solo le animazioni di stato", "sources": ["KDE"], "customizable": false},
+      {"id": "movimento-no-parallasse", "label": "Disattiva effetti di parallasse", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "movimento-meta-durata", "label": "Dimezza la durata delle animazioni", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Accessibilità",
+    "subcategory": "Alto contrasto",
+    "question": "Come si attiva il tema ad alto contrasto?",
+    "formula": "contrasto = 7:1; bordi = 1u; focus = 2u",
+    "options": [
+      {"id": "contrasto-interruttore", "label": "Interruttore unico nelle impostazioni", "sources": ["Windows"], "customizable": true},
+      {"id": "contrasto-segue-sistema", "label": "Segue la preferenza di accessibilità", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "contrasto-tema-dedicato", "label": "Tema dedicato installabile", "sources": ["KDE"], "customizable": true},
+      {"id": "contrasto-inversione-scorciatoia", "label": "Inversione dei colori con scorciatoia", "sources": ["macOS"], "customizable": true},
+      {"id": "contrasto-filtro-schermo", "label": "Filtro di schermo di sistema", "sources": ["Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Avvio e blocco",
+    "subcategory": "Splash",
+    "question": "Cosa mostra la schermata di avvio?",
+    "formula": "logo = 4u; barra = 0.25u; durata massima 3 s",
+    "options": [
+      {"id": "splash-nessuno", "label": "Nessuna schermata, solo lo sfondo", "sources": ["macOS"], "customizable": false},
+      {"id": "splash-logo-barra", "label": "Logo con barra di avanzamento", "sources": ["Windows"], "customizable": false},
+      {"id": "splash-logo-punti", "label": "Logo con indicatore a punti", "sources": ["GNOME"], "customizable": true},
+      {"id": "splash-solo-logo", "label": "Solo logo, senza indicatore", "sources": ["macOS"], "customizable": true},
+      {"id": "splash-dissolvenza-desktop", "label": "Logo che sfuma nel desktop", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Avvio e blocco",
+    "subcategory": "Schermata di blocco",
+    "question": "Cosa mostra la schermata di blocco?",
+    "formula": "sfondo = T0 sfumato; orologio = 3u; avvisi = 1.5u",
+    "options": [
+      {"id": "blocco-orologio-notifiche", "label": "Orologio e notifiche recenti", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "blocco-solo-orologio", "label": "Solo orologio e data", "sources": ["Windows"], "customizable": false},
+      {"id": "blocco-immagine-sfondo", "label": "Immagine di sfondo a tutto schermo", "sources": ["Windows"], "customizable": true},
+      {"id": "blocco-senza-notifiche", "label": "Nessuna notifica prima dello sblocco", "sources": ["macOS"], "customizable": false},
+      {"id": "blocco-solo-accesso", "label": "Solo campo di accesso", "sources": ["GNOME", "KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Avvio e blocco",
+    "subcategory": "Login",
+    "question": "Come avviene l'accesso all'account?",
+    "formula": "campo = 10u; pulsante = 2u; blocco dopo 300 s di inattività",
+    "options": [
+      {"id": "login-campo-password", "label": "Campo password centrato", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "login-pin-predefinito", "label": "PIN come metodo predefinito", "sources": ["Windows"], "customizable": true},
+      {"id": "login-biometria-riserva", "label": "Biometria con password di riserva", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "login-selezione-utente", "label": "Selezione dell'utente prima del campo", "sources": ["KDE"], "customizable": true},
+      {"id": "login-automatico", "label": "Accesso automatico senza campo", "sources": ["GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Feedback",
+    "subcategory": "Suoni",
+    "question": "Quali suoni accompagnano gli eventi di sistema?",
+    "formula": "volume = 0.3; durata massima 150 ms",
+    "options": [
+      {"id": "suoni-pochi-errori", "label": "Pochi suoni solo per errori e avvisi", "sources": ["macOS"], "customizable": true},
+      {"id": "suoni-ogni-evento", "label": "Un suono per ogni evento", "sources": ["Windows"], "customizable": true},
+      {"id": "suoni-nessuno", "label": "Nessun suono di sistema", "sources": ["GNOME"], "customizable": false},
+      {"id": "suoni-tema-sostituibile", "label": "Tema sonoro sostituibile", "sources": ["GNOME", "KDE"], "customizable": true},
+      {"id": "suoni-solo-critici", "label": "Suono solo per errori critici", "sources": ["KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Feedback",
+    "subcategory": "Aptico",
+    "question": "Quale feedback aptico danno trackpad e dispositivi di puntamento?",
+    "formula": "impulso = 1 livello; attivo solo su allineamenti e conferme",
+    "options": [
+      {"id": "aptico-trackpad-allineamenti", "label": "Impulso del trackpad sugli allineamenti", "sources": ["macOS"], "customizable": true},
+      {"id": "aptico-nessuno", "label": "Nessun feedback aptico", "sources": ["Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "aptico-conferme-brevi", "label": "Vibrazione breve alle conferme", "sources": ["macOS"], "customizable": false},
+      {"id": "aptico-solo-errori", "label": "Vibrazione solo sugli errori", "sources": ["Windows"], "customizable": true},
+      {"id": "aptico-pressione-forte", "label": "Impulso solo con pressione forte", "sources": ["macOS"], "customizable": false}
+    ]
+  }
+]

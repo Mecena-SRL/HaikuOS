@@ -1,0 +1,367 @@
+{
+ "q056-pf-anello-accento": {
+  "w_focus": "on",
+  "_f": "anello u/4 di A(1), offset u/4 dal bordo"
+ },
+ "q056-pf-anello-doppio": {
+  "w_focus": "on",
+  "_f": "doppio anello chiaro e scuro, u/4"
+ },
+ "q056-pf-sottolineatura": {
+  "w_focus": "on",
+  "_f": "sottolineatura spessa u/4 sotto il testo"
+ },
+ "q056-pf-ombra-leggera": {
+  "w_focus": "on",
+  "_f": "ombra morbida al posto dell'anello"
+ },
+ "q056-pf-solo-tastiera": {
+  "w_focus": "on",
+  "_f": "anello u/4 di A(1), solo con navigazione da tastiera"
+ },
+ "q058-cr-capsula": {
+  "field": "filled",
+  "_f": "h 2u, capsula raggio 2u, lente a 1u dal bordo"
+ },
+ "q058-cr-cancella": {
+  "field": "outline",
+  "_f": "h 2u, raggio 2u; pulsante di cancellazione a destra (non rappresentato)"
+ },
+ "q058-cr-barra-titolo": {
+  "field": "underline",
+  "_f": "campo integrato nella barra del titolo, lente a 1u"
+ },
+ "q058-cr-scorciatoia-visibile": {
+  "field": "outline",
+  "_f": "h 2u; scorciatoia da tastiera a destra (non rappresentata)"
+ },
+ "q059-ce-bordo-rosso": {
+  "w_error": "on",
+  "_f": "bordo u/4 di A(errore); messaggio sotto a u/2"
+ },
+ "q059-ce-icona-avviso": {
+  "w_error": "on",
+  "_f": "icona di avviso dentro il campo; bordo u/4 di A(errore)"
+ },
+ "q059-ce-sfondo-tinto": {
+  "w_error": "on",
+  "_f": "sfondo tinto di A(errore) senza bordo"
+ },
+ "q059-ce-solo-messaggio": {
+  "w_error": "on",
+  "_f": "solo testo di errore sotto il campo a u/2; campo invariato"
+ },
+ "q059-ce-accento-icona": {
+  "w_error": "on",
+  "_f": "bordo u/4 di A(accento); icona e messaggio sotto a u/2"
+ },
+ "q060-sc-quadrato-spunta": {
+  "w_checkbox": "on",
+  "_f": "quadrato 1u+u/2, raggio u/4; spunta in A(0)"
+ },
+ "q060-sc-quadrato-accento": {
+  "w_checkbox": "on",
+  "_f": "quadrato pieno di A(1) quando attivo"
+ },
+ "q060-sc-spunta-tratto": {
+  "w_checkbox": "on",
+  "_f": "spunta e stato misto a trattino"
+ },
+ "q060-sc-raggio-ampio": {
+  "w_checkbox": "on",
+  "_f": "quadrato 1u+u/2 con raggio ampio"
+ },
+ "q060-sc-stato-misto": {
+  "w_checkbox": "on",
+  "_f": "stato indeterminato con trattino"
+ },
+ "q061-sr-cerchio-punto": {
+  "w_radio": "on",
+  "_f": "cerchio 1u+u/2; bordo u/4 di T2; punto u/2"
+ },
+ "q061-sr-punto-accento": {
+  "w_radio": "on",
+  "_f": "punto centrale u/2 di A(1)"
+ },
+ "q061-sr-cerchio-pieno": {
+  "w_radio": "on",
+  "_f": "cerchio pieno di A(1) quando attivo"
+ },
+ "q061-sr-bordo-spesso": {
+  "w_radio": "on",
+  "_f": "bordo spesso, punto centrale piccolo"
+ },
+ "q061-sr-segmentato": {
+  "w_radio": "on",
+  "_f": "opzioni come controllo segmentato"
+ },
+ "q062-sw-etichette": {
+  "switch": "pill",
+  "_f": "largh 3u, alt 1u+u/2, cursore 1u; etichette ON/OFF nel corpo"
+ },
+ "q062-sw-due-stati": {
+  "switch": "square",
+  "_f": "largh 3u, alt 1u+u/2; pulsante a due stati con tinta"
+ },
+ "q063-sl-pollice-tondo": {
+  "w_slider": "on",
+  "_f": "traccia u/4; pollice diametro 1u; zona tocco 2u"
+ },
+ "q063-sl-pollice-grande": {
+  "w_slider": "on",
+  "_f": "pollice grande con etichetta del valore"
+ },
+ "q063-sl-tacche": {
+  "w_slider": "on",
+  "_f": "traccia con tacche discrete"
+ },
+ "q063-sl-traccia-accento": {
+  "w_slider": "on",
+  "_f": "traccia piena di A(1) fino al pollice"
+ },
+ "q063-sl-traccia-spessa": {
+  "w_slider": "on",
+  "_f": "traccia spessa, pollice con bordo"
+ },
+ "q064-pb-traccia-accento": {
+  "w_progress": "on",
+  "_f": "altezza u/4, raggio u/8; riempimento A(0)"
+ },
+ "q064-pb-capsula-tinta": {
+  "w_progress": "on",
+  "_f": "capsula con tinta neutra"
+ },
+ "q064-pb-circolare": {
+  "w_progress": "on",
+  "_f": "anello circolare con percentuale"
+ },
+ "q064-pb-indeterminata": {
+  "w_progress": "on",
+  "_f": "scorrimento indeterminato animato"
+ },
+ "q064-pb-segmentata": {
+  "w_progress": "on",
+  "_f": "segmenti discreti"
+ },
+ "q065-mt-ombra-raggio": {
+  "w_menu": "on",
+  "_f": "voce h 2u, padding 1u, ombra 1u, raggio u"
+ },
+ "q065-mt-pannello-piatto": {
+  "w_menu": "on",
+  "_f": "pannello piatto con bordo"
+ },
+ "q065-mt-voce-evidenziata": {
+  "w_menu": "on",
+  "_f": "voce evidenziata con A(1) pieno"
+ },
+ "q065-mt-separatori": {
+  "w_menu": "on",
+  "_f": "gruppi separati da linee sottili"
+ },
+ "q065-mt-scorciatoia-destra": {
+  "w_menu": "on",
+  "_f": "scorciatoia da tastiera allineata a destra"
+ },
+ "q066-sd-mese": {
+  "w_dialog": "on",
+  "_f": "griglia 7 col x 2u, intestazione 2u; giorno in A(0)"
+ },
+ "q066-sd-campo-popup": {
+  "w_menu": "on",
+  "_f": "campo di testo con icona che apre un popup"
+ },
+ "q066-sd-ruota": {
+  "w_dialog": "on",
+  "_f": "selettore a ruota per giorno, mese e anno"
+ },
+ "q066-sd-doppio-mese": {
+  "w_dialog": "on",
+  "_f": "due mesi affiancati, cella 2u"
+ },
+ "q066-sd-settimana": {
+  "w_dialog": "on",
+  "_f": "vista settimana con numeri di settimana"
+ },
+ "q067-sk-area-spettro": {
+  "w_dialog": "on",
+  "_f": "area saturazione 6u con spettro di tinta; cursore u/2"
+ },
+ "q067-sk-campioni-esadecimale": {
+  "w_dialog": "on",
+  "_f": "campioni predefiniti 1u e campo esadecimale"
+ },
+ "q067-sk-ruota-tinta": {
+  "w_dialog": "on",
+  "_f": "ruota cromatica"
+ },
+ "q067-sk-conta-gocce": {
+  "w_dialog": "on",
+  "_f": "contagocce per prelevare il colore dallo schermo"
+ },
+ "q067-sk-cursori-rgb": {
+  "w_dialog": "on",
+  "_f": "tre cursori RGB"
+ },
+ "q068-lr-accento-pieno": {
+  "w_list": "on",
+  "_f": "riga h 2u, sfondo A(1) pieno, testo bianco, raggio u/2"
+ },
+ "q068-lr-accento-tenue": {
+  "w_list": "on",
+  "_f": "riga h 2u, sfondo A(1) al 20%, raggio u/2"
+ },
+ "q068-lr-barra-sinistra": {
+  "w_list": "on",
+  "_f": "barra di accento sul bordo sinistro"
+ },
+ "q068-lr-tinta-neutra": {
+  "w_list": "on",
+  "_f": "solo tinta di sfondo neutra"
+ },
+ "q068-lr-contorno": {
+  "w_list": "on",
+  "_f": "contorno di A(1) senza riempimento"
+ },
+ "q069-th-grassetto-sfondo": {
+  "w_list": "on",
+  "_f": "h 2u, testo T2 semibold su sfondo T1; bordo u/8"
+ },
+ "q069-th-freccia-ordinamento": {
+  "w_list": "on",
+  "_f": "freccia di ordinamento nella colonna"
+ },
+ "q069-th-fissa": {
+  "w_list": "on",
+  "_f": "intestazione fissa durante lo scorrimento"
+ },
+ "q069-th-separatori-colonne": {
+  "w_list": "on",
+  "_f": "linee verticali tra le colonne"
+ },
+ "q070-tr-freccia-ruotata": {
+  "w_list": "on",
+  "_f": "riga 2u; freccia u che ruota alla chiusura"
+ },
+ "q070-tr-triangolo": {
+  "w_list": "on",
+  "_f": "triangolo piccolo a sinistra"
+ },
+ "q070-tr-linee-guida": {
+  "w_list": "on",
+  "_f": "linee guida verticali tra i livelli"
+ },
+ "q070-tr-rientro-ampio": {
+  "w_list": "on",
+  "_f": "rientro 1u per livello, ampio"
+ },
+ "q070-tr-icone-nodo": {
+  "w_list": "on",
+  "_f": "icona di cartella o file per ogni nodo"
+ },
+ "q073-tb-sottolineatura": {
+  "w_tabs": "on",
+  "_f": "altezza 2u; indicatore u/8 di A(1) sotto la scheda attiva"
+ },
+ "q073-tb-linguetta": {
+  "w_tabs": "on",
+  "_f": "linguetta piena con sfondo di superficie"
+ },
+ "q073-tb-segmentate": {
+  "w_tabs": "on",
+  "_f": "controllo segmentato"
+ },
+ "q073-tb-linguette-browser": {
+  "w_tabs": "on",
+  "_f": "linguette arrotondate in alto"
+ },
+ "q073-tb-solo-testo": {
+  "w_tabs": "on",
+  "_f": "solo testo, scheda attiva in grassetto"
+ },
+ "q074-sb-tinta-neutra": {
+  "_f": "largh 8u-12u; sfondo T1; icone nelle voci"
+ },
+ "q074-sb-traslucida": {
+  "_f": "sfondo traslucido con materiale"
+ },
+ "q074-sb-comprimibile": {
+  "_f": "comprimibile a sola icona"
+ },
+ "q074-sb-titoli-sezione": {
+  "_f": "sezioni con titoletti"
+ },
+ "q074-sb-pillola-attiva": {
+  "_f": "voce attiva con pillola di A(1)"
+ },
+ "q075-bc-freccia": {
+  "w_list": "on",
+  "_f": "separatore a freccia, u"
+ },
+ "q075-bc-barra": {
+  "w_list": "on",
+  "_f": "separatore a barra, u"
+ },
+ "q075-bc-ultimo-testo": {
+  "w_list": "on",
+  "_f": "ultimo elemento in T0 non cliccabile"
+ },
+ "q075-bc-troncato": {
+  "w_menu": "on",
+  "_f": "elementi intermedi troncati in un menu"
+ },
+ "q075-bc-modificabile": {
+  "field": "outline",
+  "_f": "percorso modificabile con un clic (non rappresentato)"
+ },
+ "q076-dm-titolo-barra": {
+  "w_dialog": "on",
+  "_f": "titolo nella barra, pulsanti in basso; largh 24u-32u, padding 2u"
+ },
+ "q076-dm-pulsanti-destra": {
+  "w_dialog": "on",
+  "_f": "azione a destra, annulla a sinistra"
+ },
+ "q076-dm-header-bar": {
+  "w_dialog": "on",
+  "_f": "barra di intestazione integrata con pulsanti"
+ },
+ "q077-al-icona-testo-azioni": {
+  "w_dialog": "on",
+  "_f": "icona 2u, testo T0, azioni 2u in fondo"
+ },
+ "q077-al-tinta-severita": {
+  "w_dialog": "on",
+  "_f": "sfondo tinto secondo la gravità"
+ },
+ "q077-al-pulsanti-impilati": {
+  "w_dialog": "on",
+  "_f": "pulsanti impilati a tutta larghezza"
+ },
+ "q077-al-suono": {
+  "_nv": true
+ },
+ "q077-al-banner-superiore": {
+  "w_toast": "on",
+  "_f": "banner in alto con chiusura"
+ },
+ "q078-tt-angolo-basso": {
+  "w_toast": "on",
+  "_f": "largh 16u, ombra 1u, raggio u; angolo in basso a destra, impilate"
+ },
+ "q078-tt-banner-centro": {
+  "w_toast": "on",
+  "_f": "banner centrato in alto, largh 16u"
+ },
+ "q078-tt-azione-inline": {
+  "w_toast": "on",
+  "_f": "azione inline e pulsante di chiusura"
+ },
+ "q078-tt-scomparsa-auto": {
+  "_nv": true
+ },
+ "q078-tt-centro-notifiche": {
+  "w_toast": "on",
+  "_f": "integrata nel centro notifiche laterale"
+ }
+}

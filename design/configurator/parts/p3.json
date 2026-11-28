@@ -1,0 +1,340 @@
+[
+  {
+    "category": "Pulsanti",
+    "subcategory": "Pulsante primario",
+    "question": "Come appare il pulsante primario?",
+    "formula": "h = 2u; padding orizzontale 1u; raggio 1u; bordo 0",
+    "options": [
+      {"id": "pp-pieno-accento", "label": "Pieno con colore di accento", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "pp-pieno-neutro", "label": "Pieno con tinta neutra scura", "sources": ["GNOME"], "customizable": false},
+      {"id": "pp-contorno-accento", "label": "Contorno con testo in accento", "sources": ["KDE"], "customizable": true},
+      {"id": "pp-solo-testo", "label": "Solo testo in accento, sfondo trasparente", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "pp-raggio-ridotto", "label": "Pieno con raggio ridotto", "sources": ["Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Pulsanti",
+    "subcategory": "Pulsante secondario",
+    "question": "Come appare il pulsante secondario?",
+    "formula": "h = 2u; padding 1u; raggio 1u; bordo u/4 di T1",
+    "options": [
+      {"id": "ps-grigio-bordo", "label": "Grigio chiaro con bordo sottile", "sources": ["Windows", "macOS"], "customizable": false},
+      {"id": "ps-solo-bordo", "label": "Solo bordo, sfondo della superficie", "sources": ["KDE"], "customizable": true},
+      {"id": "ps-trasparente", "label": "Trasparente, sfondo solo al passaggio del mouse", "sources": ["GNOME"], "customizable": false},
+      {"id": "ps-tinta-piena", "label": "Tinta piena appena più scura della superficie", "sources": ["macOS"], "customizable": true},
+      {"id": "ps-capsula", "label": "Forma a capsula con raggio pieno", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Pulsanti",
+    "subcategory": "Pulsante a icona",
+    "question": "Come appare un pulsante solo icona?",
+    "formula": "quadrato 2u x 2u; icona u; raggio 1u",
+    "options": [
+      {"id": "pi-quadrato-raggio", "label": "Quadrato con angoli arrotondati", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "pi-cerchio", "label": "Cerchio pieno", "sources": ["macOS"], "customizable": false},
+      {"id": "pi-icona-trasparente", "label": "Solo icona, sfondo trasparente", "sources": ["KDE", "GNOME"], "customizable": true},
+      {"id": "pi-tinta-hover", "label": "Solo icona, tinta visibile al passaggio", "sources": ["Windows"], "customizable": true},
+      {"id": "pi-tooltip-obbligatorio", "label": "Icona con tooltip obbligatorio", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Pulsanti",
+    "subcategory": "Focus da tastiera",
+    "question": "Come appare il focus da tastiera su un pulsante?",
+    "formula": "anello u/4 di A(1); offset u/4 dal bordo",
+    "options": [
+      {"id": "pf-anello-accento", "label": "Anello di accento con offset", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "pf-anello-doppio", "label": "Doppio anello chiaro e scuro", "sources": ["macOS"], "customizable": false},
+      {"id": "pf-sottolineatura", "label": "Sottolineatura spessa sotto il testo", "sources": ["GNOME"], "customizable": false},
+      {"id": "pf-ombra-leggera", "label": "Ombra morbida senza anello", "sources": ["macOS"], "customizable": false},
+      {"id": "pf-solo-tastiera", "label": "Anello visibile solo con navigazione da tastiera", "sources": ["Windows", "GNOME", "KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Campi di testo",
+    "subcategory": "Campo di testo standard",
+    "question": "Come appare un campo di testo a riposo?",
+    "formula": "h = 2u; bordo u/8 di T2; raggio 1u; padding 1u",
+    "options": [
+      {"id": "ct-bordo-pieno", "label": "Bordo pieno sottile", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "ct-linea-inferiore", "label": "Fondo chiaro con linea inferiore", "sources": ["Windows"], "customizable": false},
+      {"id": "ct-bordo-arrotondato", "label": "Bordo arrotondato con sfondo leggermente tinto", "sources": ["macOS", "GNOME"], "customizable": true},
+      {"id": "ct-incassato", "label": "Incassato con bordo interno", "sources": ["macOS"], "customizable": false},
+      {"id": "ct-accento-al-focus", "label": "Bordo che diventa di accento al focus", "sources": ["GNOME", "KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Campi di testo",
+    "subcategory": "Campo di ricerca",
+    "question": "Come appare il campo di ricerca?",
+    "formula": "h = 2u; lente a 1u dal bordo; raggio 2u",
+    "options": [
+      {"id": "cr-capsula", "label": "Forma a capsula con lente", "sources": ["macOS"], "customizable": true},
+      {"id": "cr-rettangolo", "label": "Rettangolo con lente a sinistra", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "cr-cancella", "label": "Con pulsante di cancellazione a destra", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "cr-barra-titolo", "label": "Integrato nella barra del titolo", "sources": ["GNOME"], "customizable": true},
+      {"id": "cr-scorciatoia-visibile", "label": "Scorciatoia da tastiera mostrata a destra", "sources": ["KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Campi di testo",
+    "subcategory": "Stato di errore",
+    "question": "Come si segnala un errore in un campo di testo?",
+    "formula": "bordo u/4 di A(errore); messaggio sotto a u/2",
+    "options": [
+      {"id": "ce-bordo-rosso", "label": "Bordo rosso e messaggio sotto", "sources": ["Windows", "macOS"], "customizable": false},
+      {"id": "ce-icona-avviso", "label": "Icona di avviso dentro il campo", "sources": ["Windows", "GNOME"], "customizable": true},
+      {"id": "ce-sfondo-tinto", "label": "Sfondo tinto senza bordo", "sources": ["KDE"], "customizable": false},
+      {"id": "ce-solo-messaggio", "label": "Solo testo di errore, campo invariato", "sources": ["macOS"], "customizable": false},
+      {"id": "ce-accento-icona", "label": "Bordo di accento con icona e messaggio", "sources": ["GNOME", "KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Selezione",
+    "subcategory": "Checkbox",
+    "question": "Come appare la checkbox?",
+    "formula": "quadrato 1u + u/2; raggio u/4; spunta in A(0)",
+    "options": [
+      {"id": "sc-quadrato-spunta", "label": "Quadrato bianco con spunta", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "sc-quadrato-accento", "label": "Quadrato pieno di accento quando attivo", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "sc-spunta-tratto", "label": "Spunta con stato misto a trattino", "sources": ["macOS"], "customizable": false},
+      {"id": "sc-raggio-ampio", "label": "Quadrato con raggio più ampio", "sources": ["GNOME"], "customizable": true},
+      {"id": "sc-stato-misto", "label": "Stato indeterminato con trattino", "sources": ["GNOME", "Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Selezione",
+    "subcategory": "Pulsante radio",
+    "question": "Come appare il pulsante radio?",
+    "formula": "cerchio 1u + u/2; bordo u/4 di T2; punto u/2",
+    "options": [
+      {"id": "sr-cerchio-punto", "label": "Cerchio con punto centrale", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "sr-punto-accento", "label": "Punto centrale di accento", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "sr-cerchio-pieno", "label": "Cerchio pieno di accento quando attivo", "sources": ["macOS"], "customizable": true},
+      {"id": "sr-bordo-spesso", "label": "Bordo spesso con punto più piccolo", "sources": ["GNOME"], "customizable": false},
+      {"id": "sr-segmentato", "label": "Opzioni come controllo segmentato", "sources": ["Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Selezione",
+    "subcategory": "Switch on/off",
+    "question": "Come appare lo switch on/off?",
+    "formula": "larghezza 3u; altezza 1u + u/2; cursore tondo di diametro 1u",
+    "options": [
+      {"id": "sw-capsula-accento", "label": "Capsula di accento quando attivo", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "sw-capsula-neutra", "label": "Capsula grigia, accento solo sul cursore", "sources": ["GNOME"], "customizable": false},
+      {"id": "sw-rettangolare", "label": "Interruttore rettangolare", "sources": ["KDE"], "customizable": false},
+      {"id": "sw-etichette", "label": "Con etichette ON e OFF nel corpo", "sources": ["macOS"], "customizable": true},
+      {"id": "sw-due-stati", "label": "Pulsante a due stati con tinta", "sources": ["Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Cursori e barre",
+    "subcategory": "Cursore (slider)",
+    "question": "Come appare lo slider?",
+    "formula": "traccia u/4; pollice diametro 1u; zona di tocco 2u",
+    "options": [
+      {"id": "sl-pollice-tondo", "label": "Pollice tondo su traccia sottile", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "sl-pollice-grande", "label": "Pollice grande con etichetta del valore", "sources": ["KDE"], "customizable": false},
+      {"id": "sl-tacche", "label": "Traccia con tacche discrete", "sources": ["Windows"], "customizable": false},
+      {"id": "sl-traccia-accento", "label": "Traccia piena di accento fino al pollice", "sources": ["GNOME", "Windows"], "customizable": true},
+      {"id": "sl-traccia-spessa", "label": "Traccia spessa con pollice a bordo", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Cursori e barre",
+    "subcategory": "Barra di avanzamento",
+    "question": "Come appare la barra di avanzamento?",
+    "formula": "altezza u/4; raggio u/8; riempimento di A(0)",
+    "options": [
+      {"id": "pb-traccia-accento", "label": "Traccia sottile con riempimento di accento", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": true},
+      {"id": "pb-capsula-tinta", "label": "Capsula con tinta neutra", "sources": ["macOS"], "customizable": false},
+      {"id": "pb-circolare", "label": "Anello circolare con percentuale", "sources": ["GNOME"], "customizable": false},
+      {"id": "pb-indeterminata", "label": "Scorrimento indeterminato animato", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "pb-segmentata", "label": "Segmenti discreti", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Menu e selettori",
+    "subcategory": "Menu a tendina",
+    "question": "Come si presenta il menu a tendina?",
+    "formula": "voce h = 2u; padding 1u; ombra 1u; raggio u",
+    "options": [
+      {"id": "mt-ombra-raggio", "label": "Pannello con ombra e angoli arrotondati", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "mt-pannello-piatto", "label": "Pannello piatto con bordo", "sources": ["KDE"], "customizable": false},
+      {"id": "mt-voce-evidenziata", "label": "Voce evidenziata con accento pieno", "sources": ["Windows"], "customizable": true},
+      {"id": "mt-separatori", "label": "Gruppi separati da linee sottili", "sources": ["GNOME", "KDE"], "customizable": false},
+      {"id": "mt-scorciatoia-destra", "label": "Scorciatoia da tastiera allineata a destra", "sources": ["macOS", "Windows", "GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Menu e selettori",
+    "subcategory": "Selettore data",
+    "question": "Come si presenta il selettore di data?",
+    "formula": "griglia 7 colonne x 2u; intestazione 2u; cella 2u",
+    "options": [
+      {"id": "sd-mese", "label": "Calendario mensile con giorno in accento", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "sd-campo-popup", "label": "Campo di testo con icona che apre un popup", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "sd-ruota", "label": "Selettore a ruota per giorno, mese e anno", "sources": ["macOS"], "customizable": true},
+      {"id": "sd-doppio-mese", "label": "Due mesi affiancati", "sources": ["GNOME"], "customizable": false},
+      {"id": "sd-settimana", "label": "Vista settimana con numeri di settimana", "sources": ["KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Menu e selettori",
+    "subcategory": "Selettore colore",
+    "question": "Come si presenta il selettore di colore?",
+    "formula": "area quadrata 6u; cursore u/2; campioni 1u",
+    "options": [
+      {"id": "sk-area-spettro", "label": "Area di saturazione con spettro di tinta", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "sk-campioni-esadecimale", "label": "Campioni predefiniti e campo esadecimale", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "sk-ruota-tinta", "label": "Ruota cromatica", "sources": ["GNOME"], "customizable": false},
+      {"id": "sk-conta-gocce", "label": "Contagocce per prelevare il colore dello schermo", "sources": ["macOS", "Windows", "KDE"], "customizable": false},
+      {"id": "sk-cursori-rgb", "label": "Tre cursori RGB", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Liste e tabelle",
+    "subcategory": "Riga selezionata",
+    "question": "Come appare la riga selezionata in una lista?",
+    "formula": "altezza 2u; sfondo A(1) al 20%; raggio u/2",
+    "options": [
+      {"id": "lr-accento-pieno", "label": "Sfondo pieno di accento, testo bianco", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "lr-accento-tenue", "label": "Sfondo di accento tenue, testo normale", "sources": ["GNOME", "KDE"], "customizable": false},
+      {"id": "lr-barra-sinistra", "label": "Barra di accento sul bordo sinistro", "sources": ["Windows"], "customizable": false},
+      {"id": "lr-tinta-neutra", "label": "Solo tinta di sfondo neutra", "sources": ["macOS"], "customizable": false},
+      {"id": "lr-contorno", "label": "Contorno di accento senza riempimento", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Liste e tabelle",
+    "subcategory": "Intestazione di tabella",
+    "question": "Come appare l'intestazione di una tabella?",
+    "formula": "altezza 2u; testo T2 semibold; bordo inferiore u/8",
+    "options": [
+      {"id": "th-grassetto-sfondo", "label": "Testo in grassetto su sfondo T1", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "th-freccia-ordinamento", "label": "Freccia di ordinamento nella colonna", "sources": ["Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "th-hover-tinta", "label": "Intestazione cliccabile con tinta al passaggio", "sources": ["Windows"], "customizable": true},
+      {"id": "th-fissa", "label": "Intestazione fissa durante lo scorrimento", "sources": ["macOS", "GNOME", "KDE"], "customizable": false},
+      {"id": "th-separatori-colonne", "label": "Linee verticali tra le colonne", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Liste e tabelle",
+    "subcategory": "Albero (tree view)",
+    "question": "Come appaiono i nodi di un albero?",
+    "formula": "rientro 1u per livello; freccia u; riga 2u",
+    "options": [
+      {"id": "tr-freccia-ruotata", "label": "Freccia che ruota alla chiusura", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "tr-triangolo", "label": "Triangolo piccolo a sinistra", "sources": ["KDE", "Windows"], "customizable": false},
+      {"id": "tr-linee-guida", "label": "Linee guida verticali tra i livelli", "sources": ["GNOME"], "customizable": true},
+      {"id": "tr-rientro-ampio", "label": "Rientro più ampio per livello", "sources": ["Windows"], "customizable": true},
+      {"id": "tr-icone-nodo", "label": "Icona di cartella o file per ogni nodo", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Scorrimento",
+    "subcategory": "Barra di scorrimento",
+    "question": "Come appare la barra di scorrimento?",
+    "formula": "traccia u/2; pollice minimo 2u; raggio pieno",
+    "options": [
+      {"id": "bs-overlay-sottile", "label": "Overlay sottile che si espande al passaggio", "sources": ["macOS"], "customizable": true},
+      {"id": "bs-sempre-visibile", "label": "Traccia sempre visibile", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "bs-frecce", "label": "Con frecce alle estremità", "sources": ["KDE"], "customizable": false},
+      {"id": "bs-pollice-arrotondato", "label": "Pollice arrotondato su traccia trasparente", "sources": ["GNOME"], "customizable": false},
+      {"id": "bs-larga-fissa", "label": "Larga e fissa, con sfondo sempre visibile", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Scorrimento",
+    "subcategory": "Comportamento scroll",
+    "question": "Quando appare la barra di scorrimento?",
+    "formula": "visibile durante il movimento; larghezza u/4 da inattiva",
+    "options": [
+      {"id": "so-durante-scorrimento", "label": "Appare durante lo scorrimento e svanisce", "sources": ["macOS", "GNOME"], "customizable": true},
+      {"id": "so-sempre", "label": "Sempre visibile", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "so-hover", "label": "Appare solo al passaggio del puntatore", "sources": ["macOS", "Windows", "GNOME"], "customizable": false},
+      {"id": "so-solo-tocco", "label": "Solo su dispositivi a tocco", "sources": ["GNOME"], "customizable": false},
+      {"id": "so-indicatore-bordo", "label": "Indicatore sul bordo, espandibile", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Schede e navigazione",
+    "subcategory": "Schede (tab)",
+    "question": "Come appaiono le schede?",
+    "formula": "altezza 2u; indicatore u/8 sotto la scheda attiva; spaziatura u/2",
+    "options": [
+      {"id": "tb-sottolineatura", "label": "Sottolineatura di accento sotto la scheda attiva", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "tb-linguetta", "label": "Linguetta piena con sfondo della superficie", "sources": ["macOS"], "customizable": false},
+      {"id": "tb-segmentate", "label": "Controllo segmentato", "sources": ["GNOME"], "customizable": true},
+      {"id": "tb-linguette-browser", "label": "Linguette arrotondate in alto", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "tb-solo-testo", "label": "Solo testo, scheda attiva in grassetto", "sources": ["KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Schede e navigazione",
+    "subcategory": "Barra laterale (sidebar)",
+    "question": "Come appare la barra laterale?",
+    "formula": "larghezza 8u-12u; voce h 2u; sfondo T1",
+    "options": [
+      {"id": "sb-tinta-neutra", "label": "Sfondo tinto neutro con icone nelle voci", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "sb-traslucida", "label": "Sfondo traslucido con materiale", "sources": ["macOS"], "customizable": false},
+      {"id": "sb-comprimibile", "label": "Comprimibile a sola icona", "sources": ["GNOME", "Windows"], "customizable": true},
+      {"id": "sb-titoli-sezione", "label": "Sezioni con titoletti", "sources": ["macOS", "KDE"], "customizable": false},
+      {"id": "sb-pillola-attiva", "label": "Voce attiva con pillola di accento", "sources": ["Windows", "GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Schede e navigazione",
+    "subcategory": "Breadcrumb",
+    "question": "Come appare il breadcrumb?",
+    "formula": "separatore u; ultimo elemento in T0 non cliccabile",
+    "options": [
+      {"id": "bc-freccia", "label": "Separatore a freccia", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "bc-barra", "label": "Separatore a barra", "sources": ["KDE"], "customizable": true},
+      {"id": "bc-ultimo-testo", "label": "Ultimo elemento come testo, non link", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": false},
+      {"id": "bc-troncato", "label": "Elementi intermedi troncati in un menu", "sources": ["Windows", "GNOME"], "customizable": true},
+      {"id": "bc-modificabile", "label": "Percorso modificabile con un clic", "sources": ["Windows", "KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre di dialogo",
+    "subcategory": "Finestra di dialogo modale",
+    "question": "Come si presenta una finestra di dialogo modale?",
+    "formula": "larghezza 24u-32u; padding 2u; pulsanti a destra",
+    "options": [
+      {"id": "dm-centrata-velo", "label": "Centrata con ombra e velo sullo sfondo", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "dm-titolo-barra", "label": "Titolo nella barra, pulsanti in basso", "sources": ["KDE"], "customizable": true},
+      {"id": "dm-pulsanti-destra", "label": "Azione a destra, annulla a sinistra", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "dm-header-bar", "label": "Barra di intestazione integrata con pulsanti", "sources": ["GNOME"], "customizable": false},
+      {"id": "dm-dimensione-fissa", "label": "Dimensione fissa con bordo netto", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre di dialogo",
+    "subcategory": "Alert",
+    "question": "Come si presenta un avviso?",
+    "formula": "icona 2u; testo T0; azioni 2u in fondo",
+    "options": [
+      {"id": "al-icona-testo-azioni", "label": "Icona, testo e azioni in una riga", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "al-tinta-severita", "label": "Colore di sfondo secondo la gravità", "sources": ["Windows"], "customizable": true},
+      {"id": "al-pulsanti-impilati", "label": "Pulsanti impilati a tutta larghezza", "sources": ["macOS"], "customizable": false},
+      {"id": "al-suono", "label": "Suono di sistema alla comparsa", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": true},
+      {"id": "al-banner-superiore", "label": "Banner in alto con chiusura", "sources": ["GNOME", "KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Finestre di dialogo",
+    "subcategory": "Toast e notifiche",
+    "question": "Come si presenta una notifica toast?",
+    "formula": "larghezza 16u; ombra 1u; raggio u; durata fissa",
+    "options": [
+      {"id": "tt-angolo-basso", "label": "Angolo in basso a destra, impilate", "sources": ["Windows"], "customizable": true},
+      {"id": "tt-banner-centro", "label": "Banner centrato in alto", "sources": ["GNOME"], "customizable": false},
+      {"id": "tt-azione-inline", "label": "Con azione inline e pulsante di chiusura", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "tt-scomparsa-auto", "label": "Scompare automaticamente dopo un tempo", "sources": ["macOS", "Windows", "GNOME", "KDE"], "customizable": true},
+      {"id": "tt-centro-notifiche", "label": "Integrata nel centro notifiche laterale", "sources": ["macOS"], "customizable": false}
+    ]
+  }
+]

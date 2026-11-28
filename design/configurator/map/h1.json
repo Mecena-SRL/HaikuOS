@@ -1,0 +1,219 @@
+{
+ "q002-altezza-touch-5u": {
+  "tbh": 4,
+  "_f": "barra titolo h = 5u per tocco; tbh max 4"
+ },
+ "q006-icone-grandi-tocco": {
+  "tbh": 4,
+  "_f": "icona 2u ingrandita per tocco; barra h = 4u"
+ },
+ "q007-hover-simboli-gruppo": {
+  "hover": "lighten",
+  "_f": "simboli sul gruppo al passaggio; approssimato con lighten"
+ },
+ "q007-hover-chiudi-rosso": {
+  "ctlhover": "red",
+  "_f": "pulsante chiudi rosso al passaggio"
+ },
+ "q008-massimizza-schermo-intero": {
+  "_nv": true
+ },
+ "q008-massimizza-menu-snap": {
+  "w_menu": "on",
+  "_f": "menu layout snap al passaggio"
+ },
+ "q008-massimizza-semplice": {
+  "_nv": true
+ },
+ "q008-massimizza-assente-dialogo": {
+  "w_dialog": "on",
+  "_f": "pulsante massimizza assente nelle finestre di dialogo"
+ },
+ "q008-massimizza-doppio-clic": {
+  "_nv": true
+ },
+ "q009-dialogo-solo-chiudi": {
+  "w_dialog": "on",
+  "_f": "finestra di dialogo con solo chiudi"
+ },
+ "q009-dialogo-ok-annulla-destra": {
+  "w_dialog": "on",
+  "_f": "OK e Annulla a destra, azione predefinita A(1)"
+ },
+ "q009-dialogo-foglio-collegato": {
+  "w_dialog": "on",
+  "_f": "dialogo come foglio collegato alla finestra"
+ },
+ "q009-dialogo-annulla-sinistra": {
+  "w_dialog": "on",
+  "_f": "Annulla a sinistra, azione a destra"
+ },
+ "q011-bordo-grigio-t2": {
+  "border": "thin",
+  "_f": "bordo 1u grigio T2"
+ },
+ "q011-bordo-accent-attiva": {
+  "border": "thin",
+  "_f": "bordo 1u in A(1) solo se attiva; inattivo T2"
+ },
+ "q011-bordo-accent-sempre": {
+  "border": "thin",
+  "_f": "bordo 1u in A(1) sempre"
+ },
+ "q011-bordo-contrasto-alto": {
+  "border": "heavy",
+  "_f": "bordo 2u su T0 ad alto contrasto"
+ },
+ "q015-popup-sfocatura-materiale": {
+  "shadow": "soft",
+  "_f": "ombra popup 1u con sfocatura e materiale"
+ },
+ "q016-presa-larga-invisibile": {
+  "_nv": true
+ },
+ "q016-presa-angolo-maniglia": {
+  "grip": "on",
+  "_f": "presa d'angolo 3u con maniglia"
+ },
+ "q016-presa-tocco-ampliata": {
+  "_nv": true
+ },
+ "q016-presa-alt-trascina": {
+  "_nv": true
+ },
+ "q017-ridim-tempo-reale": {
+  "_nv": true
+ },
+ "q017-ridim-contorno-fantasma": {
+  "ghost": "on",
+  "_f": "contorno tratteggiato durante il ridimensionamento"
+ },
+ "q017-ridim-snap-bordi": {
+  "_nv": true
+ },
+ "q017-ridim-minimo-app": {
+  "_nv": true
+ },
+ "q017-ridim-scatti-griglia": {
+  "_nv": true
+ },
+ "q018-minimo-da-contenuto": {
+  "_nv": true
+ },
+ "q018-minimo-fisso": {
+  "_nv": true
+ },
+ "q018-minimo-dichiarato-app": {
+  "_nv": true
+ },
+ "q018-minimo-legato-scala": {
+  "_nv": true
+ },
+ "q018-minimo-ripiega-layout": {
+  "_nv": true
+ },
+ "q019-inattiva-nessun-cambio": {
+  "_nv": true
+ },
+ "q020-attiva-pulsanti-colore": {
+  "icons": "filled",
+  "_f": "pulsanti a colore pieno sulla finestra attiva"
+ },
+ "q021-attenzione-lampeggio": {
+  "_nv": true
+ },
+ "q021-attenzione-rimbalzo-dock": {
+  "_nv": true
+ },
+ "q021-attenzione-badge": {
+  "w_badge": "on",
+  "_f": "badge numerico sull'icona, 2 cicli"
+ },
+ "q021-attenzione-notifica-azione": {
+  "_nv": true
+ },
+ "q021-attenzione-punto-barra": {
+  "dot": "on",
+  "_f": "punto indicatore sulla barra delle attivita"
+ },
+ "q022-apertura-scala-dissolvenza": {
+  "_nv": true
+ },
+ "q022-apertura-dissolvenza": {
+  "_nv": true
+ },
+ "q022-apertura-scorrimento": {
+  "_nv": true
+ },
+ "q022-apertura-dall-icona": {
+  "_nv": true
+ },
+ "q022-apertura-nessuna": {
+  "_nv": true
+ },
+ "q023-chiusura-dissolvenza-rapida": {
+  "_nv": true
+ },
+ "q023-chiusura-scala-giu": {
+  "_nv": true
+ },
+ "q023-chiusura-scorrimento": {
+  "_nv": true
+ },
+ "q023-chiusura-istantanea": {
+  "_nv": true
+ },
+ "q023-chiusura-scala-dissolvenza": {
+  "_nv": true
+ },
+ "q024-durata-breve": {
+  "_nv": true
+ },
+ "q024-durata-media-morbida": {
+  "_nv": true
+ },
+ "q024-durata-regolabile": {
+  "_nv": true
+ },
+ "q024-durata-ridotta-movimento": {
+  "_nv": true
+ },
+ "q024-durata-solo-dissolvenza": {
+  "_nv": true
+ },
+ "q025-affianca-trascina-bordo": {
+  "_nv": true
+ },
+ "q025-affianca-split-view": {
+  "split": "on",
+  "_f": "due finestre affiancate, meta = larghezza/2 - 1u"
+ },
+ "q025-affianca-tiling-auto": {
+  "_nv": true
+ },
+ "q025-affianca-scorciatoia": {
+  "_nv": true
+ },
+ "q025-affianca-griglia-layout": {
+  "w_menu": "on",
+  "_f": "menu di layout al passaggio, meta = larghezza/2 - 1u"
+ },
+ "q026-switch-alt-tab": {
+  "_nv": true
+ },
+ "q026-switch-cmd-tab": {
+  "_nv": true
+ },
+ "q026-switch-panoramica-gruppi": {
+  "ovw": "on",
+  "_f": "panoramica per gruppi con miniature 4u"
+ },
+ "q026-switch-panoramica-miniature": {
+  "ovw": "on",
+  "_f": "panoramica con miniature 4u, ordine uso recente"
+ },
+ "q026-switch-task-anteprima": {
+  "ovw": "on",
+  "_f": "task switcher con anteprima miniatura 4u"
+ }
+}

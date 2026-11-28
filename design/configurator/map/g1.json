@@ -1,0 +1,181 @@
+{
+ "q002-altezza-touch-5u": {
+  "tbh": 4,
+  "_f": "h = 5u per il tocco; tbh massimo 4, approssimato a 4"
+ },
+ "q008-massimizza-menu-snap": {
+  "w_menu": "on",
+  "_f": "menu di layout snap al passaggio sul pulsante"
+ },
+ "q008-massimizza-assente-dialogo": {
+  "w_dialog": "on",
+  "_f": "finestra di dialogo senza pulsante massimizza"
+ },
+ "q009-dialogo-solo-chiudi": {
+  "w_dialog": "on",
+  "_f": "finestra di dialogo con solo pulsante chiudi"
+ },
+ "q009-dialogo-ok-annulla-destra": {
+  "w_dialog": "on",
+  "_f": "finestra di dialogo con OK e Annulla a destra"
+ },
+ "q009-dialogo-foglio-collegato": {
+  "w_dialog": "on",
+  "_f": "finestra di dialogo collegata come foglio alla finestra"
+ },
+ "q009-dialogo-annulla-sinistra": {
+  "w_dialog": "on",
+  "_f": "finestra di dialogo con Annulla a sinistra e azione a destra"
+ },
+ "q011-bordo-grigio-t2": {
+  "border": "thin",
+  "_f": "bordo 1u grigio neutro T2 (colore non rappresentato)"
+ },
+ "q011-bordo-accent-attiva": {
+  "border": "thin",
+  "_f": "bordo 1u, accent solo se attiva (colore non rappresentato)"
+ },
+ "q011-bordo-accent-sempre": {
+  "border": "thin",
+  "_f": "bordo 1u sempre in accent (colore non rappresentato)"
+ },
+ "q011-bordo-contrasto-alto": {
+  "border": "thin",
+  "_f": "bordo 1u con contrasto elevato su T0 (colore non rappresentato)"
+ },
+ "q015-popup-sfocatura-materiale": {
+  "shadow": "soft",
+  "_f": "popup traslucido sfocato, approssimato con ombra leggera"
+ },
+ "q020-attiva-pulsanti-colore": {
+  "btn": "solid",
+  "_f": "pulsanti di controllo a colore pieno"
+ },
+ "q021-attenzione-badge": {
+  "w_badge": "on",
+  "_f": "badge sull icona della finestra"
+ },
+ "q021-attenzione-notifica-azione": {
+  "w_toast": "on",
+  "_f": "notifica con azione"
+ },
+ "q021-attenzione-punto-barra": {
+  "w_badge": "on",
+  "_f": "punto indicatore sull icona nella barra delle attivita"
+ },
+ "q025-affianca-griglia-layout": {
+  "w_menu": "on",
+  "_f": "griglia di layout che compare al passaggio"
+ },
+ "q008-massimizza-schermo-intero": {
+  "_nv": true
+ },
+ "q008-massimizza-semplice": {
+  "_nv": true
+ },
+ "q016-presa-larga-invisibile": {
+  "_nv": true
+ },
+ "q016-presa-tocco-ampliata": {
+  "_nv": true
+ },
+ "q016-presa-alt-trascina": {
+  "_nv": true
+ },
+ "q017-ridim-tempo-reale": {
+  "_nv": true
+ },
+ "q017-ridim-snap-bordi": {
+  "_nv": true
+ },
+ "q017-ridim-minimo-app": {
+  "_nv": true
+ },
+ "q017-ridim-scatti-griglia": {
+  "_nv": true
+ },
+ "q018-minimo-da-contenuto": {
+  "_nv": true
+ },
+ "q018-minimo-fisso": {
+  "_nv": true
+ },
+ "q018-minimo-dichiarato-app": {
+  "_nv": true
+ },
+ "q018-minimo-legato-scala": {
+  "_nv": true
+ },
+ "q018-minimo-ripiega-layout": {
+  "_nv": true
+ },
+ "q019-inattiva-nessun-cambio": {
+  "_nv": true
+ },
+ "q021-attenzione-lampeggio": {
+  "_nv": true
+ },
+ "q021-attenzione-rimbalzo-dock": {
+  "_nv": true
+ },
+ "q025-affianca-trascina-bordo": {
+  "_nv": true
+ },
+ "q025-affianca-tiling-auto": {
+  "_nv": true
+ },
+ "q025-affianca-scorciatoia": {
+  "_nv": true
+ },
+ "q026-switch-alt-tab": {
+  "_nv": true
+ },
+ "q026-switch-cmd-tab": {
+  "_nv": true
+ },
+ "q022-apertura-scala-dissolvenza": {
+  "_nv": true
+ },
+ "q022-apertura-dissolvenza": {
+  "_nv": true
+ },
+ "q022-apertura-scorrimento": {
+  "_nv": true
+ },
+ "q022-apertura-dall-icona": {
+  "_nv": true
+ },
+ "q022-apertura-nessuna": {
+  "_nv": true
+ },
+ "q023-chiusura-dissolvenza-rapida": {
+  "_nv": true
+ },
+ "q023-chiusura-scala-giu": {
+  "_nv": true
+ },
+ "q023-chiusura-scorrimento": {
+  "_nv": true
+ },
+ "q023-chiusura-istantanea": {
+  "_nv": true
+ },
+ "q023-chiusura-scala-dissolvenza": {
+  "_nv": true
+ },
+ "q024-durata-breve": {
+  "_nv": true
+ },
+ "q024-durata-media-morbida": {
+  "_nv": true
+ },
+ "q024-durata-regolabile": {
+  "_nv": true
+ },
+ "q024-durata-ridotta-movimento": {
+  "_nv": true
+ },
+ "q024-durata-solo-dissolvenza": {
+  "_nv": true
+ }
+}

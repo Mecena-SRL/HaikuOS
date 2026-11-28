@@ -1,0 +1,182 @@
+{
+ "q029-stato-icone-a-destra": {
+  "w_badge": "on",
+  "_f": "icone di stato in barra con badge (approssimato)"
+ },
+ "q029-stato-vassoio-applet": {
+  "w_menu": "on",
+  "_f": "vassoio con menu applet (approssimato)"
+ },
+ "q029-stato-solo-attive": {
+  "dot": "on",
+  "_f": "solo icone attive, punto indicatore"
+ },
+ "q036-taskbar-raggruppa-app": {
+  "w_badge": "on",
+  "_f": "finestre raggruppate con contatore (approssimato)"
+ },
+ "q036-taskbar-una-icona-per-finestra": {
+  "dot": "on",
+  "_f": "una icona per finestra con punto"
+ },
+ "q036-taskbar-etichette-complete": {
+  "w_tabs": "on",
+  "_f": "icone con etichetta del titolo (approssimato)"
+ },
+ "q038-avvio-primo-del-dock": {
+  "start": "left",
+  "_f": "avvio come primo elemento a sinistra del dock (approssimato)"
+ },
+ "q038-avvio-nascosto-tasto": {
+  "w_disabled": "on",
+  "_f": "nessun pulsante di avvio visibile (approssimato)"
+ },
+ "q041-vassoio-tutte-visibili": {
+  "w_badge": "on",
+  "_f": "tutte le icone di sistema visibili"
+ },
+ "q041-vassoio-solo-attive": {
+  "dot": "on",
+  "_f": "solo icone con attività"
+ },
+ "q042-rapidi-tessere-griglia": {
+  "widget": "on",
+  "_f": "tessere in griglia (approssimato)"
+ },
+ "q042-rapidi-applet-modulari": {
+  "widget": "on",
+  "_f": "applet modulari (approssimato)"
+ },
+ "q044-ricerca-un-terzo-alto": {
+  "w_menu": "on",
+  "_f": "campo di ricerca a un terzo dall'alto (approssimato)"
+ },
+ "q044-ricerca-nella-barra": {
+  "w_tabs": "on",
+  "_f": "campo di ricerca nella barra (approssimato)"
+ },
+ "q044-ricerca-nel-lanciatore": {
+  "w_dialog": "on",
+  "_f": "ricerca dentro il lanciatore (approssimato)"
+ },
+ "q045-risultati-riga-azioni": {
+  "w_toast": "on",
+  "_f": "riga di risultati con azioni (approssimato)"
+ },
+ "q046-desktop-icone-visibili": {
+  "grid": "rows",
+  "_f": "icone in griglia"
+ },
+ "q046-desktop-nessuna-icona": {
+  "w_disabled": "on",
+  "_f": "nessuna icona (approssimato)"
+ },
+ "q046-desktop-solo-recenti": {
+  "grid": "cols",
+  "_f": "solo elementi recenti (approssimato)"
+ },
+ "q046-desktop-icone-nascoste": {
+  "w_disabled": "on",
+  "_f": "icone nascoste con un comando (approssimato)"
+ },
+ "q048-sfondo-immagine-unica": {
+  "theme": "dark",
+  "_f": "sfondo a immagine unica (approssimato)"
+ },
+ "q048-sfondo-colore-pieno": {
+  "theme": "light",
+  "_f": "sfondo a colore pieno T1"
+ },
+ "q048-sfondo-dinamico-orario": {
+  "theme": "dark",
+  "_f": "sfondo dinamico (approssimato)"
+ },
+ "q048-sfondo-carosello": {
+  "theme": "light",
+  "_f": "sfondo a carosello (approssimato)"
+ },
+ "q048-sfondo-adattato-tema": {
+  "theme": "light",
+  "_f": "sfondo adattato al tema (approssimato)"
+ },
+ "q048-sfondo-sfocato-finestre": {
+  "tb": "translucent",
+  "_f": "sfondo sfocato sotto le finestre (approssimato)"
+ },
+ "q049-widget-bacheca-separata": {
+  "w_list": "on",
+  "_f": "bacheca separata a scorrimento (approssimato)"
+ },
+ "q050-menu-angolo-sul-puntatore": {
+  "w_menu": "on",
+  "_f": "menu contestuale sul puntatore (approssimato)"
+ },
+ "q050-menu-ancorato-puntatore": {
+  "w_menu": "on",
+  "_f": "menu contestuale ancorato (approssimato)"
+ },
+ "q050-menu-spostato-per-schermo": {
+  "w_menu": "on",
+  "_f": "menu contestuale spostato nello schermo (approssimato)"
+ },
+ "q050-menu-centrato-puntatore": {
+  "w_menu": "on",
+  "_f": "menu contestuale centrato (approssimato)"
+ },
+ "q050-menu-bordo-finestra": {
+  "w_menu": "on",
+  "_f": "menu contestuale al bordo della finestra (approssimato)"
+ },
+ "q051-azioni-barra-in-cima": {
+  "w_tabs": "on",
+  "_f": "barra azioni in cima (approssimato)"
+ },
+ "q051-azioni-icona-testo": {
+  "w_menu": "on",
+  "_f": "icona con testo (approssimato)"
+ },
+ "q052-voce-icona-e-scorciatoia": {
+  "w_menu": "on",
+  "_f": "voce con icona e scorciatoia (approssimato)"
+ },
+ "q052-voce-solo-testo": {
+  "w_menu": "on",
+  "_f": "voce solo testo (approssimato)"
+ },
+ "q052-voce-icona-allineata": {
+  "w_menu": "on",
+  "_f": "voce con icone in colonna (approssimato)"
+ },
+ "q052-voce-scorciatoia-al-passaggio": {
+  "w_menu": "on",
+  "_f": "scorciatoia al passaggio (approssimato)"
+ },
+ "q052-voce-simboli-tastiera": {
+  "w_menu": "on",
+  "_f": "simboli tastiera (approssimato)"
+ },
+ "q045-risultati-anteprima": {
+  "w_list": "on",
+  "_f": "elenco risultati con anteprima (approssimato)"
+ },
+ "q074-sb-tinta-neutra": {
+  "tb": "neutral",
+  "_f": "barra laterale a tinta neutra"
+ },
+ "q074-sb-traslucida": {
+  "tb": "translucent",
+  "_f": "barra laterale traslucida"
+ },
+ "q074-sb-comprimibile": {
+  "icons": "rounded",
+  "_f": "barra laterale a sola icona (approssimato)"
+ },
+ "q074-sb-titoli-sezione": {
+  "w_tabs": "on",
+  "_f": "sezioni con titoletti (approssimato)"
+ },
+ "q074-sb-pillola-attiva": {
+  "btn": "pill",
+  "_f": "voce attiva a pillola"
+ }
+}

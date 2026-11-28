@@ -1,0 +1,341 @@
+[
+  {
+    "category": "Finestre",
+    "subcategory": "Barra del titolo",
+    "question": "Come è allineato il titolo nella barra?",
+    "formula": "testo centrato su x; h = 2u; raggio 0",
+    "options": [
+      {"id": "titolo-centrato", "label": "Titolo centrato", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "titolo-sinistra", "label": "Titolo a sinistra", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "titolo-assente", "label": "Titolo assente, solo controlli", "sources": ["GNOME"], "customizable": true},
+      {"id": "titolo-fuso-toolbar", "label": "Titolo fuso nella barra degli strumenti", "sources": ["macOS"], "customizable": false},
+      {"id": "titolo-con-icona-documento", "label": "Titolo con icona del documento", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Barra del titolo",
+    "question": "Quanto è alta la barra del titolo?",
+    "formula": "h = 3u; scala con pct utente",
+    "options": [
+      {"id": "altezza-compatta-2u", "label": "Compatta, 2u", "sources": ["KDE"], "customizable": false},
+      {"id": "altezza-standard-3u", "label": "Standard, 3u", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "altezza-alta-4u", "label": "Alta, 4u", "sources": ["GNOME"], "customizable": false},
+      {"id": "altezza-touch-5u", "label": "Ingrandita per il tocco, 5u", "sources": ["Windows"], "customizable": false},
+      {"id": "altezza-tema-scalabile", "label": "Scalabile con il tema", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Barra del titolo",
+    "question": "Di che colore è lo sfondo della barra del titolo?",
+    "formula": "sfondo = T1 con alfa 0.6; accent = A(1) opzionale",
+    "options": [
+      {"id": "sfondo-come-contenuto", "label": "Stesso colore del contenuto", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "sfondo-neutro-t1", "label": "Tinta neutra T1", "sources": ["Windows"], "customizable": false},
+      {"id": "sfondo-accent", "label": "Colore accent scelto", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "sfondo-materiale", "label": "Materiale traslucido sfocato", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "sfondo-t2-piu-scuro", "label": "Tinta T2, un gradino più scura", "sources": ["GNOME"], "customizable": false},
+      {"id": "sfondo-accent-cornice", "label": "Accent sull'intera cornice", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Barra del titolo",
+    "question": "Cosa mostra la barra del titolo oltre al titolo?",
+    "formula": "icona 2u a sinistra; titolo; controlli a destra",
+    "options": [
+      {"id": "contenuto-solo-titolo", "label": "Solo il titolo", "sources": ["macOS"], "customizable": false},
+      {"id": "contenuto-icona-titolo", "label": "Icona e titolo", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "contenuto-menu-integrato", "label": "Menu dell'applicazione integrato", "sources": ["KDE"], "customizable": true},
+      {"id": "contenuto-campo-ricerca", "label": "Campo di ricerca", "sources": ["GNOME"], "customizable": false},
+      {"id": "contenuto-schede", "label": "Schede nella barra del titolo", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Pulsanti di controllo",
+    "question": "Dove si trovano i pulsanti chiudi, riduci e massimizza?",
+    "formula": "margine x = 1u; ordine fisso per gruppo",
+    "options": [
+      {"id": "pulsanti-sinistra", "label": "Sinistra: chiudi, riduci, massimizza", "sources": ["macOS"], "customizable": true},
+      {"id": "pulsanti-destra", "label": "Destra: riduci, massimizza, chiudi", "sources": ["Windows"], "customizable": false},
+      {"id": "pulsanti-destra-invertiti", "label": "Destra: massimizza, riduci, chiudi", "sources": ["GNOME"], "customizable": true},
+      {"id": "pulsanti-sinistra-kde", "label": "Sinistra, ordine del tema KDE", "sources": ["KDE"], "customizable": true},
+      {"id": "pulsanti-solo-chiudi", "label": "Solo chiudi, a destra", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Pulsanti di controllo",
+    "question": "Quale aspetto hanno i pulsanti di controllo?",
+    "formula": "icona = 2u; tratto = 1u/4; contorno 0",
+    "options": [
+      {"id": "icone-semafori", "label": "Cerchi colorati", "sources": ["macOS"], "customizable": false},
+      {"id": "icone-tratto", "label": "Icone a tratto monocromatiche", "sources": ["Windows"], "customizable": false},
+      {"id": "icone-piatte", "label": "Icone simboliche piatte", "sources": ["GNOME"], "customizable": true},
+      {"id": "icone-riquadro", "label": "Pulsanti quadrati con icona", "sources": ["KDE"], "customizable": true},
+      {"id": "icone-grandi-tocco", "label": "Icone grandi per il tocco", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Pulsanti di controllo",
+    "question": "Cosa succede al passaggio del mouse sui pulsanti?",
+    "formula": "sfondo hover = T1 + 1 livello; chiudi = rosso",
+    "options": [
+      {"id": "hover-simboli-gruppo", "label": "I simboli compaiono sul gruppo", "sources": ["macOS"], "customizable": false},
+      {"id": "hover-chiudi-rosso", "label": "Chiudi diventa rosso", "sources": ["Windows"], "customizable": false},
+      {"id": "hover-sfondo-neutro", "label": "Sfondo leggermente più scuro", "sources": ["GNOME"], "customizable": true},
+      {"id": "hover-accent-tenue", "label": "Sfondo accent tenue", "sources": ["KDE"], "customizable": true},
+      {"id": "hover-solo-focus", "label": "Evidenziazione solo con il focus da tastiera", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Pulsanti di controllo",
+    "question": "Cosa fa il pulsante massimizza?",
+    "formula": "pulsante = 2u; azione secondaria con tasto Opzione",
+    "options": [
+      {"id": "massimizza-schermo-intero", "label": "Schermo intero o zoom", "sources": ["macOS"], "customizable": false},
+      {"id": "massimizza-menu-snap", "label": "Menu di layout snap al passaggio", "sources": ["Windows"], "customizable": true},
+      {"id": "massimizza-semplice", "label": "Massimizza e ripristina", "sources": ["GNOME", "KDE"], "customizable": false},
+      {"id": "massimizza-assente-dialogo", "label": "Assente nelle finestre di dialogo", "sources": ["GNOME"], "customizable": false},
+      {"id": "massimizza-doppio-clic", "label": "Solo doppio clic sul titolo", "sources": ["macOS", "GNOME", "KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Pulsanti di controllo",
+    "question": "Quali pulsanti hanno le finestre di dialogo?",
+    "formula": "azione predefinita = A(1); annulla = T1",
+    "options": [
+      {"id": "dialogo-solo-chiudi", "label": "Solo chiudi", "sources": ["GNOME"], "customizable": false},
+      {"id": "dialogo-ok-annulla-destra", "label": "OK e Annulla a destra", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "dialogo-foglio-collegato", "label": "Foglio collegato alla finestra", "sources": ["macOS"], "customizable": false},
+      {"id": "dialogo-annulla-sinistra", "label": "Annulla a sinistra, azione a destra", "sources": ["GNOME"], "customizable": false},
+      {"id": "dialogo-azione-evidenziata", "label": "Azione predefinita evidenziata", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Bordi",
+    "question": "Quanto spesso è il bordo della finestra?",
+    "formula": "bordo = 1u; attivo = 1u in accent",
+    "options": [
+      {"id": "bordo-1u", "label": "Bordo di 1u", "sources": ["Windows"], "customizable": false},
+      {"id": "bordo-nessuno-solo-ombra", "label": "Nessun bordo, solo ombra", "sources": ["macOS"], "customizable": false},
+      {"id": "bordo-2u", "label": "Bordo di 2u", "sources": ["KDE"], "customizable": false},
+      {"id": "bordo-sottile-alone", "label": "Bordo sottile con alone", "sources": ["GNOME"], "customizable": true},
+      {"id": "bordo-adattivo-scala", "label": "Spessore che segue la scala utente", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Bordi",
+    "question": "Di che colore è il bordo della finestra?",
+    "formula": "inattivo = T2; attivo = A(1)",
+    "options": [
+      {"id": "bordo-grigio-t2", "label": "Grigio neutro T2", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "bordo-accent-attiva", "label": "Accent solo se attiva", "sources": ["Windows"], "customizable": true},
+      {"id": "bordo-accent-sempre", "label": "Accent sempre", "sources": ["KDE"], "customizable": true},
+      {"id": "bordo-trasparente", "label": "Trasparente, contrasto dall'ombra", "sources": ["macOS"], "customizable": false},
+      {"id": "bordo-contrasto-alto", "label": "Contrasto elevato su T0", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Angoli",
+    "question": "Quale raggio hanno gli angoli della finestra?",
+    "formula": "raggio = k * u, con k da 0 a 4",
+    "options": [
+      {"id": "raggio-1u", "label": "Raggio 1u", "sources": ["KDE"], "customizable": false},
+      {"id": "raggio-2u", "label": "Raggio 2u", "sources": ["Windows"], "customizable": false},
+      {"id": "raggio-3u", "label": "Raggio 3u", "sources": ["macOS"], "customizable": false},
+      {"id": "raggio-4u", "label": "Raggio 4u", "sources": ["GNOME"], "customizable": false},
+      {"id": "raggio-regolabile", "label": "Raggio regolabile da 0 a 4u", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Angoli",
+    "question": "Come si comportano gli angoli quando la finestra è massimizzata?",
+    "formula": "raggio = 0 se massimizzata; 2u altrimenti",
+    "options": [
+      {"id": "massimizzata-angoli-vivi", "label": "Angoli vivi", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "massimizzata-sempre-arrotondati", "label": "Sempre arrotondati", "sources": ["macOS"], "customizable": false},
+      {"id": "massimizzata-solo-fluttuante", "label": "Arrotondati solo se fluttuante", "sources": ["KDE"], "customizable": true},
+      {"id": "massimizzata-ombra-rimossa", "label": "Ombra rimossa, angoli vivi", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "massimizzata-raggio-ridotto", "label": "Raggio ridotto a 1u", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Ombre",
+    "question": "Che ombra proietta la finestra?",
+    "formula": "ombra = sfocatura 2u; offset y = 1u",
+    "options": [
+      {"id": "ombra-diffusa-due-livelli", "label": "Diffusa a due livelli", "sources": ["macOS"], "customizable": false},
+      {"id": "ombra-sottile-alone", "label": "Sottile con alone", "sources": ["Windows"], "customizable": true},
+      {"id": "ombra-marcata", "label": "Marcata sotto la finestra", "sources": ["KDE"], "customizable": true},
+      {"id": "ombra-solo-attiva", "label": "Forte solo se attiva", "sources": ["GNOME"], "customizable": false},
+      {"id": "ombra-dinamica-sfondo", "label": "Dinamica, segue lo sfondo", "sources": ["macOS"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Ombre",
+    "question": "Che ombra hanno menu e popup?",
+    "formula": "ombra popup = 1u; raggio = raggio finestra",
+    "options": [
+      {"id": "popup-ombra-leggera", "label": "Ombra leggera", "sources": ["Windows"], "customizable": false},
+      {"id": "popup-sfocatura-materiale", "label": "Sfocatura e materiale", "sources": ["macOS"], "customizable": true},
+      {"id": "popup-solo-bordo", "label": "Solo bordo sottile, senza ombra", "sources": ["KDE"], "customizable": false},
+      {"id": "popup-ombra-forte", "label": "Ombra forte", "sources": ["GNOME"], "customizable": false},
+      {"id": "popup-ombra-intensa-bordo", "label": "Ombra intensa con bordo sottile", "sources": ["KDE", "GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Ridimensionamento",
+    "question": "Quanto è larga l'area per afferrare il bordo?",
+    "formula": "presa = 1u esterna; invisibile",
+    "options": [
+      {"id": "presa-sottile", "label": "Bordo sottile di 1u", "sources": ["Windows"], "customizable": false},
+      {"id": "presa-larga-invisibile", "label": "Bordo largo di 2u invisibile", "sources": ["macOS"], "customizable": false},
+      {"id": "presa-angolo-maniglia", "label": "Angolo di 3u con maniglia", "sources": ["KDE"], "customizable": false},
+      {"id": "presa-tocco-ampliata", "label": "Area ampliata per il tocco", "sources": ["Windows"], "customizable": true},
+      {"id": "presa-alt-trascina", "label": "Ridimensiona con Alt e tasto destro", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Ridimensionamento",
+    "question": "Come si vede il ridimensionamento mentre lo trascini?",
+    "formula": "contenuto ridisegnato a scatti di u",
+    "options": [
+      {"id": "ridim-tempo-reale", "label": "Ridisegno in tempo reale", "sources": ["macOS"], "customizable": false},
+      {"id": "ridim-contorno-fantasma", "label": "Contorno fantasma", "sources": ["KDE"], "customizable": true},
+      {"id": "ridim-snap-bordi", "label": "Snap ai bordi dello schermo", "sources": ["Windows"], "customizable": true},
+      {"id": "ridim-minimo-app", "label": "Rispetta il minimo dichiarato dall'app", "sources": ["GNOME"], "customizable": false},
+      {"id": "ridim-scatti-griglia", "label": "Scatti a griglia", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Ridimensionamento",
+    "question": "Quale dimensione minima ha una finestra?",
+    "formula": "min = contenuto minimo; reflow sotto soglia",
+    "options": [
+      {"id": "minimo-da-contenuto", "label": "Ricavato dal contenuto", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "minimo-fisso", "label": "Fisso uguale per tutte", "sources": ["KDE"], "customizable": true},
+      {"id": "minimo-dichiarato-app", "label": "Dichiarato dall'applicazione", "sources": ["GNOME"], "customizable": false},
+      {"id": "minimo-legato-scala", "label": "Legato alla scala utente", "sources": ["KDE"], "customizable": true},
+      {"id": "minimo-ripiega-layout", "label": "Il layout si ripiega sotto il minimo", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Stato attivo/inattivo",
+    "question": "Come appare la barra del titolo di una finestra inattiva?",
+    "formula": "testo = T2 quando inattiva; icone = T2",
+    "options": [
+      {"id": "inattiva-attenuata", "label": "Testo e icone attenuati", "sources": ["macOS", "Windows"], "customizable": false},
+      {"id": "inattiva-pulsanti-grigi", "label": "Pulsanti grigi", "sources": ["macOS"], "customizable": false},
+      {"id": "inattiva-tinta-neutra", "label": "Barra con tinta neutra", "sources": ["GNOME"], "customizable": false},
+      {"id": "inattiva-ombra-ridotta", "label": "Ombra ridotta, colore invariato", "sources": ["KDE"], "customizable": true},
+      {"id": "inattiva-nessun-cambio", "label": "Nessun cambio visibile", "sources": ["KDE"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Stato attivo/inattivo",
+    "question": "Come si segnala la finestra attiva?",
+    "formula": "bordo attivo = A(1) 1u; ombra piena",
+    "options": [
+      {"id": "attiva-bordo-accent", "label": "Bordo in accent", "sources": ["Windows"], "customizable": true},
+      {"id": "attiva-ombra-marcata", "label": "Ombra più marcata", "sources": ["GNOME"], "customizable": false},
+      {"id": "attiva-pulsanti-colore", "label": "Pulsanti a colore pieno", "sources": ["macOS"], "customizable": false},
+      {"id": "attiva-titolo-grassetto", "label": "Titolo in grassetto", "sources": ["KDE"], "customizable": false},
+      {"id": "attiva-tinta-accent-barra", "label": "Tinta accent sulla barra", "sources": ["Windows", "KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Stato attivo/inattivo",
+    "question": "Come segnala una finestra che richiede attenzione?",
+    "formula": "segnale = A(1); 2 cicli, poi fermo",
+    "options": [
+      {"id": "attenzione-lampeggio", "label": "Lampeggio della barra", "sources": ["Windows"], "customizable": false},
+      {"id": "attenzione-rimbalzo-dock", "label": "Rimbalzo dell'icona nel dock", "sources": ["macOS"], "customizable": false},
+      {"id": "attenzione-badge", "label": "Badge sull'icona", "sources": ["GNOME"], "customizable": false},
+      {"id": "attenzione-notifica-azione", "label": "Notifica con azione", "sources": ["Windows", "GNOME"], "customizable": true},
+      {"id": "attenzione-punto-barra", "label": "Solo punto nella barra delle attività", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Animazioni",
+    "question": "Come si anima l'apertura di una finestra?",
+    "formula": "scala 0.95 a 1; opacità 0 a 1",
+    "options": [
+      {"id": "apertura-scala-dissolvenza", "label": "Scala e dissolvenza", "sources": ["macOS"], "customizable": false},
+      {"id": "apertura-dissolvenza", "label": "Solo dissolvenza", "sources": ["Windows"], "customizable": false},
+      {"id": "apertura-scorrimento", "label": "Scorrimento dal bordo", "sources": ["KDE"], "customizable": true},
+      {"id": "apertura-dall-icona", "label": "Zoom dall'icona nel dock", "sources": ["macOS"], "customizable": false},
+      {"id": "apertura-nessuna", "label": "Nessuna animazione", "sources": ["GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Animazioni",
+    "question": "Come si anima la chiusura di una finestra?",
+    "formula": "scala 1 a 0.95; opacità 1 a 0",
+    "options": [
+      {"id": "chiusura-dissolvenza-rapida", "label": "Dissolvenza rapida", "sources": ["Windows"], "customizable": false},
+      {"id": "chiusura-scala-giu", "label": "Scala verso il basso", "sources": ["macOS"], "customizable": false},
+      {"id": "chiusura-scorrimento", "label": "Scorrimento verso il basso", "sources": ["KDE"], "customizable": true},
+      {"id": "chiusura-istantanea", "label": "Scomparsa istantanea", "sources": ["GNOME"], "customizable": false},
+      {"id": "chiusura-scala-dissolvenza", "label": "Scala e dissolvenza", "sources": ["KDE", "GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Animazioni",
+    "question": "Quanto durano le animazioni di finestra?",
+    "formula": "durata breve; curva ease-out",
+    "options": [
+      {"id": "durata-breve", "label": "Breve, sotto 200 ms", "sources": ["Windows"], "customizable": false},
+      {"id": "durata-media-morbida", "label": "Media, con curva morbida", "sources": ["macOS"], "customizable": false},
+      {"id": "durata-regolabile", "label": "Regolabile dall'utente", "sources": ["KDE"], "customizable": true},
+      {"id": "durata-ridotta-movimento", "label": "Ridotta se il movimento è limitato", "sources": ["macOS", "Windows", "GNOME"], "customizable": true},
+      {"id": "durata-solo-dissolvenza", "label": "Solo dissolvenza, senza movimento", "sources": ["GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Multi-finestra e tiling",
+    "question": "Come si affiancano due finestre?",
+    "formula": "metà = larghezza / 2 - 1u; bordo di 1u",
+    "options": [
+      {"id": "affianca-trascina-bordo", "label": "Snap a metà trascinando al bordo", "sources": ["Windows"], "customizable": true},
+      {"id": "affianca-split-view", "label": "Split view a schermo intero", "sources": ["macOS"], "customizable": false},
+      {"id": "affianca-tiling-auto", "label": "Tiling automatico", "sources": ["KDE", "GNOME"], "customizable": true},
+      {"id": "affianca-scorciatoia", "label": "Scorciatoia da tastiera", "sources": ["KDE"], "customizable": true},
+      {"id": "affianca-griglia-layout", "label": "Griglia di layout al passaggio", "sources": ["Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Finestre",
+    "subcategory": "Multi-finestra e tiling",
+    "question": "Come si passa da una finestra all'altra?",
+    "formula": "anteprima = miniatura 4u; ordine = uso recente",
+    "options": [
+      {"id": "switch-alt-tab", "label": "Alt+Tab per finestre", "sources": ["Windows"], "customizable": true},
+      {"id": "switch-cmd-tab", "label": "Cmd+Tab per applicazioni", "sources": ["macOS"], "customizable": true},
+      {"id": "switch-panoramica-gruppi", "label": "Panoramica per gruppi di finestre", "sources": ["macOS"], "customizable": false},
+      {"id": "switch-panoramica-miniature", "label": "Panoramica con miniature", "sources": ["GNOME"], "customizable": false},
+      {"id": "switch-task-anteprima", "label": "Task switcher con anteprima", "sources": ["KDE"], "customizable": true}
+    ]
+  }
+]

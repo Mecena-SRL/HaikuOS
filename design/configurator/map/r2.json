@@ -1,0 +1,55 @@
+{
+ "q033-dock-auto-nascosto": {
+  "dock": "none",
+  "_f": "dock nascosto finche il puntatore non tocca il bordo"
+ },
+ "q033-dock-solo-a-richiesta": {
+  "dock": "none",
+  "_f": "dock nascosto, richiamato da tasto dedicato"
+ },
+ "q031-menu-click-apre": {
+  "_nv": true
+ },
+ "q031-menu-solo-click": {
+  "_nv": true
+ },
+ "q031-menu-hover-ritardo": {
+  "_nv": true
+ },
+ "q031-menu-tastiera-alt": {
+  "_nv": true
+ },
+ "q033-dock-sempre-visibile": {
+  "_nv": true
+ },
+ "q033-dock-nascosto-schermo-intero": {
+  "_nv": true
+ },
+ "q033-dock-ricomparsa-ritardata": {
+  "_nv": true
+ },
+ "q035-rimbalzo-icona": {
+  "_nv": true
+ },
+ "q035-cursore-di-attesa": {
+  "_nv": true
+ },
+ "q035-lampeggio-icona": {
+  "_nv": true
+ },
+ "q043-ricerca-super": {
+  "_nv": true
+ },
+ "q043-ricerca-cmd-spazio": {
+  "_nv": true
+ },
+ "q043-ricerca-tasto-windows": {
+  "_nv": true
+ },
+ "q043-ricerca-alt-spazio": {
+  "_nv": true
+ },
+ "q043-ricerca-digita-ovunque": {
+  "_nv": true
+ }
+}

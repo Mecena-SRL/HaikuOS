@@ -1,0 +1,341 @@
+[
+  {
+    "category": "Barra superiore e menu",
+    "subcategory": "Posizione",
+    "question": "Dove sta la barra dei menu globale?",
+    "formula": "h = 2u; larghezza = schermo; fissa in alto",
+    "options": [
+      {"id": "barra-alta-fissa", "label": "Alta, fissa, globale", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "barra-alta-auto-nascosta", "label": "Alta, nascosta finché il puntatore non tocca il bordo", "sources": ["macOS", "GNOME"], "customizable": true},
+      {"id": "menu-dentro-finestra", "label": "Menu dentro ogni finestra", "sources": ["Windows"], "customizable": false},
+      {"id": "pannello-basso-con-menu", "label": "Pannello basso con menu integrato", "sources": ["KDE"], "customizable": true},
+      {"id": "barra-comparsa-schermo-intero", "label": "Nascosta a schermo intero, compare in alto", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Barra superiore e menu",
+    "subcategory": "Orologio",
+    "question": "Cosa mostra l'orologio nella barra?",
+    "formula": "larghezza = 6u; testo = T1 su sfondo barra",
+    "options": [
+      {"id": "orologio-ora-data-breve", "label": "Ora e data brevi", "sources": ["Windows", "macOS"], "customizable": true},
+      {"id": "orologio-solo-ora", "label": "Solo ora", "sources": ["macOS"], "customizable": true},
+      {"id": "orologio-giorno-data-ora", "label": "Giorno della settimana, data e ora", "sources": ["macOS"], "customizable": true},
+      {"id": "orologio-centrale-calendario", "label": "Ora al centro, calendario a tendina", "sources": ["GNOME"], "customizable": false},
+      {"id": "orologio-con-secondi", "label": "Ora con secondi", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Barra superiore e menu",
+    "subcategory": "Stato",
+    "question": "Come appaiono le icone di stato nella barra?",
+    "formula": "icona = 1u; spaziatura = 0.5u; allineate a destra",
+    "options": [
+      {"id": "stato-icone-a-destra", "label": "Icone di stato a destra, sempre visibili", "sources": ["macOS"], "customizable": true},
+      {"id": "stato-menu-rapido-unico", "label": "Un unico menu rapido con gruppo di icone", "sources": ["GNOME"], "customizable": false},
+      {"id": "stato-vassoio-applet", "label": "Vassoio di sistema con applet", "sources": ["KDE"], "customizable": false},
+      {"id": "stato-solo-attive", "label": "Solo le icone attive, le altre nascoste", "sources": ["Windows"], "customizable": true},
+      {"id": "stato-testo-con-icona", "label": "Icona con testo, ad esempio batteria in percentuale", "sources": ["macOS"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Barra superiore e menu",
+    "subcategory": "Dimensioni",
+    "question": "Quanto è alta la barra superiore?",
+    "formula": "h = 1.5u a 2u; testo centrato verticalmente",
+    "options": [
+      {"id": "altezza-compatta", "label": "Compatta, una riga", "sources": ["GNOME"], "customizable": false},
+      {"id": "altezza-standard", "label": "Standard, con respiro verticale", "sources": ["macOS"], "customizable": false},
+      {"id": "altezza-alta-padding", "label": "Alta, con spaziatura generosa", "sources": ["Windows"], "customizable": true},
+      {"id": "altezza-doppia", "label": "Doppia, con pannello a due righe", "sources": ["KDE"], "customizable": true},
+      {"id": "altezza-adattiva-testo", "label": "Adattiva al corpo del testo", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Barra superiore e menu",
+    "subcategory": "Menu globale",
+    "question": "Come si apre e si sfoglia un menu della barra?",
+    "formula": "ritardo apertura = 0.3 s; evidenziazione = A(1)",
+    "options": [
+      {"id": "menu-click-apre", "label": "Click apre, il passaggio sfoglia gli altri menu", "sources": ["macOS"], "customizable": true},
+      {"id": "menu-solo-click", "label": "Solo click, nessun passaggio", "sources": ["Windows"], "customizable": false},
+      {"id": "menu-hover-ritardo", "label": "Passaggio con ritardo di 0.3 s", "sources": ["GNOME"], "customizable": true},
+      {"id": "menu-tastiera-alt", "label": "Apertura da tastiera con Alt, poi frecce", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "menu-scorrimento-ampio", "label": "Voci a tendina a larghezza piena", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Dock e lanciatore",
+    "subcategory": "Dock",
+    "question": "Dove sta il dock?",
+    "formula": "h = 6u; margine 1u dal bordo",
+    "options": [
+      {"id": "dock-basso-centrato", "label": "Basso centrato", "sources": ["macOS"], "customizable": true},
+      {"id": "dock-basso-a-tutta-larghezza", "label": "Basso, a tutta larghezza", "sources": ["Windows", "KDE"], "customizable": false},
+      {"id": "dock-laterale-sinistro", "label": "Laterale sinistro", "sources": ["GNOME"], "customizable": true},
+      {"id": "dock-fluttuante", "label": "Fluttuante, staccato dai bordi", "sources": ["macOS"], "customizable": true},
+      {"id": "dock-alto", "label": "Alto, a tutta larghezza", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Dock e lanciatore",
+    "subcategory": "Dock",
+    "question": "Come si comporta il dock quando non è in uso?",
+    "formula": "soglia di comparsa = 0.5u dal bordo",
+    "options": [
+      {"id": "dock-sempre-visibile", "label": "Sempre visibile", "sources": ["Windows"], "customizable": false},
+      {"id": "dock-auto-nascosto", "label": "Si nasconde, ricompare al bordo", "sources": ["macOS", "GNOME"], "customizable": true},
+      {"id": "dock-nascosto-schermo-intero", "label": "Nascosto a schermo intero", "sources": ["macOS"], "customizable": true},
+      {"id": "dock-ricomparsa-ritardata", "label": "Ricompare dopo un ritardo di 0.5 s", "sources": ["KDE"], "customizable": true},
+      {"id": "dock-solo-a-richiesta", "label": "Visibile solo con un tasto dedicato", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Dock e lanciatore",
+    "subcategory": "Dock",
+    "question": "Le icone del dock si ingrandiscono al passaggio del mouse?",
+    "formula": "scala massima = 1.5; raggio = 2u",
+    "options": [
+      {"id": "ingrandimento-graduale", "label": "Ingrandimento graduale sotto il cursore", "sources": ["macOS"], "customizable": true},
+      {"id": "nessun-ingrandimento", "label": "Nessun ingrandimento", "sources": ["Windows", "GNOME"], "customizable": false},
+      {"id": "ingrandimento-massimo-1-5", "label": "Fino a 1,5 volte la dimensione base", "sources": ["macOS"], "customizable": true},
+      {"id": "icone-fisse-con-punto", "label": "Icone fisse con indicatore a punto", "sources": ["GNOME"], "customizable": false},
+      {"id": "ingrandimento-vicine", "label": "Ingrandimento solo sulle icone vicine", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Dock e lanciatore",
+    "subcategory": "Dock",
+    "question": "Come si segnala che un'app si sta avviando?",
+    "formula": "animazione = 1 rimbalzo; durata = 1 s",
+    "options": [
+      {"id": "rimbalzo-icona", "label": "Rimbalzo dell'icona", "sources": ["macOS"], "customizable": false},
+      {"id": "cursore-di-attesa", "label": "Cursore di attesa e icona pulsante", "sources": ["Windows"], "customizable": false},
+      {"id": "lampeggio-icona", "label": "Lampeggio dell'icona", "sources": ["KDE"], "customizable": false},
+      {"id": "barra-progressiva-sotto", "label": "Barra di avanzamento sotto l'icona", "sources": ["GNOME"], "customizable": true},
+      {"id": "puntino-sotto-icona", "label": "Puntino che compare sotto l'icona", "sources": ["macOS"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Dock e lanciatore",
+    "subcategory": "Taskbar",
+    "question": "Come si raggruppano le finestre aperte nella taskbar?",
+    "formula": "icona = 3u; etichetta = 6u",
+    "options": [
+      {"id": "taskbar-raggruppa-app", "label": "Raggruppa le finestre per app", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "taskbar-una-icona-per-finestra", "label": "Una icona per ogni finestra", "sources": ["Windows"], "customizable": true},
+      {"id": "taskbar-solo-fissate", "label": "Solo app fissate, con puntino per quelle aperte", "sources": ["macOS"], "customizable": true},
+      {"id": "taskbar-etichette-complete", "label": "Icone con etichetta del titolo", "sources": ["KDE"], "customizable": false},
+      {"id": "taskbar-elenco-app", "label": "Elenco di applicazioni raggruppate", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Dock e lanciatore",
+    "subcategory": "Lanciatore",
+    "question": "Che aspetto ha il lanciatore delle applicazioni?",
+    "formula": "griglia = 6 colonne; cella = 3u",
+    "options": [
+      {"id": "lancia-griglia-schermo", "label": "Griglia a schermo intero con ricerca", "sources": ["macOS", "GNOME"], "customizable": false},
+      {"id": "lancia-menu-riquadri", "label": "Menu con riquadri e app fissate", "sources": ["Windows"], "customizable": true},
+      {"id": "lancia-menu-categorie", "label": "Menu a categorie con ricerca", "sources": ["KDE"], "customizable": true},
+      {"id": "lancia-elenco-alfabetico", "label": "Elenco alfabetico laterale", "sources": ["GNOME"], "customizable": false},
+      {"id": "lancia-finestra-compatta", "label": "Finestra compatta a tendina dal pulsante", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Dock e lanciatore",
+    "subcategory": "Lanciatore",
+    "question": "Dove sta il pulsante di avvio?",
+    "formula": "margine = 1u dal bordo",
+    "options": [
+      {"id": "avvio-centro", "label": "Al centro della barra", "sources": ["Windows"], "customizable": true},
+      {"id": "avvio-sinistra", "label": "A sinistra della barra", "sources": ["KDE"], "customizable": true},
+      {"id": "avvio-angolo-alto-sinistro", "label": "Angolo in alto a sinistra", "sources": ["GNOME"], "customizable": false},
+      {"id": "avvio-primo-del-dock", "label": "Primo elemento del dock", "sources": ["macOS"], "customizable": false},
+      {"id": "avvio-nascosto-tasto", "label": "Nascosto, si apre con il tasto Super", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Pannello e vassoio",
+    "subcategory": "Centro notifiche",
+    "question": "Da dove scorre il centro notifiche?",
+    "formula": "larghezza = 24u; altezza = schermo - 2u",
+    "options": [
+      {"id": "nc-da-destra", "label": "Pannello laterale da destra", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "nc-da-alto-centro", "label": "Dall'alto, al centro, con calendario", "sources": ["GNOME"], "customizable": false},
+      {"id": "nc-dal-pannello", "label": "Dal pannello in basso", "sources": ["KDE"], "customizable": true},
+      {"id": "nc-finestra-centrale", "label": "Finestra centrale modale", "sources": ["KDE"], "customizable": false},
+      {"id": "nc-tendina-orologio", "label": "Tendina che parte dall'orologio", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Pannello e vassoio",
+    "subcategory": "Centro notifiche",
+    "question": "Come si raggruppano le notifiche?",
+    "formula": "gruppo = 1 riga + contatore in T2",
+    "options": [
+      {"id": "notif-raggruppate-app", "label": "Raggruppate per app, espandibili", "sources": ["macOS", "Windows"], "customizable": true},
+      {"id": "notif-pila-ultima", "label": "Pila con visibile solo l'ultima", "sources": ["macOS"], "customizable": false},
+      {"id": "notif-elenco-cronologico", "label": "Elenco cronologico semplice", "sources": ["GNOME"], "customizable": false},
+      {"id": "notif-per-priorita", "label": "Ordinate per priorità", "sources": ["Windows"], "customizable": true},
+      {"id": "notif-nascoste-contatore", "label": "Tutte nascoste dietro un contatore", "sources": ["KDE"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Pannello e vassoio",
+    "subcategory": "Vassoio",
+    "question": "Come sono mostrate le icone del vassoio di sistema?",
+    "formula": "slot = 1u; visibili = 3 + freccia",
+    "options": [
+      {"id": "vassoio-tutte-visibili", "label": "Tutte le icone sempre visibili", "sources": ["macOS"], "customizable": false},
+      {"id": "vassoio-overflow-freccia", "label": "Icone secondarie dietro una freccia", "sources": ["Windows"], "customizable": true},
+      {"id": "vassoio-solo-attive", "label": "Solo le icone con attività recente", "sources": ["KDE"], "customizable": true},
+      {"id": "vassoio-area-unica", "label": "Icone raggruppate in un'unica area", "sources": ["GNOME"], "customizable": false},
+      {"id": "vassoio-nascosto-a-click", "label": "Vassoio nascosto, si apre con un click", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Pannello e vassoio",
+    "subcategory": "Vassoio",
+    "question": "Che forma ha il pannello delle impostazioni rapide?",
+    "formula": "larghezza = 18u; tessera = 4u",
+    "options": [
+      {"id": "rapidi-centro-controllo", "label": "Centro di controllo con tessere", "sources": ["macOS"], "customizable": false},
+      {"id": "rapidi-tessere-griglia", "label": "Griglia di tessere affiancate", "sources": ["Windows"], "customizable": true},
+      {"id": "rapidi-cursori", "label": "Cursori di volume e luminosità in elenco", "sources": ["GNOME"], "customizable": true},
+      {"id": "rapidi-applet-modulari", "label": "Pannello con applet modulari", "sources": ["KDE"], "customizable": false},
+      {"id": "rapidi-tendina-sezioni", "label": "Tendina unica con sezioni", "sources": ["macOS"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Ricerca",
+    "subcategory": "Scorciatoia",
+    "question": "Con quale scorciatoia si apre la ricerca?",
+    "formula": "tasto = modificatore + Spazio",
+    "options": [
+      {"id": "ricerca-super", "label": "Solo tasto Super", "sources": ["GNOME"], "customizable": false},
+      {"id": "ricerca-cmd-spazio", "label": "Comando più Spazio", "sources": ["macOS"], "customizable": true},
+      {"id": "ricerca-tasto-windows", "label": "Tasto Windows", "sources": ["Windows"], "customizable": true},
+      {"id": "ricerca-alt-spazio", "label": "Alt più Spazio", "sources": ["KDE"], "customizable": true},
+      {"id": "ricerca-digita-ovunque", "label": "Digitazione diretta, senza scorciatoia", "sources": ["GNOME"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Ricerca",
+    "subcategory": "Campo di ricerca",
+    "question": "Dove appare il campo di ricerca?",
+    "formula": "larghezza = 20u; altezza = 2u",
+    "options": [
+      {"id": "ricerca-centrata-alta", "label": "Centrata in alto, come overlay", "sources": ["GNOME"], "customizable": false},
+      {"id": "ricerca-un-terzo-alto", "label": "Circa a un terzo dall'alto", "sources": ["macOS"], "customizable": true},
+      {"id": "ricerca-nella-barra", "label": "Nella barra delle applicazioni", "sources": ["Windows"], "customizable": true},
+      {"id": "ricerca-nel-lanciatore", "label": "Dentro il lanciatore", "sources": ["KDE"], "customizable": false},
+      {"id": "ricerca-schermo-intero", "label": "Schermata intera, campo in cima", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Ricerca",
+    "subcategory": "Risultati",
+    "question": "Come sono presentati i risultati di ricerca?",
+    "formula": "riga = 2u; anteprima = 8u",
+    "options": [
+      {"id": "risultati-anteprima", "label": "Elenco con anteprima laterale", "sources": ["macOS"], "customizable": true},
+      {"id": "risultati-elenco-semplice", "label": "Elenco semplice con icona", "sources": ["Windows"], "customizable": false},
+      {"id": "risultati-schede", "label": "Schede raggruppate per categoria", "sources": ["GNOME"], "customizable": false},
+      {"id": "risultati-riga-azioni", "label": "Riga singola con azioni rapide", "sources": ["KDE"], "customizable": true},
+      {"id": "risultati-web-mescolati", "label": "Risultati web mescolati ai locali", "sources": ["Windows"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Desktop e sfondo",
+    "subcategory": "Icone desktop",
+    "question": "Il desktop mostra icone di file e cartelle?",
+    "formula": "icona = 4u; cella = 6u",
+    "options": [
+      {"id": "desktop-icone-visibili", "label": "Visibili in griglia", "sources": ["Windows", "macOS"], "customizable": true},
+      {"id": "desktop-nessuna-icona", "label": "Nessuna icona, desktop pulito", "sources": ["GNOME"], "customizable": false},
+      {"id": "desktop-solo-recenti", "label": "Solo cartelle e file recenti", "sources": ["macOS"], "customizable": true},
+      {"id": "desktop-icone-libere", "label": "Posizionate liberamente", "sources": ["KDE"], "customizable": true},
+      {"id": "desktop-icone-nascoste", "label": "Nascoste con un comando", "sources": ["macOS"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Desktop e sfondo",
+    "subcategory": "Griglia icone",
+    "question": "Come sono disposte le icone del desktop?",
+    "formula": "cella = 6u x 6u; margine = 1u",
+    "options": [
+      {"id": "griglia-automatica-alto-sinistra", "label": "Griglia automatica dall'alto a sinistra", "sources": ["macOS"], "customizable": true},
+      {"id": "griglia-libera", "label": "Posizionamento libero", "sources": ["KDE"], "customizable": true},
+      {"id": "griglia-ordinata-nome", "label": "Ordinate per nome", "sources": ["Windows"], "customizable": true},
+      {"id": "griglia-ordinata-data", "label": "Ordinate per data", "sources": ["macOS"], "customizable": true},
+      {"id": "griglia-allineata-bordo", "label": "Allineate al bordo destro", "sources": ["Windows"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Desktop e sfondo",
+    "subcategory": "Sfondo",
+    "question": "Che tipo di sfondo mostra il desktop?",
+    "formula": "copertura = schermo intero; nessuna barra",
+    "options": [
+      {"id": "sfondo-immagine-unica", "label": "Immagine singola, riempimento", "sources": ["Windows", "GNOME"], "customizable": true},
+      {"id": "sfondo-colore-pieno", "label": "Colore pieno dalla tinta T1", "sources": ["GNOME"], "customizable": true},
+      {"id": "sfondo-dinamico-orario", "label": "Dinamico, cambia con l'ora", "sources": ["macOS"], "customizable": true},
+      {"id": "sfondo-carosello", "label": "Carosello con intervallo", "sources": ["Windows"], "customizable": true},
+      {"id": "sfondo-adattato-tema", "label": "Adattato alla luce del tema", "sources": ["macOS"], "customizable": false},
+      {"id": "sfondo-sfocato-finestre", "label": "Sfocato sotto le finestre", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Desktop e sfondo",
+    "subcategory": "Widget",
+    "question": "Dove vivono i widget?",
+    "formula": "widget = 12u x 8u; bordo = 1u",
+    "options": [
+      {"id": "widget-sul-desktop", "label": "Pannello widget sul desktop", "sources": ["macOS"], "customizable": true},
+      {"id": "widget-bacheca-separata", "label": "Bacheca separata a scorrimento", "sources": ["Windows"], "customizable": true},
+      {"id": "widget-assenti", "label": "Nessun widget", "sources": ["GNOME"], "customizable": false},
+      {"id": "widget-applet-trascinabili", "label": "Applet trascinabili sul desktop", "sources": ["KDE"], "customizable": true},
+      {"id": "widget-galleria-scelta", "label": "Galleria da cui scegliere", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Menu contestuali",
+    "subcategory": "Posizione",
+    "question": "Dove compare un menu contestuale rispetto al puntatore?",
+    "formula": "offset = 0.5u dal puntatore; margine = 1u",
+    "options": [
+      {"id": "menu-angolo-sul-puntatore", "label": "Angolo in alto a sinistra sul puntatore", "sources": ["Windows"], "customizable": false},
+      {"id": "menu-ancorato-puntatore", "label": "Ancorato al puntatore con offset", "sources": ["macOS"], "customizable": false},
+      {"id": "menu-spostato-per-schermo", "label": "Spostato per restare nello schermo", "sources": ["Windows"], "customizable": false},
+      {"id": "menu-centrato-puntatore", "label": "Centrato sul puntatore", "sources": ["KDE"], "customizable": false},
+      {"id": "menu-bordo-finestra", "label": "Ancorato al bordo della finestra", "sources": ["GNOME"], "customizable": true}
+    ]
+  },
+  {
+    "category": "Menu contestuali",
+    "subcategory": "Azioni rapide",
+    "question": "Il menu contestuale mostra una barra di azioni in cima?",
+    "formula": "barra = 2u; icona = 1u",
+    "options": [
+      {"id": "azioni-barra-in-cima", "label": "Barra di icone in cima", "sources": ["Windows"], "customizable": true},
+      {"id": "azioni-nessuna-barra", "label": "Nessuna barra di azioni", "sources": ["GNOME"], "customizable": false},
+      {"id": "azioni-sottomenu-servizi", "label": "Sottomenu Servizi", "sources": ["macOS"], "customizable": true},
+      {"id": "azioni-sottomenu-kde", "label": "Azioni in fondo con sottomenu", "sources": ["KDE"], "customizable": true},
+      {"id": "azioni-icona-testo", "label": "Icona con testo in ogni voce", "sources": ["macOS"], "customizable": false}
+    ]
+  },
+  {
+    "category": "Menu contestuali",
+    "subcategory": "Voci",
+    "question": "Come sono composte le voci del menu contestuale?",
+    "formula": "voce = 2u; icona = 1u; scorciatoia a destra",
+    "options": [
+      {"id": "voce-icona-e-scorciatoia", "label": "Icona a sinistra e scorciatoia a destra", "sources": ["Windows", "KDE"], "customizable": true},
+      {"id": "voce-solo-testo", "label": "Solo testo, scorciatoie a destra", "sources": ["macOS"], "customizable": false},
+      {"id": "voce-icona-allineata", "label": "Icone allineate in colonna", "sources": ["GNOME"], "customizable": true},
+      {"id": "voce-scorciatoia-al-passaggio", "label": "Scorciatoie visibili solo al passaggio", "sources": ["GNOME"], "customizable": false},
+      {"id": "voce-simboli-tastiera", "label": "Simboli della tastiera al posto del testo", "sources": ["macOS"], "customizable": true}
+    ]
+  }
+]

@@ -1,0 +1,369 @@
+{
+ "q028-orologio-ora-data-breve": {
+  "clk": "full",
+  "_f": "ora e data brevi (approssimato a full)"
+ },
+ "q028-orologio-solo-ora": {
+  "clk": "time",
+  "_f": "solo ora"
+ },
+ "q028-orologio-giorno-data-ora": {
+  "clk": "full",
+  "_f": "giorno, data e ora"
+ },
+ "q028-orologio-centrale-calendario": {
+  "clk": "full",
+  "_f": "ora con calendario a tendina (approssimato a full)"
+ },
+ "q028-orologio-con-secondi": {
+  "clk": "sec",
+  "_f": "ora con secondi"
+ },
+ "q029-stato-icone-a-destra": {
+  "_f": "icone di stato a destra, sempre visibili"
+ },
+ "q029-stato-menu-rapido-unico": {
+  "w_menu": "on",
+  "_f": "un unico menu rapido con gruppo di icone"
+ },
+ "q029-stato-vassoio-applet": {
+  "_f": "vassoio di sistema con applet"
+ },
+ "q029-stato-solo-attive": {
+  "_f": "solo icone attive, le altre nascoste"
+ },
+ "q029-stato-testo-con-icona": {
+  "w_badge": "on",
+  "_f": "icona con valore testuale, es. batteria in %"
+ },
+ "q031-menu-click-apre": {
+  "_nv": true
+ },
+ "q031-menu-solo-click": {
+  "_nv": true
+ },
+ "q031-menu-hover-ritardo": {
+  "_nv": true
+ },
+ "q031-menu-tastiera-alt": {
+  "_nv": true
+ },
+ "q031-menu-scorrimento-ampio": {
+  "_f": "voci a tendina a larghezza piena"
+ },
+ "q032-dock-alto": {
+  "dock": "top",
+  "_f": "dock in alto, a tutta larghezza"
+ },
+ "q033-dock-sempre-visibile": {
+  "_f": "dock sempre visibile"
+ },
+ "q033-dock-nascosto-schermo-intero": {
+  "_f": "dock nascosto a schermo intero"
+ },
+ "q033-dock-ricomparsa-ritardata": {
+  "_f": "dock ricompare dopo 0.5 s"
+ },
+ "q035-rimbalzo-icona": {
+  "_f": "icona rimbalza durante l'avvio"
+ },
+ "q035-cursore-di-attesa": {
+  "_f": "cursore di attesa e icona pulsante"
+ },
+ "q035-lampeggio-icona": {
+  "_f": "icona lampeggia durante l'avvio"
+ },
+ "q035-barra-progressiva-sotto": {
+  "w_progress": "on",
+  "_f": "barra di avanzamento sotto l'icona"
+ },
+ "q035-puntino-sotto-icona": {
+  "dot": "on",
+  "_f": "puntino sotto l'icona durante l'avvio"
+ },
+ "q036-taskbar-raggruppa-app": {
+  "_f": "finestre raggruppate per app"
+ },
+ "q036-taskbar-una-icona-per-finestra": {
+  "_f": "una icona per ogni finestra"
+ },
+ "q036-taskbar-solo-fissate": {
+  "dot": "on",
+  "_f": "solo app fissate, puntino per quelle aperte"
+ },
+ "q036-taskbar-etichette-complete": {
+  "_f": "icone con etichetta del titolo"
+ },
+ "q036-taskbar-elenco-app": {
+  "w_list": "on",
+  "_f": "elenco di applicazioni raggruppate"
+ },
+ "q037-lancia-griglia-schermo": {
+  "_f": "griglia a schermo intero con ricerca"
+ },
+ "q037-lancia-menu-riquadri": {
+  "w_menu": "on",
+  "_f": "menu con riquadri e app fissate"
+ },
+ "q037-lancia-menu-categorie": {
+  "w_menu": "on",
+  "_f": "menu a categorie con ricerca"
+ },
+ "q037-lancia-elenco-alfabetico": {
+  "w_list": "on",
+  "_f": "elenco alfabetico laterale"
+ },
+ "q037-lancia-finestra-compatta": {
+  "w_dialog": "on",
+  "_f": "finestra compatta a tendina dal pulsante"
+ },
+ "q038-avvio-centro": {
+  "start": "center",
+  "_f": "pulsante di avvio al centro della barra"
+ },
+ "q038-avvio-sinistra": {
+  "start": "left",
+  "_f": "pulsante di avvio a sinistra"
+ },
+ "q038-avvio-angolo-alto-sinistro": {
+  "start": "corner",
+  "_f": "pulsante di avvio nell'angolo alto a sinistra"
+ },
+ "q038-avvio-primo-del-dock": {
+  "_f": "pulsante di avvio come primo elemento del dock"
+ },
+ "q038-avvio-nascosto-tasto": {
+  "_f": "pulsante di avvio nascosto, si apre con Super"
+ },
+ "q039-nc-da-destra": {
+  "notif": "on",
+  "_f": "pannello laterale da destra"
+ },
+ "q039-nc-da-alto-centro": {
+  "_f": "scorre dall'alto, al centro, con calendario"
+ },
+ "q039-nc-dal-pannello": {
+  "_f": "scorre dal pannello in basso"
+ },
+ "q039-nc-finestra-centrale": {
+  "w_dialog": "on",
+  "_f": "finestra centrale modale"
+ },
+ "q039-nc-tendina-orologio": {
+  "_f": "tendina che parte dall'orologio"
+ },
+ "q040-notif-raggruppate-app": {
+  "_f": "raggruppate per app, espandibili"
+ },
+ "q040-notif-pila-ultima": {
+  "_f": "pila con visibile solo l'ultima"
+ },
+ "q040-notif-elenco-cronologico": {
+  "w_list": "on",
+  "_f": "elenco cronologico semplice"
+ },
+ "q040-notif-per-priorita": {
+  "_f": "ordinate per priorità"
+ },
+ "q040-notif-nascoste-contatore": {
+  "w_badge": "on",
+  "_f": "tutte nascoste dietro un contatore"
+ },
+ "q041-vassoio-tutte-visibili": {
+  "_f": "tutte le icone del vassoio sempre visibili"
+ },
+ "q041-vassoio-overflow-freccia": {
+  "_f": "icone secondarie dietro una freccia"
+ },
+ "q041-vassoio-solo-attive": {
+  "_f": "solo icone con attività recente"
+ },
+ "q041-vassoio-area-unica": {
+  "_f": "icone raggruppate in un'unica area"
+ },
+ "q041-vassoio-nascosto-a-click": {
+  "_f": "vassoio nascosto, si apre con un click"
+ },
+ "q042-rapidi-centro-controllo": {
+  "_f": "centro di controllo con tessere"
+ },
+ "q042-rapidi-tessere-griglia": {
+  "_f": "griglia di tessere affiancate"
+ },
+ "q042-rapidi-cursori": {
+  "w_slider": "on",
+  "_f": "cursori di volume e luminosità"
+ },
+ "q042-rapidi-applet-modulari": {
+  "_f": "pannello con applet modulari"
+ },
+ "q042-rapidi-tendina-sezioni": {
+  "w_menu": "on",
+  "_f": "tendina unica con sezioni"
+ },
+ "q043-ricerca-super": {
+  "_nv": true
+ },
+ "q043-ricerca-cmd-spazio": {
+  "_nv": true
+ },
+ "q043-ricerca-tasto-windows": {
+  "_nv": true
+ },
+ "q043-ricerca-alt-spazio": {
+  "_nv": true
+ },
+ "q043-ricerca-digita-ovunque": {
+  "_nv": true
+ },
+ "q044-ricerca-centrata-alta": {
+  "_f": "campo di ricerca centrato in alto, come overlay"
+ },
+ "q044-ricerca-un-terzo-alto": {
+  "_f": "campo di ricerca a circa un terzo dall'alto"
+ },
+ "q044-ricerca-nella-barra": {
+  "_f": "campo di ricerca nella barra delle applicazioni"
+ },
+ "q044-ricerca-nel-lanciatore": {
+  "_f": "campo di ricerca dentro il lanciatore"
+ },
+ "q044-ricerca-schermo-intero": {
+  "_f": "schermata intera, campo di ricerca in cima"
+ },
+ "q045-risultati-anteprima": {
+  "_f": "elenco con anteprima laterale"
+ },
+ "q045-risultati-elenco-semplice": {
+  "w_list": "on",
+  "_f": "elenco semplice con icona"
+ },
+ "q045-risultati-schede": {
+  "w_tabs": "on",
+  "_f": "schede raggruppate per categoria"
+ },
+ "q045-risultati-riga-azioni": {
+  "_f": "riga singola con azioni rapide"
+ },
+ "q045-risultati-web-mescolati": {
+  "_f": "risultati web mescolati ai locali"
+ },
+ "q046-desktop-icone-visibili": {
+  "_f": "icone visibili in griglia"
+ },
+ "q046-desktop-nessuna-icona": {
+  "_f": "nessuna icona, desktop pulito"
+ },
+ "q046-desktop-solo-recenti": {
+  "_f": "solo cartelle e file recenti"
+ },
+ "q046-desktop-icone-libere": {
+  "grid": "free",
+  "_f": "icone posizionate liberamente"
+ },
+ "q046-desktop-icone-nascoste": {
+  "_f": "icone nascoste con un comando"
+ },
+ "q047-griglia-automatica-alto-sinistra": {
+  "grid": "cols",
+  "_f": "griglia automatica dall'alto a sinistra, riempie per colonne"
+ },
+ "q047-griglia-libera": {
+  "grid": "free",
+  "_f": "posizionamento libero"
+ },
+ "q047-griglia-ordinata-nome": {
+  "grid": "rows",
+  "_f": "ordinate per nome, riempie per righe"
+ },
+ "q047-griglia-ordinata-data": {
+  "grid": "rows",
+  "_f": "ordinate per data, riempie per righe"
+ },
+ "q047-griglia-allineata-bordo": {
+  "grid": "cols",
+  "_f": "allineate al bordo destro, riempie per colonne"
+ },
+ "q048-sfondo-immagine-unica": {
+  "_f": "immagine singola, riempimento"
+ },
+ "q048-sfondo-colore-pieno": {
+  "_f": "colore pieno dalla tinta T1"
+ },
+ "q048-sfondo-dinamico-orario": {
+  "_f": "sfondo dinamico, cambia con l'ora"
+ },
+ "q048-sfondo-carosello": {
+  "_f": "carosello di immagini con intervallo"
+ },
+ "q048-sfondo-adattato-tema": {
+  "_f": "sfondo adattato alla luce del tema"
+ },
+ "q048-sfondo-sfocato-finestre": {
+  "_f": "sfondo sfocato sotto le finestre"
+ },
+ "q049-widget-sul-desktop": {
+  "widget": "on",
+  "_f": "pannello widget sul desktop"
+ },
+ "q049-widget-bacheca-separata": {
+  "_f": "bacheca separata a scorrimento"
+ },
+ "q049-widget-assenti": {
+  "_nv": true
+ },
+ "q049-widget-applet-trascinabili": {
+  "widget": "on",
+  "_f": "applet trascinabili sul desktop"
+ },
+ "q049-widget-galleria-scelta": {
+  "_f": "galleria da cui scegliere i widget"
+ },
+ "q050-menu-angolo-sul-puntatore": {
+  "_f": "angolo in alto a sinistra sul puntatore"
+ },
+ "q050-menu-ancorato-puntatore": {
+  "_f": "ancorato al puntatore con offset"
+ },
+ "q050-menu-spostato-per-schermo": {
+  "_f": "spostato per restare nello schermo"
+ },
+ "q050-menu-centrato-puntatore": {
+  "_f": "centrato sul puntatore"
+ },
+ "q050-menu-bordo-finestra": {
+  "_f": "ancorato al bordo della finestra"
+ },
+ "q051-azioni-barra-in-cima": {
+  "_f": "barra di icone in cima al menu"
+ },
+ "q051-azioni-nessuna-barra": {
+  "_nv": true
+ },
+ "q051-azioni-sottomenu-servizi": {
+  "w_menu": "on",
+  "_f": "sottomenu Servizi"
+ },
+ "q051-azioni-sottomenu-kde": {
+  "w_menu": "on",
+  "_f": "azioni in fondo con sottomenu"
+ },
+ "q051-azioni-icona-testo": {
+  "_f": "icona con testo in ogni voce"
+ },
+ "q052-voce-icona-e-scorciatoia": {
+  "_f": "icona a sinistra, scorciatoia a destra"
+ },
+ "q052-voce-solo-testo": {
+  "_f": "solo testo, scorciatoie a destra"
+ },
+ "q052-voce-icona-allineata": {
+  "_f": "icone allineate in colonna"
+ },
+ "q052-voce-scorciatoia-al-passaggio": {
+  "_f": "scorciatoie visibili solo al passaggio"
+ },
+ "q052-voce-simboli-tastiera": {
+  "_f": "simboli della tastiera al posto del testo"
+ }
+}
