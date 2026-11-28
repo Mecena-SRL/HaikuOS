@@ -342,7 +342,23 @@ fn corners<C: Canvas>(c: &mut C, r: Rect) {
     }
 }
 
+/// Movimento di un frame: `win_dy[i]` sposta in basso la finestra `i` (px logici);
+/// `sel` è il selettore in volo fra due icone (scorrimento reattivo).
+#[derive(Clone, Copy)]
+pub struct Motion<'a> {
+    pub win_dy: &'a [i32],
+    pub sel: Option<Rect>,
+}
+
+/// Nessun movimento: la scrivania ferma (GBA e test).
+pub const STILL: Motion<'static> = Motion { win_dy: &[], sel: None };
+
 pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
+    draw_motion(c, s, &STILL);
+}
+
+/// Come `draw`, con finestre e selettore spostati da `m` (apertura, chiusura, scorrimento).
+pub fn draw_motion<C: Canvas>(c: &mut C, s: &Shell, m: &Motion<'_>) {
     c.fill(Rect::new(0, 0, s.w, s.h), T0);
     hills(c, s.w, s.h);
     // Sfondo: marchio "HAIKUOS" in basso a destra, in T3 sopra le colline.
@@ -368,6 +384,10 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         }
     }
     c.text(clock_x(s.w), ty, core::str::from_utf8(&s.clock).unwrap_or(""), T0);
+    // Selettore in volo: sotto le icone, così il contorno resta leggibile durante lo scorrimento.
+    if let (Some(r), true) = (m.sel, c.rich()) {
+        c.fill(r.inset(-1), T1);
+    }
 
     // Icone: quadrato T2, selezionata T1, aperta con sottolineatura T2.
     let (start, count) = s.visible();
@@ -376,7 +396,7 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         let ic = &s.icons[i];
         let cell = icon_cell(k);
         if c.rich() {
-            if i == s.sel {
+            if i == s.sel && m.sel.is_none() {
                 c.fill(cell.inset(-1), T1);
             }
             c.icon(cell, ic.label, ic.app);
@@ -403,7 +423,8 @@ pub fn draw<C: Canvas>(c: &mut C, s: &Shell) {
         if w.min {
             continue;
         }
-        let f = w.frame;
+        let dy = m.win_dy.get(i).copied().unwrap_or(0);
+        let f = Rect::new(w.frame.x, w.frame.y + dy, w.frame.w, w.frame.h);
         shadow(c, f);
         c.fill(f, T3);
         let tb = title_bar(f);

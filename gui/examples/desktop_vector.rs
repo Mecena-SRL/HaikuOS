@@ -1,22 +1,28 @@
-//! Scrivania reale disegnata da `render::draw` su un `Canvas` a piena risoluzione.
-//! Stesso percorso dell'x86 (`Scaled` in x86/kernel/src/fb.rs): unità logiche 240×135,
-//! scala intera (16 a 3840×2160, 8 a 1920×1080). Plate delle icone via `rect_rounded`.
-//! Uso: cargo run --release --features wide-font --example desktop_vector -- 3840 2160 out.ppm [permille]
-//! Con `permille` (0..=1000) disegna un frame della transizione `Slide` tra scrivania e calcolatrice.
+//! Scrivania reale disegnata da `render::draw_motion` su un `Canvas` a piena risoluzione.
+//! Unità logiche 240×135, scala intera (16 a 3840×2160, 8 a 1920×1080). Testo vettoriale (`vfont`)
+//! con antialiasing reale. Animazioni (`anim`): apertura/chiusura finestra e selettore reattivo.
+//! Uso:
+//!   desktop_vector W H out.ppm                 scrivania ferma
+//!   desktop_vector W H out.ppm MS open        calcolatrice che sale, a MS millisecondi
+//!   desktop_vector W H out.ppm MS close       calcolatrice che scende (chiusura)
+//!   desktop_vector W H out.ppm MS launch      selettore che scorre dall'icona FILE alla CALC
 //! Poi il PPM diventa PNG: `python3 -c "from PIL import Image; Image.open('out.ppm').save('out.png')"`.
-#![allow(dead_code)]
-#[path = "../../x86/kernel/src/font.rs"]
-mod font;
-
-use haiku_gui::anim::{Budget, Shifted, Slide, FRAME_US};
+use haiku_gui::anim::{Budget, Ease, Reactive, FRAME_US};
 use haiku_gui::icons;
-use haiku_gui::layout::Rect;
-use haiku_gui::render::{draw, Canvas};
-use haiku_gui::{Icon, Shell, Tok};
+use haiku_gui::layout::{icon_cell, Rect};
+use haiku_gui::render::{draw_motion, Canvas, Motion, STILL};
+use haiku_gui::{vfont, Icon, Shell, Tok};
 use std::io::Write;
 
 const LW: i32 = 240;
 const LH: i32 = 135;
+/// Spostamento iniziale della finestra in apertura/chiusura, px logici.
+const WIN_DY: i32 = 40;
+const OPEN_MS: u32 = 250;
+const CLOSE_MS: u32 = 200;
+const GLIDE_MS: u32 = 200;
+/// Dimensione del testo vettoriale in px logici: avanzata di 6 px per carattere, come il font di sistema.
+const TEXT_EM: i32 = 8;
 
 static ICONS: [Icon; 11] = [
     Icon { label: "FILE", app: 1, title: "FILE", w: 120, h: 80 },
@@ -49,6 +55,31 @@ impl Vector {
                 self.buf[row + x as usize] = c;
             }
         }
+    }
+
+    /// Mescola il colore `c` sul pixel fisico (x, y) con copertura `a` (0..=255).
+    fn mix(&mut self, x: i32, y: i32, a: u8, c: u32) {
+        if x < 0 || y < 0 || x >= self.pw || y >= self.ph {
+            return;
+        }
+        let p = &mut self.buf[(y * self.pw + x) as usize];
+        let (old, k) = (*p, a as u32);
+        let ch = |sh: u32| {
+            let (bg, fg) = ((old >> sh) & 255, (c >> sh) & 255);
+            (bg * (255 - k) + fg * k + 127) / 255
+        };
+        *p = (ch(16) << 16) | (ch(8) << 8) | ch(0);
+    }
+}
+
+/// Vista in pixel fisici per `vfont`: `blend` riceve coordinate fisiche e la copertura reale.
+struct Px<'a>(&'a mut Vector);
+
+impl Canvas for Px<'_> {
+    fn fill(&mut self, _: Rect, _: Tok) {}
+    fn text(&mut self, _: i32, _: i32, _: &str, _: Tok) {}
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        self.0.mix(x, y, a, t.rgb());
     }
 }
 
@@ -104,20 +135,14 @@ impl Canvas for Vector {
         }
     }
 
-    /// Testo: font 5×8 (x86), ogni punto logico diventa un quadrato `s`×`s`.
+    /// Testo: `vfont` con antialiasing, in pixel fisici. Il font di sistema resta quello del GBA.
     fn text(&mut self, x: i32, y: i32, text: &str, t: Tok) {
-        let (s, c) = (self.s, t.rgb());
-        for (i, &ch) in text.as_bytes().iter().enumerate() {
-            for (row, bits) in font::glyph(ch).iter().enumerate() {
-                for col in 0..font::GLYPH_W {
-                    if bits & (1 << (font::GLYPH_W - 1 - col)) != 0 {
-                        let px = x + (i * font::ADVANCE + col) as i32;
-                        let py = y + row as i32;
-                        self.span(px * s, py * s, px * s + s, py * s + s, c);
-                    }
-                }
-            }
-        }
+        self.vtext(x, y, TEXT_EM, text, t);
+    }
+
+    fn vtext(&mut self, x: i32, y: i32, size: i32, text: &str, t: Tok) -> i32 {
+        let k = self.s;
+        vfont::draw_text(&mut Px(self), x * k, y * k, size * k, text, t) / k
     }
 }
 
@@ -134,25 +159,47 @@ fn main() {
     let mut shell = Shell::new(&ICONS, LW, LH);
     shell.set_clock(10, 30);
     let mut v = Vector { pw: w, ph: h, s: w / LW, buf: vec![0; (w * h) as usize] };
-    match a.get(4).and_then(|p| p.parse::<u32>().ok()) {
-        Some(p) => {
-            // Transizione: scrivania (vecchia) scivola via, calcolatrice (nuova) entra da destra.
-            let mut next = Shell::new(&ICONS, LW, LH);
-            next.set_clock(10, 30);
-            next.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
-            let (ox, nx) = Slide::start(LW, 0, 1000).offsets(p);
-            // Budget di frame: 30 render misurati, µs per frame (target 60 Hz).
-            let mut bud = Budget::new(FRAME_US);
-            for _ in 0..30 {
-                let t0 = std::time::Instant::now();
-                draw(&mut Shifted { inner: &mut v, dx: ox, dy: 0 }, &shell);
-                draw(&mut Shifted { inner: &mut v, dx: nx, dy: 0 }, &next);
-                bud.record(t0.elapsed().as_micros() as u32);
+
+    // Movimento: a `ms` millisecondi dall'inizio dell'animazione.
+    let ms = a.get(4).and_then(|p| p.parse::<u32>().ok());
+    let mode = a.get(5).map(String::as_str).unwrap_or("open");
+    let mut dy = [0i32];
+    let mut sel = None;
+    if let Some(ms) = ms {
+        match mode {
+            "close" => {
+                shell.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
+                let mut r = Reactive::new(0);
+                r.set(WIN_DY, 0, CLOSE_MS, Ease::InQuad);
+                dy[0] = r.get(ms);
             }
-            println!("frame: media {} µs, max {} µs, oltre 16667 µs: {}/{}", bud.avg_us(), bud.max_us, bud.over, bud.frames);
+            "launch" => {
+                // Il selettore scivola dall'icona FILE (0) alla CALC (2), senza salti.
+                shell.sel = 2;
+                let (from, to) = (icon_cell(0), icon_cell(2));
+                let (mut x, mut y) = (Reactive::new(from.x), Reactive::new(from.y));
+                x.set(to.x, 0, GLIDE_MS, Ease::OutCubic);
+                y.set(to.y, 0, GLIDE_MS, Ease::OutCubic);
+                sel = Some(Rect::new(x.get(ms), y.get(ms), to.w, to.h));
+            }
+            _ => {
+                shell.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
+                let mut r = Reactive::new(WIN_DY);
+                r.set(0, 0, OPEN_MS, Ease::OutCubic);
+                dy[0] = r.get(ms);
+            }
         }
-        None => draw(&mut v, &shell),
     }
+    let m = if ms.is_some() { Motion { win_dy: &dy, sel } } else { STILL };
+
+    // Budget di frame: 30 render misurati, µs per frame (target 60 Hz).
+    let mut bud = Budget::new(FRAME_US);
+    for _ in 0..30 {
+        let t0 = std::time::Instant::now();
+        draw_motion(&mut v, &shell, &m);
+        bud.record(t0.elapsed().as_micros() as u32);
+    }
+    println!("frame: media {} µs, max {} µs, oltre 16667 µs: {}/{}", bud.avg_us(), bud.max_us, bud.over, bud.frames);
 
     let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
     write!(f, "P6\n{w} {h}\n255\n").unwrap();

@@ -57,7 +57,7 @@ fn draw_score<C: Canvas>(c: &mut C, r: Rect, score: u32, t: Tok) {
 cd gui && cargo run --release --features wide-font --example desktop_vector -- 3840 2160 out.ppm
 ```
 
-Output committati: `design/screens/desktop_vector_*.png`. Limiti: il testo è il font 5×8 scalato a blocchi, e lo sfondo usa ancora le colline (`hills`), non il wallpaper bitmap di `design/wallpapers/`.
+Output committati: `design/screens/desktop_vector_*.png`. Limiti: i contorni del testo sono ancora il 5×8 vettorizzato, e lo sfondo usa ancora le colline (`hills`), non il wallpaper bitmap di `design/wallpapers/`.
 
 ## 7. Font vettoriale con antialiasing
 
@@ -96,4 +96,10 @@ Tutto a interi (ms, permille, µs), no_std, senza allocazione nel frame.
 | `Shifted<C>` | vista di un `Canvas` spostata di `(dx, dy)`: si disegna una schermata come sempre |
 | `Budget` | registra µs per frame, conta gli sforamenti di `FRAME_US` (16 667 µs = 60 Hz) |
 
-Demo: `cargo run --release --features wide-font --example desktop_vector -- 1920 1080 out.ppm 500` disegna il frame a metà transizione e stampa il budget. Output: `design/screens/anim_transition_1920x1080.png`.
+Scrivania animata (`render::draw_motion` con `Motion { win_dy, sel }`; `draw` resta fermo per GBA):
+
+```sh
+cd gui && cargo run --release --features wide-font --example desktop_vector -- 1920 1080 out.ppm 120 open
+```
+
+Modi: `open` / `close` (calcolatrice che sale/scende, `Reactive` 250/200 ms), `launch` (selettore che scorre da FILE a CALC, 200 ms). Output: `design/screens/anim_{open,close,launch}_1920x1080.png`, `anim_open_3840x2160.png`. Budget misurato su host (release, x86): 1920×1080 media 3,3 ms, massimo 6,7 ms; 3840×2160 media 10 ms, massimo 25 ms (un frame sopra 16,7 ms). Il testo passa da `vtext`, con copertura reale (`Vector::mix`); i contorni sono ancora quelli 5×8 del font di sistema.
