@@ -52,7 +52,7 @@ pub struct Terminal {
 
 /// App di sistema lanciabili digitando il nome: (nome, indice icona). Vedi desktop::ICON_LABELS.
 /// Le ultime dieci sono le app di apps/ui.rs (stesso nome dell'etichetta sull'icona); UTIL è l'ultima icona.
-const APP_CMDS: [(&[u8], usize); 20] = [
+const APP_CMDS: [(&[u8], usize); 25] = [
     (b"FILES", 0),
     (b"CALC", 2),
     (b"NOTES", 3),
@@ -73,6 +73,11 @@ const APP_CMDS: [(&[u8], usize); 20] = [
     (b"METEO", 24),
     (b"AUDIO", 25),
     (b"VIDEO", 26),
+    (b"TIMER", 27),
+    (b"CHESSCLOCK", 28),
+    (b"TALLY", 29),
+    (b"LOREM", 30),
+    (b"SHRED", 31),
 ];
 
 fn push(buf: &mut [u8], n: &mut usize, s: &[u8]) {

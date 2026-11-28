@@ -40,11 +40,12 @@ pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
 /// Numero di icone del lanciatore (una pagina: 5 colonne x 4 righe).
-pub const ICONS: usize = 27;
+pub const ICONS: usize = 32;
 /// Etichette sotto le icone. Il terminale digita questi nomi (vedi terminal::APP_CMDS).
 pub const ICON_LABELS: [&[u8]; ICONS] = [
     b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ", b"REMIND", b"PASSWORDS", b"DICTIONARY", b"CALENDAR", b"MESSAGES", b"PHOTOS", b"VIEWER", b"CAMERA", b"MUSIC", b"MAPS", b"MEMO", b"UTIL",
     b"SOFTWARE", b"AIUTO", b"TOUR", b"SCANNER", b"METEO", b"AUDIO", b"VIDEO",
+    b"TIMER", b"CHESSCLOCK", b"TALLY", b"LOREM", b"SHRED",
 ];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
@@ -90,6 +91,16 @@ pub enum App {
     Meteo,
     AudioPlayer,
     VideoPlayer,
+    /// Timer per esercizi (A pausa, Select azzera).
+    Timer,
+    /// Orologio per scacchi (L e R premono i giocatori).
+    ChessClock,
+    /// Contatore (su/giù, Select azzera).
+    Tally,
+    /// Testo segnaposto (A cambia testo).
+    Lorem,
+    /// Distruggi file: sul buffer di prova (A distrugge).
+    Shred,
     /// Utility di sistema: disco, memoria, stampante, nota, colore (sola lettura, A aggiunge un lavoro).
     Utility,
     /// Software (catalogo), Aiuto, Visita guidata, Acquisizione documenti (logica in apps/*.rs).
@@ -104,6 +115,7 @@ pub const APPS: [App; ICONS] = [
     App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader, App::Reminders,
     App::Passwords, App::Dictionary, App::Calendar, App::Messages, App::Photos, App::PhotoView, App::Camera, App::Music, App::Maps, App::Memo,
     App::Utility, App::Software, App::Help, App::Tour, App::Scanner, App::Meteo, App::AudioPlayer, App::VideoPlayer,
+    App::Timer, App::ChessClock, App::Tally, App::Lorem, App::Shred,
 ];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
@@ -195,9 +207,11 @@ impl Desktop {
     /// Ritorna true se il desktop va ridisegnato.
     /// Avanza di un frame l'orologio. Ritorna true se il testo dell'ora è cambiato.
     pub fn tick(&mut self) -> bool {
-        let prima = self.clock.testo();
+        let prima = (self.clock.testo(), self.apps.timer.secondi(), self.apps.scacchi.secondi(0), self.apps.scacchi.secondi(1));
         self.clock.tick(1);
-        prima != self.clock.testo()
+        self.apps.timer.tick(1);
+        self.apps.scacchi.tick(1);
+        prima != (self.clock.testo(), self.apps.timer.secondi(), self.apps.scacchi.secondi(0), self.apps.scacchi.secondi(1))
     }
 
     /// Due promemoria di prova, da mostrare al primo avvio (la lista parte vuota).
@@ -346,7 +360,7 @@ impl Desktop {
                     self.apps.cassa.chiudi();
                 }
             }
-            Some(a @ (App::Dictionary | App::Calendar | App::Photos | App::PhotoView | App::Maps)) => {
+            Some(a @ (App::Dictionary | App::Calendar | App::Photos | App::PhotoView | App::Maps | App::Timer | App::ChessClock | App::Tally | App::Lorem | App::Shred)) => {
                 app_changed = self.apps.key(a, pressed);
                 if pressed & KEY_B != 0 {
                     self.win = None;
@@ -535,6 +549,11 @@ fn titolo_app(app: App) -> Option<&'static [u8]> {
         App::Meteo => b"METEO",
         App::AudioPlayer => b"AUDIO",
         App::VideoPlayer => b"VIDEO",
+        App::Timer => b"TIMER",
+        App::ChessClock => b"CHESSCLOCK",
+        App::Tally => b"TALLY",
+        App::Lorem => b"LOREM",
+        App::Shred => b"SHRED",
         _ => return None,
     };
     Some(t)
@@ -723,6 +742,11 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
             App::Photos => view::foto(fb, W, H, bx, by, a, pal),
             App::PhotoView => view::visualizzatore(fb, W, H, bx, by, a, pal),
             App::Maps => view::mappa(fb, W, H, bx, by, a, pal),
+            App::Timer => view::timer(fb, W, H, bx, by, a, pal),
+            App::ChessClock => view::scacchi_orologio(fb, W, H, bx, by, a, pal),
+            App::Tally => view::contatore(fb, W, H, bx, by, a, pal),
+            App::Lorem => view::testo_segnaposto(fb, W, H, bx, by, a, pal),
+            App::Shred => view::distruggi(fb, W, H, bx, by, a, pal),
             App::Camera => view::da_verificare(fb, W, H, bx, by, b"SENSORE FOTO", pal),
             App::Music => view::da_verificare(fb, W, H, bx, by, b"AUDIO", pal),
             App::Messages => view::da_verificare(fb, W, H, bx, by, b"LINK", pal),
@@ -842,6 +866,14 @@ mod tests {
         d.step(0, &Fs::new());
         assert!(d.step(KEY_SELECT, &Fs::new()));
         assert_eq!(d.sel(), 0); // torna alla prima
+    }
+
+    #[test]
+    fn icone_delle_app_a_tempo_aprono_la_finestra() {
+        let nuove = [App::Timer, App::ChessClock, App::Tally, App::Lorem, App::Shred];
+        for (k, app) in nuove.into_iter().enumerate() {
+            assert_eq!(launchable(27 + k), Some(app));
+        }
     }
 
     #[test]
