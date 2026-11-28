@@ -11,10 +11,18 @@ pub const WIN_W: usize = 1280;
 pub const WIN_H: usize = 720;
 
 pub fn run(mut ui: Ui) {
+    // Dimensione iniziale: 1280x720, oppure `GWENT_WIN=800x480` per provare altri schermi.
+    let (ww, wh) = std::env::var("GWENT_WIN")
+        .ok()
+        .and_then(|v| {
+            let (a, b) = v.split_once('x')?;
+            Some((a.parse().ok()?, b.parse().ok()?))
+        })
+        .unwrap_or((WIN_W, WIN_H));
     let opts = WindowOptions { resize: true, ..WindowOptions::default() };
-    let mut win = Window::new("Gwent", WIN_W, WIN_H, opts).expect("finestra");
+    let mut win = Window::new("Gwent", ww, wh, opts).expect("finestra");
     win.set_target_fps(60);
-    let mut pane = Pane::new(WIN_W, WIN_H);
+    let mut pane = Pane::new(ww, wh);
     let mut was_down = false;
     let mut last_mouse: Option<(f32, f32)> = None;
 
