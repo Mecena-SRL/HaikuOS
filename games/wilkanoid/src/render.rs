@@ -423,9 +423,10 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
 
     if g.paused {
         c.rr_a(-1.0, -1.0, pw + 1.0, ph + 1.0, 0.5, 0xFF000000, 0xFF000000, 0.5);
-        c.panel(90.0, 56.0, 150.0, 80.0);
-        c.text_c(b"PAUSA", 62.0, 2.0, TXT);
-        c.text_c(b"P PER RIPRENDERE", 74.0, 1.0, TXT);
+        c.panel(80.0, 52.0, 160.0, 86.0);
+        c.text_c(b"PAUSA", 58.0, 2.0, TXT);
+        c.text_c(b"P RIPRENDI", 72.0, 1.0, TXT);
+        c.text_c(b"SPAZIO RICOMINCIA", 80.0, 1.0, TXT);
     }
 
     match g.phase {
@@ -447,9 +448,19 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             c.panel(50.0, 40.0, 190.0, 112.0);
             let title: &[u8] = if g.phase == Phase::Over { b"GAME OVER" } else { b"VITTORIA" };
             c.text_c(title, 52.0, 2.0, TXT);
-            c.text_c(b"PUNTI", 78.0, 1.0, TXT);
+            c.text_c(b"PUNTI", 74.0, 1.0, TXT);
             let s = num(g.score, &mut buf);
-            c.text_c(s, 88.0, 1.0, TXT);
+            c.text_c(s, 84.0, 1.0, TXT);
+            if g.phase == Phase::Won {
+                let mut bb = [0u8; 10];
+                let bonus = num(g.lives as u32 * 500, &mut bb);
+                let mut line = [b' '; 16];
+                let pre = b"BONUS VITE ";
+                line[..pre.len()].copy_from_slice(pre);
+                let n = bonus.len().min(16 - pre.len());
+                line[pre.len()..pre.len() + n].copy_from_slice(&bonus[..n]);
+                c.text_c(&line[..pre.len() + n], 94.0, 1.0, TXT);
+            }
             c.text_c(b"PREMI SPAZIO", 104.0, 1.0, TXT);
         }
         _ => {}

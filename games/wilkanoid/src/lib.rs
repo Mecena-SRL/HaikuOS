@@ -205,6 +205,12 @@ impl Game {
     }
 
     pub fn input(&mut self, c: Cmd) {
+        if self.paused && c == Cmd::Fire {
+            // In pausa, SPAZIO ricomincia la partita.
+            self.paused = false;
+            self.start_at(0);
+            return;
+        }
         if self.paused && c != Cmd::Pause {
             return;
         }
