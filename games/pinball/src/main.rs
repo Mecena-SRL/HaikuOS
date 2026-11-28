@@ -3,6 +3,8 @@
 //! Il rendering sta qui (std); il core `pinball` è `no_std`.
 
 mod screen;
+#[path = "../../hd_shot.rs"]
+mod hd_shot;
 
 use pinball::{Input, Pinball, State, BUMPERS, FP, TABLE_H, TABLE_W};
 use screen::{frame, menu_text, on_menu_key, Next, Screen};
@@ -119,7 +121,7 @@ fn interactive() {
     }
 }
 
-fn shot(path: &str, screen: Screen) {
+fn shot(path: &str, screen: Screen, hd: Option<(usize, usize)>) {
     let mut g = Pinball::new();
     let (mut charge, mut games) = (0u32, 0u32);
     for f in 0..600 {
@@ -127,7 +129,10 @@ fn shot(path: &str, screen: Screen) {
     }
     let im = frame(&g, screen);
     let mut out = std::fs::File::create(path).expect("impossibile creare il file");
-    im.write_ppm(&mut out).expect("scrittura fallita");
+    match hd {
+        Some((ow, oh)) => hd_shot::write_fit(&mut out, im.w, im.h, &im.px, ow, oh).expect("scrittura fallita"),
+        None => im.write_ppm(&mut out).expect("scrittura fallita"),
+    }
     println!("fotogramma {}x{} scritto in {path}", im.w, im.h);
 }
 
@@ -152,12 +157,18 @@ fn main() {
     match args.as_slice() {
         [_] => bench(600_000),
         [_, flag] if flag == "--play" => interactive(),
-        [_, flag, path] if flag.starts_with("--shot-") => match flag.as_str() {
-            "--shot-title" => shot(path, Screen::Title),
-            "--shot-play" => shot(path, Screen::Play),
-            "--shot-pause" => shot(path, Screen::Pause),
-            _ => eprintln!("uso: pinball [N] | --shot-title|--shot-play|--shot-pause <file.ppm>"),
-        },
+        [_, flag, path, rest @ ..] if flag.starts_with("--shot-") => {
+            let hd = match rest {
+                [w, h] => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
+                _ => None,
+            };
+            match flag.as_str() {
+                "--shot-title" => shot(path, Screen::Title, hd),
+                "--shot-play" => shot(path, Screen::Play, hd),
+                "--shot-pause" => shot(path, Screen::Pause, hd),
+                _ => eprintln!("uso: pinball [N] | --shot-title|--shot-play|--shot-pause <file.ppm> [W H]"),
+            }
+        }
         [_, n] => bench(n.parse().unwrap_or(600_000)),
         _ => eprintln!("uso: pinball [N] | --shot-title|--shot-play|--shot-pause <file.ppm>"),
     }

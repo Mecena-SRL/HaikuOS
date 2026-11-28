@@ -5,6 +5,9 @@
 //! Fotogrammi con menu: `--shot-title|--shot-play|--shot-pause <out.ppm>`.
 mod screen;
 
+#[path = "../../hd_shot.rs"]
+mod hd_shot;
+
 use platformer::{bot::Bot, levels::LEVELS, render, Game, State, VIEW_H, VIEW_W};
 use screen::{menu_text, on_menu_key, overlay, Next, Screen};
 use std::io::BufRead;
@@ -24,7 +27,12 @@ fn main() {
                 "--shot-play" => Screen::Play,
                 _ => Screen::Pause,
             };
-            return shot(args.get(2).map_or("platformer.ppm", String::as_str), screen);
+            // Facoltativo `W H` dopo il file: screenshot ingrandito a quella risoluzione.
+            let hd = match args.get(3..5) {
+                Some([w, h]) => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
+                _ => None,
+            };
+            return shot(args.get(2).map_or("platformer.ppm", String::as_str), screen, hd);
         }
         _ => {}
     }
@@ -46,7 +54,7 @@ fn main() {
             spent += t.elapsed();
             n += 1;
             if k == 0 && n == 300 {
-                write_ppm(&out, &fb);
+                write_ppm(&out, &fb, None);
             }
         }
         frames += n;
@@ -117,7 +125,7 @@ fn interactive() {
     }
 }
 
-fn shot(path: &str, screen: Screen) {
+fn shot(path: &str, screen: Screen, hd: Option<(usize, usize)>) {
     let (mut k, mut g, mut bot) = (0usize, Game::from_src(LEVELS[0]), Bot::default());
     for _ in 0..300 {
         advance(&mut g, &mut bot, &mut k);
@@ -125,21 +133,15 @@ fn shot(path: &str, screen: Screen) {
     let mut fb = vec![0u32; (VIEW_W * VIEW_H) as usize];
     render::draw(&g, &mut fb);
     overlay(&mut fb, screen);
-    write_ppm(path, &fb);
+    write_ppm(path, &fb, hd);
     println!("fotogramma {VIEW_W}x{VIEW_H} scritto in {path}");
 }
 
-fn write_ppm(path: &str, fb: &[u32]) {
+fn write_ppm(path: &str, fb: &[u32], hd: Option<(usize, usize)>) {
     let mut f = File::create(path).expect("creazione file");
-    // Ingrandimento x2 (vicino più prossimo) per leggere i menu.
     let (w, h) = (VIEW_W as usize, VIEW_H as usize);
-    write!(f, "P6\n{} {}\n255\n", 2 * w, 2 * h).unwrap();
-    let bytes: Vec<u8> = (0..4 * w * h)
-        .flat_map(|i| {
-            let (ox, oy) = (i % (2 * w), i / (2 * w));
-            let c = fb[(oy / 2) * w + ox / 2];
-            [(c >> 16) as u8, (c >> 8) as u8, c as u8]
-        })
-        .collect();
-    f.write_all(&bytes).unwrap();
+    let px: Vec<[u8; 3]> = fb.iter().map(|&c| [(c >> 16) as u8, (c >> 8) as u8, c as u8]).collect();
+    // Predefinito: ingrandimento x2 (vicino più prossimo) per leggere i menu.
+    let (ow, oh) = hd.unwrap_or((2 * w, 2 * h));
+    hd_shot::write_fit(&mut f, w, h, &px, ow, oh).unwrap();
 }
