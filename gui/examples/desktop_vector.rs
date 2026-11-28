@@ -250,7 +250,7 @@ fn main() {
     let w: i32 = a.get(1).and_then(|v| v.parse().ok()).unwrap_or(3840);
     let h: i32 = a.get(2).and_then(|v| v.parse().ok()).unwrap_or(2160);
     let out = a.get(3).map(String::as_str).unwrap_or("desktop.ppm");
-    if w % LW != 0 || h != w / LW * LH {
+    if w % LW != 0 || h < w / LW * LH {
         eprintln!("risoluzione {w}x{h} non multipla intera di {LW}x{LH}");
         std::process::exit(1);
     }
@@ -263,6 +263,21 @@ fn main() {
         let _ = shell.key(Key::A);
     }
     let mut v = Vector::new(w, h);
+    // "wins2": scrivania con due finestre aperte, FILE (1) e CALC (3); lo spazio sotto la scala intera resta nero.
+    if a.get(4).map(String::as_str) == Some("wins2") {
+        shell.wm.open(1, "FILE", 120, 80, LW, LH);
+        shell.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
+        if let Some(i) = shell.wm.find_app(1) { shell.wm.move_win(i, 14, 30, LW, LH); }
+        if let Some(i) = shell.wm.find_app(3) { shell.wm.move_win(i, 140, 42, LW, LH); }
+        draw(&mut v, &shell);
+        let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
+        write!(f, "P6\n{w} {h}\n255\n").unwrap();
+        for px in &v.buf {
+            f.write_all(&[(px >> 16) as u8, (px >> 8) as u8, *px as u8]).unwrap();
+        }
+        println!("wins2 -> {out}");
+        return;
+    }
     // "app=N": una sola finestra a schermo intero con l'app N (es. app=3 calcolatrice).
     if let Some(n) = a.get(4).and_then(|p| p.strip_prefix("app=")).and_then(|p| p.parse::<u8>().ok()) {
         let title = ICONS.iter().find(|i| i.app == n).map(|i| i.title).unwrap_or("");
