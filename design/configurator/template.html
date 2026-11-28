@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HaikuOS · Configuratore identità grafica</title>
+<style>
+:root{--T0:#102139;--T1:#F7EFE7;--T2:#DE7B63;--T3:#EFCE8C;--line:rgba(16,33,57,.12);--mut:rgba(16,33,57,.6);
+ --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--T1);color:var(--T0);font:14px/1.45 var(--sans)}
+header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid var(--line)}
+header h1{font-size:15px;margin:0;font-weight:600}
+header .sum{font-size:12px;color:var(--mut)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.app{display:grid;grid-template-columns:240px minmax(0,1fr) 420px;height:calc(100% - 48px)}
+nav{border-right:1px solid var(--line);overflow:auto;padding:8px 0}
+nav .cat{font-weight:600;padding:8px 16px 2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+nav button{display:flex;justify-content:space-between;width:100%;text-align:left;padding:5px 16px 5px 26px;border-radius:0}
+nav button:hover{background:rgba(16,33,57,.05)}
+nav button.sel{background:var(--T0);color:var(--T1)}
+nav button small{opacity:.6}
+main{overflow:auto;padding:16px 24px 64px}
+main h2{font-size:16px;margin:0 0 2px}
+main .path{font-size:12px;color:var(--mut);margin-bottom:14px}
+.q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:#fff}
+.q p{margin:0 0 4px;font-weight:600}
+.q .f{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--mut);margin-bottom:8px}
+.opt{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px}
+.opt:hover{background:rgba(16,33,57,.04)}
+.opt .r{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--T0);flex:none}
+.opt.on{background:rgba(222,123,99,.14)}
+.opt.on .r{background:var(--T2);border-color:var(--T2);box-shadow:inset 0 0 0 3px #fff}
+.opt .l{flex:1;cursor:pointer}
+.opt .src{font-size:11px;color:var(--mut)}
+.opt label.c{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer}
+.opt label.c input{accent-color:var(--T2)}
+aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.ctl{display:flex;gap:6px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{padding:5px 10px;font-size:12px}
+.seg button.on{background:var(--T0);color:var(--T1)}
+.frame{flex:1;min-height:260px;display:flex;align-items:center;justify-content:center;background:#e6dccd;border-radius:10px;overflow:hidden;position:relative}
+.dev{position:absolute;left:50%;top:50%;transform-origin:center}
+/* stage: all sizes are multiples of --u (unit u = max(1, round(S*pct/12800))) */
+.stage{position:relative;overflow:hidden;background:var(--T0);color:var(--T0);font-size:calc(var(--u)*2);--rad:calc(var(--u)*2)}
+.stage .bar{position:absolute;background:var(--T3);display:flex;align-items:center;gap:calc(var(--u)*3);padding:0 calc(var(--u)*2);height:calc(var(--u)*3);left:0;right:0;top:0;font-weight:600}
+.stage .bar i{width:calc(var(--u)*2);height:calc(var(--u)*2);border-radius:var(--rad);background:var(--T0);opacity:.85;display:inline-block}
+.stage .bar .clock{margin-left:auto;font-weight:400}
+.stage .ic{position:absolute;width:calc(var(--u)*7);height:calc(var(--u)*7);border-radius:var(--rad);background:var(--T2);display:flex;align-items:flex-end;justify-content:center;font-size:calc(var(--u)*1.6);color:var(--T1);padding-bottom:calc(var(--u)*.5);cursor:pointer;user-select:none}
+.stage .ic:hover{filter:brightness(1.08)}
+.stage .ic:active{transform:scale(.96)}
+.stage .win{position:absolute;left:12%;top:18%;width:58%;height:56%;background:var(--T1);border-radius:var(--rad);overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.stage .win.hide{display:none}
+.stage .tb{height:calc(var(--u)*3);background:var(--T3);display:flex;align-items:center;gap:calc(var(--u)*1.2);padding:0 calc(var(--u)*2);font-weight:600;position:relative}
+.stage .tb .t{position:absolute;left:0;right:0;text-align:center;pointer-events:none}
+.stage .tb .bt{display:flex;gap:calc(var(--u)*1);z-index:1}
+.stage .tb .bt b{width:calc(var(--u)*1.6);height:calc(var(--u)*1.6);border-radius:var(--rad);background:var(--T2);display:block;cursor:pointer}
+.stage .tb .bt b:nth-child(2){background:var(--T3);box-shadow:inset 0 0 0 1px var(--T0)}
+.stage .tb .bt b:nth-child(3){background:var(--T0);opacity:.4}
+.stage .body{padding:calc(var(--u)*2);display:flex;flex-direction:column;gap:calc(var(--u)*1.5)}
+.stage .btn{height:calc(var(--u)*3);padding:0 calc(var(--u)*2);border-radius:var(--rad);background:var(--T2);color:var(--T1);display:flex;align-items:center;justify-content:center;cursor:pointer;width:max-content;user-select:none}
+.stage .btn:hover{filter:brightness(1.08)}
+.stage .btn:active{transform:scale(.97)}
+.stage .field{height:calc(var(--u)*3);border:1px solid var(--T0);border-radius:var(--rad);background:#fff;padding:0 calc(var(--u)*1.5);display:flex;align-items:center;color:var(--mut,#666)}
+.stage .row{display:flex;align-items:center;gap:calc(var(--u)*2)}
+.stage .sw{width:calc(var(--u)*5);height:calc(var(--u)*2.6);border-radius:999px;background:var(--T0);position:relative;cursor:pointer;transition:background .2s}
+.stage .sw::after{content:"";position:absolute;top:calc(var(--u)*.3);left:calc(var(--u)*.3);width:calc(var(--u)*2);height:calc(var(--u)*2);border-radius:50%;background:var(--T1);transition:left .2s}
+.stage .sw.on{background:var(--T2)}
+.stage .sw.on::after{left:calc(var(--u)*2.7)}
+.stage .sl{flex:1;height:calc(var(--u)*.8);background:rgba(16,33,57,.2);border-radius:999px;position:relative;cursor:pointer}
+.stage .sl i{position:absolute;left:0;top:0;bottom:0;width:60%;background:var(--T2);border-radius:999px}
+.stage .dock{position:absolute;display:flex;gap:calc(var(--u)*1.2);padding:calc(var(--u)*1.2);background:rgba(247,239,231,.85);border-radius:calc(var(--rad)*1.5);box-shadow:0 0 0 1px rgba(16,33,57,.15)}
+.stage .dock span{width:calc(var(--u)*4.4);height:calc(var(--u)*4.4);border-radius:var(--rad);background:var(--T0);opacity:.8;cursor:pointer;transition:transform .15s}
+.stage .dock span:hover{transform:translateY(calc(var(--u)*-1))}
+.stage .dock span.act{opacity:1;background:var(--T2)}
+.stage .tip{position:absolute;padding:calc(var(--u)*.5) calc(var(--u)*1.2);background:var(--T0);color:var(--T1);border-radius:var(--rad);font-size:calc(var(--u)*1.6);pointer-events:none;opacity:0;transition:opacity .15s}
+.stage .tip.on{opacity:1}
+/* defaults, overridden by data-* set from answers */
+.stage[data-bar=bottom] .bar{top:auto;bottom:0}
+.stage[data-bar=none] .bar{display:none}
+.stage[data-dock=left] .dock{left:calc(var(--u)*1.5);top:50%;transform:translateY(-50%);flex-direction:column}
+.stage[data-dock=right] .dock{right:calc(var(--u)*1.5);top:50%;transform:translateY(-50%);flex-direction:column}
+.stage[data-dock=bottom] .dock,.stage:not([data-dock]) .dock{bottom:calc(var(--u)*1.5);left:50%;transform:translateX(-50%)}
+.stage[data-dock=none] .dock{display:none}
+.stage[data-title=left] .tb .t{text-align:left;position:static;margin-right:auto}
+.stage[data-ctl=left] .tb .bt{order:-1}
+.stage[data-ctl=left] .tb .t{left:calc(var(--u)*6)}
+.stage[data-ctl=right] .tb .bt{order:2;margin-left:auto}
+.stage[data-theme=dark]{background:var(--T1)}
+.stage[data-theme=dark] .win{background:var(--T0);color:var(--T1)}
+.stage[data-theme=dark] .bar{background:var(--T0);color:var(--T1)}
+.stage[data-theme=dark] .bar i{background:var(--T1)}
+.stage[data-rad="0"]{--rad:0px}
+.stage[data-rad="1"]{--rad:calc(var(--u)*1)}
+.stage[data-rad="3"]{--rad:calc(var(--u)*3)}
+.stage[data-rad="2"]{--rad:calc(var(--u)*2)}
+.stage[data-shape=square] .tb .bt b{border-radius:0}
+.stage[data-shadow=off] .win{box-shadow:none}
+.stage[data-shadow=on] .win{box-shadow:0 calc(var(--u)*1) calc(var(--u)*3) rgba(0,0,0,.35)}
+.legend{font-size:12px;color:var(--mut)}
+.sumbox{font-size:12px;border-top:1px solid var(--line);padding-top:8px}
+.sumbox div{display:flex;justify-content:space-between;padding:1px 0}
+.btnpri{background:var(--T0);color:var(--T1);padding:6px 12px;border-radius:7px;font-size:12px}
+@media (max-width:1000px){.app{grid-template-columns:200px 1fr}aside{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+ <h1>HaikuOS · Identità grafica</h1>
+ <div class="sum" id="sum"></div>
+ <button class="btnpri" id="exp">Esporta risposte (JSON)</button>
+</header>
+<div class="app">
+ <nav id="nav"></nav>
+ <main id="main"></main>
+ <aside>
+  <div class="ctl">
+   <div class="seg" id="dev"></div>
+   <div class="seg" id="ori"></div>
+   <div class="seg" id="pct"></div>
+  </div>
+  <div class="legend" id="meta"></div>
+  <div class="frame" id="frame"><div class="dev" id="dev-box"><div class="stage" id="stage"></div></div></div>
+  <div class="sumbox" id="sumbox"></div>
+ </aside>
+</div>
+<script>
+const DATA=/*DATA*/null;
+const MAP=/*MAP*/null;
+const DEV={"5":{w:800,h:480,l:'5"'},"7":{w:1024,h:600,l:'7"'},"14":{w:1920,h:1080,l:'14"'}};
+const ORI={l:'Orizzontale',p:'Verticale'};
+const PCTS=[100,125,150];
+const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,ans:{},cust:{}};
+const $=id=>document.getElementById(id);
+
+// ---- build tree
+const TREE={};
+DATA.forEach(q=>{(TREE[q.category]??={})[q.subcategory]??=[];TREE[q.category][q.subcategory].push(q)});
+DATA.forEach(q=>q.options.forEach(o=>{const k=q.id+'|'+o.id;if(!(k in S.cust))S.cust[k]=!!o.customizable}));
+S.cat=Object.keys(TREE)[0];S.sub=Object.keys(TREE[S.cat])[0];
+
+function renderNav(){
+ let h='';
+ for(const c in TREE){
+  h+=`<div class="cat">${c}</div>`;
+  for(const s in TREE[c]){
+   const sel=c===S.cat&&s===S.sub?' sel':'';
+   h+=`<button class="${sel.trim()}" data-c="${c}" data-s="${s}">${s}<small>${TREE[c][s].length}</small></button>`;
+  }
+ }
+ $('nav').innerHTML=h;
+}
+$('nav').addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ S.cat=b.dataset.c;S.sub=b.dataset.s;
+ document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('sel',x===b));
+ renderMain();
+});
+
+// ---- question list (re-rendered only when the category changes)
+function renderMain(){
+ const qs=TREE[S.cat][S.sub];
+ let h=`<h2>${S.sub}</h2><div class="path">${S.cat} · ${qs.length} domande</div>`;
+ qs.forEach(q=>{
+  h+=`<div class="q" data-q="${q.id}"><p>${q.question}</p><div class="f">${q.formula}</div>`;
+  q.options.forEach(o=>{
+   const on=S.ans[q.id]===o.id?' on':'';
+   const k=q.id+'|'+o.id;
+   h+=`<div class="opt${on}" data-q="${q.id}" data-o="${o.id}"><span class="r"></span><span class="l">${o.label} <span class="src">${o.sources.join(' · ')}</span></span>`+
+      `<label class="c"><input type="checkbox" data-cust="${k}"${S.cust[k]?' checked':''}> Personalizzabile</label></div>`;
+  });
+  h+='</div>';
+ });
+ $('main').innerHTML=h;
+ $('main').scrollTop=0;
+}
+// selecting an option: only the card's classes change and the preview refreshes (no list re-render)
+$('main').addEventListener('click',e=>{
+ const cb=e.target.closest('input[data-cust]');
+ if(cb){S.cust[cb.dataset.cust]=cb.checked;updateSummary();return}
+ const o=e.target.closest('.opt');if(!o)return;
+ const q=o.dataset.q;
+ S.ans[q]=o.dataset.o;
+ o.parentElement.querySelectorAll('.opt').forEach(x=>x.classList.toggle('on',x===o));
+ updatePreview();updateSummary();
+});
+
+// ---- preview
+// u = max(1, round(S*pct/12800)), S = lato minore in px, pct = 100/125/150
+function uPx(){const s=Math.min(DEV[S.dev].w,DEV[S.dev].h);return Math.max(1,Math.round(s*S.pct/12800))}
+function scaleDev(){
+ const f=$('frame').getBoundingClientRect();const d=S.ori==='l'?DEV[S.dev]:{w:DEV[S.dev].h,h:DEV[S.dev].w};
+ const k=Math.min((f.width-24)/d.w,(f.height-24)/d.h);
+ const box=$('dev-box');box.style.width=d.w+'px';box.style.height=d.h+'px';
+ box.style.transform=`translate(-50%,-50%) scale(${k})`;
+ const st=$('stage');st.style.width=d.w+'px';st.style.height=d.h+'px';
+}
+function buildStage(){
+ $('stage').innerHTML=`<div class="bar"><i></i><b>Fine</b><b>Modifica</b><b>Vista</b><span class="clock">12:00</span></div>
+ <div class="win" id="win"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">Documenti</div></div>
+  <div class="body"><div class="btn" data-tip="Pulsante primario">Continua</div>
+  <div class="field">Scrivi qui…</div>
+  <div class="row"><div class="sw on" data-tip="Interruttore"></div><div class="sl" data-tip="Cursore"><i></i></div></div></div></div>
+ <div class="ic" style="left:4%;top:14%">Doc</div><div class="ic" style="left:4%;top:44%">Note</div>
+ <div class="dock"><span data-app="1"></span><span data-app="2" class="act"></span><span data-app="3"></span><span data-app="4"></span></div>
+ <div class="tip" id="tip"></div>`;
+ $('stage').addEventListener('click',e=>{
+  const t=e.target;
+  if(t.dataset.x==='close'){$('win').classList.add('hide')}
+  if(t.dataset.x==='min'){$('win').classList.toggle('hide')}
+  if(t.classList.contains('ic')){$('win').classList.remove('hide')}
+  if(t.classList.contains('sw'))t.classList.toggle('on');
+  if(t.closest('.dock span')){document.querySelectorAll('.dock span').forEach(x=>x.classList.toggle('act',x===t))}
+ });
+ $('stage').addEventListener('mouseover',e=>{
+  const t=e.target.closest('[data-tip]');const tip=$('tip');
+  if(!t){tip.classList.remove('on');return}
+  tip.textContent=t.dataset.tip;const r=t.getBoundingClientRect(),s=$('stage').getBoundingClientRect(),k=$('stage').offsetWidth?r.width/t.offsetWidth:1;
+  tip.style.left=((r.left-s.left)/k)+'px';tip.style.top=((r.top-s.top)/k-calcU()*4)+'px';tip.classList.add('on');
+ });
+}
+function calcU(){return uPx()}
+// MAP: option id -> [attribute, value]. Options not listed here are not visual.
+function updatePreview(){
+ const st=$('stage');
+ st.style.setProperty('--u',uPx()+'px');
+ const attrs={};
+ for(const q of DATA){const a=S.ans[q.id];if(a&&MAP[a])attrs[MAP[a][0]]=MAP[a][1]}
+ ['bar','dock','title','ctl','shape','theme','rad','shadow'].forEach(k=>{if(attrs[k]!==undefined)st.dataset[k]=attrs[k];else delete st.dataset[k]});
+ $('meta').textContent=`${DEV[S.dev].l} · ${DEV[S.dev].w}×${DEV[S.dev].h} · ${ORI[S.ori]} · u=${uPx()}px (${S.pct}%)`;
+ scaleDev();
+}
+function segs(){
+ $('dev').innerHTML=Object.keys(DEV).map(k=>`<button data-k="dev" data-v="${k}" class="${k===S.dev?'on':''}">${DEV[k].l}</button>`).join('');
+ $('ori').innerHTML=Object.keys(ORI).map(k=>`<button data-k="ori" data-v="${k}" class="${k===S.ori?'on':''}">${ORI[k]==='Orizzontale'?'Orizz.':'Vert.'}</button>`).join('');
+ $('pct').innerHTML=PCTS.map(k=>`<button data-k="pct" data-v="${k}" class="${k===S.pct?'on':''}">${k}%</button>`).join('');
+}
+document.querySelector('.ctl').addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ S[b.dataset.k]=b.dataset.k==='pct'?+b.dataset.v:b.dataset.v;segs();updatePreview();
+});
+function updateSummary(){
+ let n=0,c=0,tot=0;
+ DATA.forEach(q=>{tot++;if(S.ans[q.id])n++});
+ for(const k in S.cust)if(S.cust[k])c++;
+ $('sum').textContent=`Risposte ${n}/${tot} · personalizzabili ${c}`;
+ const parts=Object.entries(TREE).map(([cat])=>{const qs=DATA.filter(q=>q.category===cat);return `<div><span>${cat}</span><span>${qs.filter(q=>S.ans[q.id]).length}/${qs.length}</span></div>`});
+ $('sumbox').innerHTML=parts.join('');
+}
+$('exp').addEventListener('click',()=>{
+ const out={answers:S.ans,customizable:Object.keys(S.cust).filter(k=>S.cust[k]),device:S.dev,orientation:S.ori,scale:S.pct};
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:'application/json'}));a.download='haikuos-identita.json';a.click();
+});
+new ResizeObserver(scaleDev).observe($('frame'));
+buildStage();segs();renderNav();renderMain();updatePreview();updateSummary();
+</script>
+</body>
+</html>

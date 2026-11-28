@@ -1,0 +1,66 @@
+{
+ "q001-titolo-sinistra": [
+  "title",
+  "left"
+ ],
+ "q005-pulsanti-sinistra": [
+  "ctl",
+  "left"
+ ],
+ "q005-pulsanti-sinistra-kde": [
+  "ctl",
+  "left"
+ ],
+ "q005-pulsanti-destra": [
+  "ctl",
+  "right"
+ ],
+ "q006-icone-riquadro": [
+  "shape",
+  "square"
+ ],
+ "q012-raggio-1u": [
+  "rad",
+  "1"
+ ],
+ "q012-raggio-3u": [
+  "rad",
+  "3"
+ ],
+ "q014-ombra-diffusa-due-livelli": [
+  "shadow",
+  "on"
+ ],
+ "q027-barra-alta-fissa": [
+  "bar",
+  "top"
+ ],
+ "q027-pannello-basso-con-menu": [
+  "bar",
+  "bottom"
+ ],
+ "q027-menu-dentro-finestra": [
+  "bar",
+  "none"
+ ],
+ "q027-barra-comparsa-schermo-intero": [
+  "bar",
+  "none"
+ ],
+ "q032-dock-basso-centrato": [
+  "dock",
+  "bottom"
+ ],
+ "q032-dock-basso-a-tutta-larghezza": [
+  "dock",
+  "bottom"
+ ],
+ "q032-dock-laterale-sinistro": [
+  "dock",
+  "left"
+ ],
+ "q032-dock-fluttuante": [
+  "dock",
+  "bottom"
+ ]
+}
