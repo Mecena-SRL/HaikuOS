@@ -4,6 +4,7 @@
 
 use crate::{
     fx::{dir, int, isqrt, mul, Fx, ONE},
+    kart::Kart,
     race::{Haz, Race, N_BOXES},
     track::Track,
 };
@@ -17,6 +18,9 @@ const BOX: u32 = 0xFFFFD600;
 const BANANA: u32 = 0xFFFFEB3B;
 const SHELL: u32 = 0xFFE53935;
 const WHITE: u32 = 0xFFFFFFFF;
+const SUN: u32 = 0xFFFFF176;
+const SUN_GLOW: u32 = 0xFFFFF9C4;
+const DUST: u32 = 0xFFB0BEC5;
 const BLACK: u32 = 0xFF000000;
 const COLORS: [u32; 8] = [
     0xFFFF1744, 0xFF2979FF, 0xFF00E676, 0xFFFF9100, 0xFFD500F9, 0xFF00E5FF, 0xFFFF80AB, 0xFFEEEEEE,
@@ -172,6 +176,61 @@ fn paint(buf: &mut [u32], w: usize, h: usize, list: &mut [Quad]) {
     }
 }
 
+/// Miscela `s` su `d` con opacità `a` (0..=256).
+fn blend(d: u32, s: u32, a: u32) -> u32 {
+    let ch = |sh: u32| {
+        let (x, y) = ((d >> sh) & 255, (s >> sh) & 255);
+        ((x * (256 - a) + y * a) / 256) << sh
+    };
+    0xFF000000 | ch(16) | ch(8) | ch(0)
+}
+
+/// Sole con alone, sopra l'orizzonte.
+fn sun(buf: &mut [u32], w: usize, h: usize, hor: usize) {
+    let r = (h / 12) as i32;
+    let (cx, cy) = (w as i32 * 3 / 4, hor as i32 - r * 3 / 2);
+    for dy in -3 * r..=3 * r {
+        let y = cy + dy;
+        if y < 0 || y >= hor as i32 {
+            continue;
+        }
+        for dx in -3 * r..=3 * r {
+            let x = cx + dx;
+            if x < 0 || x >= w as i32 {
+                continue;
+            }
+            let d2 = dx * dx + dy * dy;
+            let i = y as usize * w + x as usize;
+            if d2 <= r * r {
+                buf[i] = blend(buf[i], SUN, 256);
+            } else if d2 <= 4 * r * r {
+                buf[i] = blend(buf[i], SUN_GLOW, 60);
+            } else if d2 <= 9 * r * r {
+                buf[i] = blend(buf[i], SUN_GLOW, 24);
+            }
+        }
+    }
+}
+
+/// Scia di polvere: quattro quadrati a terra dietro al kart, più grandi più lontani.
+fn dust(cam: &Cam, k: &Kart, tick: u32, list: &mut [Quad], len: &mut usize) {
+    if k.v < 2 * ONE {
+        return;
+    }
+    let f = dir(k.h);
+    let r = (f.1, -f.0);
+    for i in 1..=4 {
+        let back = int(9 * i);
+        let sway = int(((tick as i32 + 3 * i) % 5) - 2);
+        let cx = k.x - mul(f.0, back) + mul(r.0, sway);
+        let cy = k.y - mul(f.1, back) + mul(r.1, sway);
+        let s = int(i + 1);
+        let c = |sx: Fx, sy: Fx| V3 { x: cx + mul(r.0, sx) - mul(f.0, sy), y: cy + mul(r.1, sx) - mul(f.1, sy), z: int(1) };
+        let poly = [c(-s, -s), c(s, -s), c(s, s), c(-s, s)];
+        cam.add(&poly, lerp(DUST, GRASS, 40 * i as u32), list, len);
+    }
+}
+
 /// Strisce di strada e cordoli, un quadrilatero per sottosegmento.
 fn track_quads(cam: &Cam, tr: &Track, list: &mut [Quad], len: &mut usize) {
     let n = tr.n();
@@ -250,6 +309,7 @@ pub fn draw(race: &Race, buf: &mut [u32], w: usize, h: usize, cam: usize) {
         focal: h as i64 * 2 / 3,
     };
 
+    sun(buf, w, h, hor);
     let mut tq = [Quad::default(); N_TRACK];
     let mut nt = 0;
     track_quads(&cm, race.track, &mut tq, &mut nt);
@@ -258,6 +318,9 @@ pub fn draw(race: &Race, buf: &mut [u32], w: usize, h: usize, cam: usize) {
     let mut oq = [Quad::default(); N_OBJ];
     let mut no = 0;
     let n = race.track.n();
+    for i in 0..race.n {
+        dust(&cm, &race.karts[i], race.tick, &mut oq, &mut no);
+    }
     for b in 0..N_BOXES {
         if race.boxes[b] == 0 {
             let (x, y) = race.track.point(b * n / N_BOXES, ONE / 2);
