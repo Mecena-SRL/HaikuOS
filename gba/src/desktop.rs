@@ -40,10 +40,11 @@ pub const WIN_W: usize = 108;
 pub const WIN_H: usize = 88;
 pub const TITLE_H: usize = 10;
 /// Numero di icone del lanciatore (una pagina: 5 colonne x 4 righe).
-pub const ICONS: usize = 20;
+pub const ICONS: usize = 24;
 /// Etichette sotto le icone. Il terminale digita questi nomi (vedi terminal::APP_CMDS).
 pub const ICON_LABELS: [&[u8]; ICONS] = [
     b"FILES", b"TERM", b"CALC", b"NOTES", b"CLOCK", b"SETTINGS", b"CHESS", b"READ", b"REMIND", b"PASSWORDS", b"DICTIONARY", b"CALENDAR", b"MESSAGES", b"PHOTOS", b"VIEWER", b"CAMERA", b"MUSIC", b"MAPS", b"MEMO", b"UTIL",
+    b"SOFTWARE", b"AIUTO", b"TOUR", b"SCANNER",
 ];
 /// Icona che apre la finestra del terminale.
 pub const TERM_ICON: usize = 1;
@@ -88,13 +89,18 @@ pub enum App {
     Memo,
     /// Utility di sistema: disco, memoria, stampante, nota, colore (sola lettura, A aggiunge un lavoro).
     Utility,
+    /// Software (catalogo), Aiuto, Visita guidata, Acquisizione documenti (logica in apps/*.rs).
+    Software,
+    Help,
+    Tour,
+    Scanner,
 }
 
 /// Tabella del lanciatore: programma dietro a ogni icona.
 pub const APPS: [App; ICONS] = [
     App::Files, App::Term, App::Calc, App::Notes, App::Clock, App::Settings, App::Chess, App::Reader, App::Reminders,
     App::Passwords, App::Dictionary, App::Calendar, App::Messages, App::Photos, App::PhotoView, App::Camera, App::Music, App::Maps, App::Memo,
-    App::Utility,
+    App::Utility, App::Software, App::Help, App::Tour, App::Scanner,
 ];
 
 /// Programma lanciabile dalla icona `i`, se c'è una finestra per lui.
@@ -105,7 +111,7 @@ pub fn launchable(i: usize) -> Option<App> {
     }
 }
 
-use crate::apps::{clock::Clock, settings::Settings, sysutil, ui::AppsUi, view};
+use crate::apps::{aiuto::Aiuto, clock::Clock, scanner::{self, Evento, Scanner, Stato}, settings::Settings, software::{self, Software}, sysutil, tour::Tour, ui::AppsUi, view};
 use crate::media_ui::{self, ChessView, Key, Reader};
 use crate::calc_ui::{self, CalcUi};
 use crate::reminders::Reminders;
@@ -135,11 +141,15 @@ pub struct Desktop {
     reader: Reader,
     pub rem: Reminders,
     pub apps: AppsUi,
+    sw: Software,
+    aiuto: Aiuto,
+    tour: Tour,
+    scan: Scanner,
 }
 
 impl Desktop {
     pub fn new() -> Self {
-        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new(), chess: ChessView::new(), reader: Reader::new(READER_TEXT), rem: Reminders::new(), apps: AppsUi::new() }
+        Self { sel: 0, win: None, prev: 0, calc: CalcUi::new(), term: Terminal::new(), run: None, clock: Clock::new(9, 0), settings: Settings::new(), chess: ChessView::new(), reader: Reader::new(READER_TEXT), rem: Reminders::new(), apps: AppsUi::new(), sw: Software::new(), aiuto: Aiuto::new(), tour: Tour::new(), scan: Scanner::new() }
     }
 
     /// Vero se c'è un programma a schermo intero da avviare.
@@ -272,6 +282,51 @@ impl Desktop {
                             _ => {}
                         }
                     }
+                }
+            }
+            Some(App::Software) => {
+                if pressed & KEY_UP != 0 {
+                    self.sw.su();
+                }
+                if pressed & KEY_DOWN != 0 {
+                    self.sw.giu();
+                }
+                if pressed & KEY_A != 0 {
+                    self.sw.commuta();
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            Some(App::Help) => {
+                if pressed & KEY_UP != 0 {
+                    self.aiuto.su();
+                }
+                if pressed & KEY_DOWN != 0 {
+                    self.aiuto.giu();
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            Some(App::Tour) => {
+                if pressed & KEY_A != 0 {
+                    self.tour.avanti();
+                }
+                if pressed & KEY_LEFT != 0 {
+                    self.tour.indietro();
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
+                }
+            }
+            Some(App::Scanner) => {
+                if pressed & KEY_A != 0 {
+                    let e = if self.scan.stato() == Stato::Spento { Evento::Accendi } else { Evento::Scansiona };
+                    self.scan.evento(e);
+                }
+                if pressed & KEY_B != 0 {
+                    self.win = None;
                 }
             }
             Some(App::Calc) => {
@@ -470,6 +525,10 @@ fn titolo_app(app: App) -> Option<&'static [u8]> {
         App::Music => b"MUSIC",
         App::Maps => b"MAPS",
         App::Memo => b"MEMO",
+        App::Software => b"SOFTWARE",
+        App::Help => b"AIUTO",
+        App::Tour => b"TOUR",
+        App::Scanner => b"SCANNER",
         _ => return None,
     };
     Some(t)
@@ -596,6 +655,52 @@ pub fn paint(fb: &mut [u16], d: &Desktop, surf: &[u16], media: &[u16], fs: &Fs) 
             if !b.is_empty() {
                 crate::font::draw(fb, W, H, WIN_X + 4, y, b.as_bytes(), TEXT);
                 y += 10;
+            }
+        }
+        return;
+    }
+    // Software, Aiuto, Visita guidata, Scanner: testo in poche righe.
+    if matches!(app, App::Software | App::Help | App::Tour | App::Scanner) {
+        if let Some(titolo) = titolo_app(app) {
+            crate::font::draw(fb, W, H, WIN_X + 5, WIN_Y + 2, titolo, t0);
+        }
+        let mut y = by + 2;
+        match app {
+            App::Software => {
+                for i in 0..software::CATALOGO.len() {
+                    let c = if i == d.sw.sel() { t0 } else { TEXT };
+                    crate::font::draw(fb, W, H, bx + 2, y, d.sw.nome(i).as_bytes(), c);
+                    if d.sw.installato(i) {
+                        crate::font::draw(fb, W, H, bx + 70, y, b"OK", c);
+                    }
+                    y += 10;
+                }
+            }
+            App::Help => {
+                crate::font::draw(fb, W, H, bx + 2, y, d.aiuto.titolo().as_bytes(), t0);
+                y += 12;
+                for r in d.aiuto.righe() {
+                    crate::font::draw(fb, W, H, bx + 2, y, r.as_bytes(), TEXT);
+                    y += 10;
+                }
+            }
+            App::Tour => {
+                for r in d.tour.righe() {
+                    crate::font::draw(fb, W, H, bx + 2, y, r.as_bytes(), TEXT);
+                    y += 10;
+                }
+            }
+            _ => {
+                let righe: &[&str] = match d.scan.stato() {
+                    Stato::Spento => &["PREMI A PER", "ACCENDERE"],
+                    Stato::Pronto => &["PREMI A PER", "SCANSIONARE"],
+                    Stato::Acquisito => &["DOCUMENTO OK"],
+                    Stato::ScannerAssente => scanner::AVVISO,
+                };
+                for r in righe {
+                    crate::font::draw(fb, W, H, bx + 2, y, r.as_bytes(), TEXT);
+                    y += 10;
+                }
             }
         }
         return;

@@ -1,10 +1,10 @@
 //! Aiuto: argomenti di guida con navigazione su/giù. Testi brevi, solo ASCII per il font GBA.
 
-pub const ARGOMENTI: [(&str, &str); 4] = [
-    ("MUOVERSI", "Usa su e giu per scegliere una voce."),
-    ("FINESTRE", "Ogni app apre una finestra sulla scrivania."),
-    ("MEMORIA", "Ogni app ha uno slot. Se manca spazio, l'avvio e negato."),
-    ("SPEGNERE", "Chiudi le app e torna al menu per spegnere."),
+pub const ARGOMENTI: [(&str, &[&str]); 4] = [
+    ("MUOVERSI", &["SU E GIU", "SCEGLIE UNA VOCE", "B CHIUDE"]),
+    ("FINESTRE", &["OGNI APP APRE", "UNA FINESTRA", "SULLA SCRIVANIA"]),
+    ("MEMORIA", &["OGNI APP HA", "UNO SLOT.", "SE MANCA SPAZIO", "L'AVVIO E NEGATO"]),
+    ("SPEGNERE", &["CHIUDI LE APP", "E TORNA AL MENU"]),
 ];
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -25,7 +25,7 @@ impl Aiuto {
         ARGOMENTI[self.sel()].0
     }
 
-    pub fn testo(&self) -> &'static str {
+    pub fn righe(&self) -> &'static [&'static str] {
         ARGOMENTI[self.sel()].1
     }
 
