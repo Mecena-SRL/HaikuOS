@@ -1,0 +1,4 @@
+Lista della spesa:
+- pane
+- latte
+- mele

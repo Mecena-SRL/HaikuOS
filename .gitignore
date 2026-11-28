@@ -1,1 +1,7 @@
+/target
+
+# x86 boot
+x86/kernel/target/
+x86/build/
+tools/recompiler/out/
 target/

@@ -1,3 +1,8 @@
 [workspace]
+members = ["sysapps", "setup", "kernel", "devtools"]
+exclude = ["sim", "gba"]
 resolver = "2"
-members = ["editor", "games/chess"]
+
+[profile.release]
+opt-level = 3
+panic = "abort"

@@ -1,0 +1,17 @@
+[package]
+name = "haiku-gui"
+version = "0.1.0"
+edition = "2021"
+
+# Crate separato: nessun dipendente, no_std, testabile su host.
+[dependencies]
+sysapps = { path = "../sysapps" }
+
+[features]
+# Font 5×7 (x86). Senza feature: 3×5 (GBA).
+wide-font = []
+
+[workspace]
+
+[profile.release]
+opt-level = "s"

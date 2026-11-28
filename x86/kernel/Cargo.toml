@@ -1,0 +1,20 @@
+[workspace]
+
+[package]
+name = "haiku-kernel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+haiku-gui = { path = "../../gui", features = ["wide-font"] }
+haiku-office = { path = "../../office" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+codegen-units = 1
+debug = false
