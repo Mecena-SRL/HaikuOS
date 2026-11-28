@@ -138,6 +138,20 @@ impl Map {
     }
 
     /// Rende erbosa un'area 3x3 attorno a (x, y): punto di partenza sicuro.
+    /// Toglie l'acqua entro distanza `r` (Manhattan) da (x, y): partenza sempre giocabile.
+    fn keep_dry_around(&mut self, x: usize, y: usize, r: usize) {
+        for yy in 0..self.h {
+            for xx in 0..self.w {
+                if x.abs_diff(xx) + y.abs_diff(yy) <= r {
+                    let i = self.idx(xx, yy);
+                    if self.terrain[i] == Terrain::Water {
+                        self.terrain[i] = Terrain::Grass;
+                    }
+                }
+            }
+        }
+    }
+
     fn clear_area(&mut self, x: usize, y: usize) {
         for yy in y.saturating_sub(1)..=(y + 1).min(self.h - 1) {
             for xx in x.saturating_sub(1)..=(x + 1).min(self.w - 1) {
@@ -561,6 +575,8 @@ impl Game {
         let (rx, ry) = (3 * w / 4, h / 2);
         map.clear_area(px, py);
         map.clear_area(rx, ry);
+        map.keep_dry_around(px, py, 2);
+        map.keep_dry_around(rx, ry, 2);
         let (profile, stock) = start_profile(seed);
         let mut player = Empire::new(&map, stock);
         let mut rival = Empire::new(&map, stock);
@@ -579,6 +595,17 @@ impl Game {
             win_pop: diff.win_pop(),
             profile,
         }
+    }
+
+    /// Ultimi 10 turni prima del tetto: stessa informazione per giocatore e IA.
+    pub fn endgame(&self) -> bool {
+        self.turns + 10 >= MAX_TURNS
+    }
+
+    /// Prossimo evento: turni che mancano e tipo (sempre un multiplo di 10).
+    pub fn next_event(&self) -> Option<(u32, Event)> {
+        let t = (self.turns / 10 + 1) * 10;
+        Event::of_turn(self.seed, t).map(|e| (t - self.turns, e))
     }
 
     /// Demolisce l'edificio sotto il cursore del giocatore.
@@ -609,7 +636,8 @@ impl Game {
             ev.apply(&mut self.player);
             ev.apply(&mut self.rival);
         }
-        ai_turn(&mut self.rival, &self.map, self.rival_style);
+        let endgame = self.endgame();
+        ai_turn(&mut self.rival, &self.map, self.rival_style, endgame);
     }
 
     /// Vince chi arriva a `WIN_POP`; se entrambi ci arrivano nello stesso turno è patta.
@@ -641,7 +669,7 @@ impl Game {
 
 /// IA semplice e deterministica: al massimo una costruzione per turno, nell'ordine di bisogno,
 /// sempre nella casella libera più vicina alla propria capitale (regole uguali al giocatore).
-fn ai_turn(e: &mut Empire, map: &Map, style: Style) {
+fn ai_turn(e: &mut Empire, map: &Map, style: Style, endgame: bool) {
     // La ricerca non consuma il turno di costruzione (come per il giocatore).
     e.research_irrigation();
     // Cibo quasi finito: scambia oro (come il giocatore con `m`).
@@ -660,7 +688,12 @@ fn ai_turn(e: &mut Empire, map: &Map, style: Style) {
         (Building::Market, e.count(Building::Market) < 2),
     ];
     // La personalità mette in testa le sue costruzioni preferite; l'ordine resto è invariato.
-    plan.sort_by_key(|(b, _)| !style.prefers(*b));
+    // Ultimi turni: case per prime (crescita); altrimenti la personalità.
+    if endgame {
+        plan.sort_by_key(|(b, _)| *b != Building::House);
+    } else {
+        plan.sort_by_key(|(b, _)| !style.prefers(*b));
+    }
     let capital = (3 * map.w / 4, map.h / 2);
     for (b, wanted) in plan {
         if !wanted {
@@ -990,6 +1023,34 @@ mod tests {
         let g = Game::new(24, 12, 99);
         assert_eq!(g.player.stock, g.rival.stock);
         assert_eq!(g.profile, start_profile(99).0);
+    }
+
+    #[test]
+    fn anello_senza_acqua_intorno_alle_capitali() {
+        for seed in 0..20 {
+            let g = Game::new(24, 12, seed);
+            for (cx, cy) in [(6usize, 6usize), (18, 6)] {
+                for y in 0..g.map.h {
+                    for x in 0..g.map.w {
+                        if cx.abs_diff(x) + cy.abs_diff(y) <= 2 {
+                            assert_ne!(g.map.terrain(g.map.idx(x, y)), Some(Terrain::Water));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn preavviso_tre_turni_prima_e_corsa_finale() {
+        let mut g = Game::new(24, 12, 5);
+        assert_eq!(g.next_event().map(|(n, _)| n), Some(10));
+        g.turns = 7;
+        assert_eq!(g.next_event().map(|(n, _)| n), Some(3));
+        g.turns = 69;
+        assert!(!g.endgame());
+        g.turns = 70;
+        assert!(g.endgame());
     }
 
     #[test]

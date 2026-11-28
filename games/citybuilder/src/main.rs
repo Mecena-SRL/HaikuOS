@@ -236,6 +236,15 @@ fn draw(g: &Game) {
     if let Some(motivo) = g.player.growth_block() {
         println!("crescita ferma: {motivo}");
     }
+    if let Some((n, ev)) = g.next_event().filter(|(n, _)| *n <= 3) {
+        println!("preavviso: tra {n} turni {}", ev.name());
+    }
+    if g.endgame() {
+        println!(
+            "ultimi turni: {} al tetto",
+            citybuilder::MAX_TURNS - g.turns
+        );
+    }
     if g.player.stock.food < 2 {
         println!("attenzione: cibo basso, con zero cibo perdi un cittadino");
     }
