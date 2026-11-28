@@ -145,6 +145,8 @@ pub struct Game {
     /// Tick del tutorial al primo livello (si ferma a `TUT_TICKS`).
     pub tut: u32,
     timer: u32,
+    /// Conferma di riavvio dalla pausa (tick rimanenti).
+    pub restart_arm: u32,
     /// Contatore di animazione (ticks di gioco), per fusibili e lampeggi.
     pub anim: u32,
     rng: u32,
@@ -171,6 +173,7 @@ impl Game {
             paused: false,
             tut: 0,
             timer: 0,
+            restart_arm: 0,
             anim: 0,
             rng: seed | 1,
         };
@@ -206,9 +209,14 @@ impl Game {
 
     pub fn input(&mut self, c: Cmd) {
         if self.paused && c == Cmd::Fire {
-            // In pausa, SPAZIO ricomincia la partita.
-            self.paused = false;
-            self.start_at(0);
+            // In pausa, SPAZIO va premuto due volte entro 2 s per ricominciare.
+            if self.restart_arm > 0 {
+                self.paused = false;
+                self.restart_arm = 0;
+                self.start_at(0);
+            } else {
+                self.restart_arm = 120;
+            }
             return;
         }
         if self.paused && c != Cmd::Pause {
@@ -243,6 +251,7 @@ impl Game {
 
     pub fn tick(&mut self) {
         if self.paused {
+            self.restart_arm = self.restart_arm.saturating_sub(1);
             return;
         }
         if self.level == 0 && self.tut < TUT_TICKS && matches!(self.phase, Phase::Ready | Phase::Play) {

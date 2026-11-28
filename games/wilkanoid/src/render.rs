@@ -426,7 +426,8 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         c.panel(80.0, 52.0, 160.0, 86.0);
         c.text_c(b"PAUSA", 58.0, 2.0, TXT);
         c.text_c(b"P RIPRENDI", 72.0, 1.0, TXT);
-        c.text_c(b"SPAZIO RICOMINCIA", 80.0, 1.0, TXT);
+        let rl: &[u8] = if g.restart_arm > 0 { b"SPAZIO: CONFERMA" } else { b"SPAZIO RICOMINCIA" };
+        c.text_c(rl, 80.0, 1.0, TXT);
     }
 
     match g.phase {
