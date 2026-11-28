@@ -271,9 +271,11 @@ fn main() {
     if a.get(4).map(String::as_str) == Some("wins2") {
         shell.wm.open(1, "FILE", 120, 80, lw, lh);
         shell.wm.open(3, "CALCOLATRICE", 80, 60, lw, lh);
+        // Su 480 punti le icone occupano le colonne fino a x≈320: le finestre vanno a destra, libere.
         let k = (lw / 240).max(1);
-        if let Some(i) = shell.wm.find_app(1) { shell.wm.move_win(i, 14 * k, 30 * k, lw, lh); }
-        if let Some(i) = shell.wm.find_app(3) { shell.wm.move_win(i, 140 * k, 42 * k, lw, lh); }
+        let (fx, fy, cx, cy) = if lw >= 400 { (lw - 130, 40, lw - 130, 150) } else { (14 * k, 30 * k, 140 * k, 42 * k) };
+        if let Some(i) = shell.wm.find_app(1) { shell.wm.move_win(i, fx, fy, lw, lh); }
+        if let Some(i) = shell.wm.find_app(3) { shell.wm.move_win(i, cx, cy, lw, lh); }
         draw(&mut v, &shell);
         let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
         write!(f, "P6\n{w} {h}\n255\n").unwrap();
