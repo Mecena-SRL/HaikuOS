@@ -2,6 +2,8 @@
 //! `no_std`, senza allocazione, senza dipendenze. Nessuna GPU: vedi docs/engine.md.
 #![cfg_attr(not(test), no_std)]
 
+pub mod replay;
+
 /// Numero in virgola fissa Q16.16. Stessi bit su ogni piattaforma: la simulazione è deterministica.
 pub type Fx = i32;
 pub const ONE: Fx = 1 << 16;
