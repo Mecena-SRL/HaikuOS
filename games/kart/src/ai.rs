@@ -33,8 +33,13 @@ fn lookahead(track: &Track, near: &Near, dist: Fx) -> (Fx, Fx) {
     (x, y)
 }
 
-pub fn drive(track: &Track, k: &Kart, near: &Near) -> Input {
-    let (tx, ty) = lookahead(track, near, LOOK);
+/// Personalità: ogni IA guarda a una distanza diversa (traiettorie più larghe o più strette).
+pub fn look_for(i: usize) -> Fx {
+    LOOK + (i as i32 % 3 - 1) * 4 * ONE
+}
+
+pub fn drive(track: &Track, k: &Kart, near: &Near, look: Fx) -> Input {
+    let (tx, ty) = lookahead(track, near, look);
     let (dx, dy) = dir(k.h);
     let (vx, vy) = (tx - k.x, ty - k.y);
     let cross = mul(dx, vy) - mul(dy, vx);

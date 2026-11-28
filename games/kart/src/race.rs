@@ -135,7 +135,7 @@ impl<'a> Race<'a> {
             let near = track.nearest(k.x, k.y);
             let mut inp = match (i, human) {
                 (0, Some(h)) => h,
-                _ => ai::drive(track, &k, &near),
+                _ => ai::drive(track, &k, &near, ai::look_for(i)),
             };
             if i > 0 {
                 inp.item = self.rand(60) == 0;
