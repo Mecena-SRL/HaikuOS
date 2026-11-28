@@ -235,6 +235,9 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .legend{font-size:12px;color:var(--mut)}
 #chipsbox{border-top:1px solid var(--line);font-size:12px}
 #chipsbox summary{cursor:pointer;padding:8px 16px;color:var(--mut);font-weight:600;font-size:12px}
+#acc{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#acc button{width:18px;height:18px;border-radius:50%;border:0;padding:0;cursor:pointer}
+#acc button.on{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--T0)}
 #chips{display:flex;flex-wrap:wrap;gap:4px;padding:4px 12px 8px;max-height:30vh;overflow:auto}
 #chips:empty::before{content:'Nessuna scelta';font-size:12px;color:var(--mut)}
 #chips span.nv{border-style:dashed;color:var(--mut)}
@@ -270,6 +273,7 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
    <div class="seg" id="pct"></div>
    <div class="seg" id="fit"></div>
    <div class="seg" id="pal"></div>
+   <div class="accs" id="acc"></div>
    <button class="btnpri" id="reopen">Ripristina finestra</button>
   </div>
   <div class="legend" id="meta"></div>
@@ -293,7 +297,9 @@ const PALETTES={attuale:{nome:'Attuale',v:null},
  macos:{nome:'macOS · accento blu',v:{T2:'#0088ff'},src:'Apple HIG color (developer.apple.com/design/human-interface-guidelines/color.md): systemBlue chiaro. Solo accento: il resto resta invariato'}};
 
 const PCTS=[100,125,150];
-const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,fit:true,pal:'attuale',ans:{},cust:{}};
+// colore di accento come sul Mac (Aspetto > Colore): valori chiari di Apple HIG; multicolore = nessun colore fisso
+const ACCENTS={multi:{nome:'Multicolore',c:null},blue:{nome:'Blu',c:'#0088ff'},purple:{nome:'Viola',c:'#cb30e0'},pink:{nome:'Rosa',c:'#ff2d55'},red:{nome:'Rosso',c:'#ff383c'},orange:{nome:'Arancione',c:'#ff8d28'},yellow:{nome:'Giallo',c:'#ffcc00'},green:{nome:'Verde',c:'#34c759'},graphite:{nome:'Grafite',c:'#8e8e93'}};
+const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,fit:true,pal:'attuale',acc:'multi',accC:'#7a5af8',ans:{},cust:{}};
 const $=id=>document.getElementById(id);
 
 // ---- build tree
@@ -449,6 +455,7 @@ function updatePreview(){
  const st=$('stage');
  st.dataset.ready=1;updateStrokes();
  const pv=PALETTES[S.pal].v;['T0','T1','T2','T3'].forEach(t=>{if(pv&&pv[t])st.style.setProperty('--'+t,pv[t]);else st.style.removeProperty('--'+t)});
+ const ac=S.acc==='custom'?S.accC:ACCENTS[S.acc].c;if(ac)st.style.setProperty('--T2',ac);
  const attrs={};
  for(const qid of S.order){const a=S.ans[qid];if(a&&MAP[a])Object.assign(attrs,MAP[a])}
  for(const k in VOCAB){
@@ -464,6 +471,8 @@ function segs(){
  $('dev').innerHTML=Object.keys(DEV).map(k=>`<button data-k="dev" data-v="${k}" class="${k===S.dev?'on':''}">${DEV[k].l}</button>`).join('');
  $('ori').innerHTML=Object.keys(ORI).map(k=>`<button data-k="ori" data-v="${k}" class="${k===S.ori?'on':''}">${ORI[k]==='Orizzontale'?'Orizz.':'Vert.'}</button>`).join('');
  $('pct').innerHTML=PCTS.map(k=>`<button data-k="pct" data-v="${k}" class="${k===S.pct?'on':''}">${k}%</button>`).join('');
+ $('acc').innerHTML=Object.keys(ACCENTS).map(k=>`<button data-k="acc" data-v="${k}" title="${ACCENTS[k].nome}" class="${k===S.acc?'on':''}" style="background:${ACCENTS[k].c?ACCENTS[k].c:'conic-gradient(#ff383c,#ff8d28,#ffcc00,#34c759,#0088ff,#cb30e0,#ff2d55,#ff383c)'}"></button>`).join('')+`<label class="${S.acc==='custom'?'on':''}" title="Personalizzato" style="width:18px;height:18px;border-radius:50%;background:${S.accC};cursor:pointer;position:relative;overflow:hidden"><input type="color" id="accc" value="${S.accC}" style="opacity:0;position:absolute;inset:0;width:100%;height:100%;cursor:pointer"></label>`;
+ $('acc').addEventListener('input',e=>{if(e.target.id!=='accc')return;S.acc='custom';S.accC=e.target.value;document.querySelectorAll('#acc button,#acc label').forEach(x=>x.classList.remove('on'));e.target.parentElement.classList.add('on');e.target.parentElement.style.background=S.accC;updatePreview()});
  $('pal').innerHTML=Object.keys(PALETTES).map(k=>`<button data-k="pal" data-v="${k}" class="${k===S.pal?'on':''}">${PALETTES[k].nome}</button>`).join('');
  $('fit').innerHTML=`<button data-k="fit" data-v="1" class="${S.fit?'on':''}">Adatta</button><button data-k="fit" data-v="0" class="${S.fit?'':'on'}">1:1</button>`;
 }
