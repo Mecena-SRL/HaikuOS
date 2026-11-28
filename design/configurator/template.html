@@ -43,7 +43,7 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .seg button{padding:5px 10px;font-size:12px}
 .seg button.on{background:var(--T0);color:var(--T1)}
-.frame{flex:1;min-height:200px;display:flex;align-items:center;justify-content:center;background:#e6dccd;border-radius:10px;overflow:auto;position:relative}
+.frame{flex:1;min-height:200px;display:flex;align-items:center;justify-content:center;background:#e6dccd;border-radius:10px;overflow:hidden;position:relative}
 .dev{position:absolute;left:50%;top:50%}
 /* stage: all sizes are multiples of --u (unit u = max(1, round(S*pct/12800))) */
 .stage{position:relative;overflow:hidden;background:var(--T0);color:var(--T0);font-size:calc(var(--u)*var(--fs,2));--rad:calc(var(--u)*var(--radm,2))}
@@ -172,7 +172,7 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 #legend-tests b{display:block;margin-top:4px}
 .stage .bar b{cursor:pointer;padding:0 calc(var(--u)*.6);border-radius:var(--rad)}
 .stage .bar b:hover{background:rgba(16,33,57,.12)}
-.stage .bar b.app{font-weight:700;margin-right:calc(var(--u)*1)}
+.stage .bar b.mtitle{font-weight:700;margin-right:calc(var(--u)*1)}
 .stage .bar b.on{background:var(--T0);color:var(--T3)}
 .stage .clk{cursor:pointer}
 .stage .mbdrop{display:none;position:absolute;top:calc(var(--u)*var(--barh,3));background:#fff;border:var(--sw) solid var(--T0);border-radius:var(--rad);padding:calc(var(--u)*.6) 0;font-size:calc(var(--u)*1.6);min-width:calc(var(--u)*14);z-index:6;box-shadow:0 calc(var(--u)*1) calc(var(--u)*2) rgba(0,0,0,.25)}
@@ -232,7 +232,9 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage[data-font=bold]{font-weight:700}
 .stage .win{--bw:var(--hair)}
 .legend{font-size:12px;color:var(--mut)}
-#chips{display:flex;flex-wrap:wrap;gap:4px;padding:8px 12px;border-top:1px solid var(--line)}
+#chipsbox{border-top:1px solid var(--line);font-size:12px}
+#chipsbox summary{cursor:pointer;padding:8px 16px;color:var(--mut);font-weight:600;font-size:12px}
+#chips{display:flex;flex-wrap:wrap;gap:4px;padding:4px 12px 8px;max-height:30vh;overflow:auto}
 #chips:empty::before{content:'Nessuna scelta';font-size:12px;color:var(--mut)}
 #chips span.nv{border-style:dashed;color:var(--mut)}
 #chips span.todo{border-color:var(--T2);color:var(--T2)}
@@ -258,7 +260,7 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
  Campo di testo: clic per evidenziarlo.<br>
  Icone: clic per schiacciarle.<br>
  Finestra chiusa: ripristinala dal dock o dal pulsante in alto.
-</div><div id="chips"></div><div id="navlist"></div></nav>
+</div><details id="chipsbox"><summary>Scelte attive (<span id="chipn">0</span>)</summary><div id="chips"></div></details><div id="navlist"></div></nav>
  <div class="sp" data-s="1"></div>
  <aside>
   <div class="ctl">
@@ -370,7 +372,7 @@ function showMenu(k,el){
  d.classList.add('open');
 }
 function buildStage(){
- $('stage').innerHTML=`<div class="bar"><i></i><b class="app">Calcolatrice</b><b data-menu="fine">Fine</b><b data-menu="modifica">Modifica</b><b data-menu="vista">Vista</b><span class="clk" data-x="clock"></span></div>
+ $('stage').innerHTML=`<div class="bar"><i></i><b class="mtitle">Calcolatrice</b><b data-menu="fine">Fine</b><b data-menu="modifica">Modifica</b><b data-menu="vista">Vista</b><span class="clk" data-x="clock"></span></div>
  <div class="mbdrop" id="mbdrop"></div>
  <div class="win" id="win"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">Calcolatrice</div></div>
   <div class="sbar"></div><div class="body"><div class="wx"><div class="wc"><i></i>Opzione</div><div class="wr"><i></i>Scelta</div><div class="wsl"><b></b></div><div class="wpg"><b></b></div></div><div class="btn" data-tip="Pulsante primario">Continua</div>
@@ -424,7 +426,7 @@ function updatePreview(){
   else{if(attrs[k]!==undefined)st.dataset[k]=attrs[k];else delete st.dataset[k]}
  }
  // ogni opzione scelta compare subito come etichetta nell'anteprima
- $('chips').innerHTML=DATA.filter(q=>S.ans[q.id]).map(q=>{const o=q.options.find(x=>x.id===S.ans[q.id]);const m=MAP[o.id]||{};const vis=Object.keys(m).some(k=>!k.startsWith('_'));const nv=!!m._nv;const tag=vis?'v':nv?'nv':'todo';const pre=vis?'':nv?'non visiva · ':'da disegnare · ';return `<span class="${tag}">${pre}${o.label}</span>`}).join('');
+ const chosen=DATA.filter(q=>S.ans[q.id]);$('chipn').textContent=chosen.length;$('chips').innerHTML=DATA.filter(q=>S.ans[q.id]).map(q=>{const o=q.options.find(x=>x.id===S.ans[q.id]);const m=MAP[o.id]||{};const vis=Object.keys(m).some(k=>!k.startsWith('_'));const nv=!!m._nv;const tag=vis?'v':nv?'nv':'todo';const pre=vis?'':nv?'non visiva · ':'da disegnare · ';return `<span class="${tag}">${pre}${o.label}</span>`}).join('');
  $('meta').textContent=`${DEV[S.dev].l} · ${DEV[S.dev].w}×${DEV[S.dev].h} · ${ORI[S.ori]} · u=${uPx()}px (${S.pct}%)`;
  scaleDev();
 }
