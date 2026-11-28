@@ -44,7 +44,7 @@ VOCAB = {
  "radm": [0, 1, 2, 3, 4], "pad": [1, 2, 3], "fs": [1.5, 2, 2.5],
  "w_checkbox": ["on"],  "w_radio": ["on"],  "w_slider": ["on"],  "w_progress": ["on"],  "w_menu": ["on"],  "w_list": ["on"],
  "w_tabs": ["on"],  "w_dialog": ["on"],  "w_toast": ["on"],  "w_focus": ["on"],  "w_error": ["on"],  "w_disabled": ["on"],
- "w_sidebar": ["on"],  "w_badge": ["on"],
+ "w_badge": ["on"],
  "clk": ["time", "sec", "dow", "full", "none"], "icn": [5, 7, 9], "lh": [1.2, 1.45, 1.8],
  "grid": ["free", "rows", "cols"], "dot": ["on"], "start": ["corner", "center", "left"],
  "cur": ["arrow", "large", "cross", "hand"], "grip": ["on"], "ghost": ["on"], "split": ["on"],

@@ -280,23 +280,18 @@
   "_f": "solo testo, scheda attiva in grassetto"
  },
  "q074-sb-tinta-neutra": {
-  "w_sidebar": "on",
   "_f": "largh 8u-12u; sfondo T1; icone nelle voci"
  },
  "q074-sb-traslucida": {
-  "w_sidebar": "on",
   "_f": "sfondo traslucido con materiale"
  },
  "q074-sb-comprimibile": {
-  "w_sidebar": "on",
   "_f": "comprimibile a sola icona"
  },
  "q074-sb-titoli-sezione": {
-  "w_sidebar": "on",
   "_f": "sezioni con titoletti"
  },
  "q074-sb-pillola-attiva": {
-  "w_sidebar": "on",
   "_f": "voce attiva con pillola di A(1)"
  },
  "q075-bc-freccia": {

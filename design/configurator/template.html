@@ -80,7 +80,7 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage .tip{position:absolute;padding:calc(var(--u)*.5) calc(var(--u)*1.2);background:var(--T0);color:var(--T1);border-radius:var(--rad);font-size:calc(var(--u)*1.6);pointer-events:none;opacity:0;transition:opacity .15s}
 .stage .tip.on{opacity:1}
 /* widget: mostrati quando lo stato data-w_* è presente (additivi) */
-.stage .wx,.stage .wmenu,.stage .wlist,.stage .wtabs,.stage .wdlg,.stage .wtoast,.stage .wside{display:none}
+.stage .wx,.stage .wmenu,.stage .wlist,.stage .wtabs,.stage .wdlg,.stage .wtoast{display:none}
 .stage .wx{flex-direction:column;gap:calc(var(--u)*1.2);font-size:calc(var(--u)*1.6)}
 .stage .wc,.stage .wr{display:flex;align-items:center;gap:calc(var(--u)*1.2)}
 .stage .wc i,.stage .wr i{width:calc(var(--u)*2);height:calc(var(--u)*2);border:var(--sw) solid var(--T0);border-radius:var(--rad);display:inline-block}
@@ -98,8 +98,6 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage .wdlg span{padding:calc(var(--u)*.6) calc(var(--u)*1.5);border-radius:var(--rad);background:var(--T3)}
 .stage .wdlg span:last-child{background:var(--T2);color:var(--T1)}
 .stage .wtoast{position:absolute;right:calc(var(--u)*3);bottom:calc(var(--u)*3);background:var(--T0);color:var(--T1);padding:calc(var(--u)*1) calc(var(--u)*2);border-radius:var(--rad);font-size:calc(var(--u)*1.6)}
-.stage .wside{position:absolute;left:calc(var(--u)*2);top:calc(var(--u)*6);bottom:calc(var(--u)*2);width:calc(var(--u)*14);background:var(--T3);border-radius:var(--rad);padding:calc(var(--u)*1);font-size:calc(var(--u)*1.6);display:flex;flex-direction:column;gap:calc(var(--u)*.6)}
-.stage .wside div{padding:calc(var(--u)*.5) calc(var(--u)*1)}
 .stage[data-w_checkbox] .wx,.stage[data-w_radio] .wx,.stage[data-w_slider] .wx,.stage[data-w_progress] .wx{display:flex}
 .stage[data-w_checkbox] .wc{display:flex}.stage:not([data-w_checkbox]) .wc{display:none}
 .stage[data-w_radio] .wr{display:flex}.stage:not([data-w_radio]) .wr{display:none}
@@ -110,7 +108,6 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage[data-w_tabs] .wtabs{display:flex}
 .stage[data-w_dialog] .wdlg{display:block}
 .stage[data-w_toast] .wtoast{display:block}
-.stage[data-w_sidebar] .wside{display:flex}
 .stage[data-w_focus] .field{box-shadow:0 0 0 calc(var(--u)*.5) var(--T2)}
 .stage[data-w_error] .field{border-color:#c0392b;color:#c0392b}
 .stage[data-w_disabled] .btn{opacity:.4;pointer-events:none}
@@ -336,7 +333,6 @@ function buildStage(){
  <div class="wtabs"><span>Generali</span><span>Schermo</span></div>
  <div class="wdlg"><b>Confermare?</b><div><span>Annulla</span><span>OK</span></div></div>
  <div class="wtoast">Operazione completata</div>
- <div class="wside"><div>Preferiti</div><div>Cartelle</div></div>
  <div class="wstart">Avvio</div>
  <div class="wgrip"></div><div class="wghost"></div>
  <div class="wwin2"><div class="tb"><div class="t">Note</div></div><div class="body"><div class="field">Secondo documento</div></div></div>
