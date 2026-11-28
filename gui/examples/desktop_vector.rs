@@ -11,6 +11,7 @@
 use haiku_gui::anim::{Budget, Ease, Reactive, FRAME_US};
 use haiku_gui::icons;
 use haiku_gui::input::Key;
+use haiku_gui::gfx::{self, Dirty};
 use haiku_gui::layout::{icon_cell, Rect};
 use haiku_gui::render::{draw, draw_motion, Canvas, Motion, STILL};
 use haiku_gui::{vfont, Icon, Shell, Tok};
@@ -45,23 +46,41 @@ struct Vector {
     pw: i32,
     ph: i32,
     s: i32,
+    /// Buffer di disegno (back buffer).
     buf: Vec<u32>,
+    /// Buffer mostrato (front buffer): riceve solo le zone sporche in `present`.
+    front: Vec<u32>,
+    dirty: Dirty<8>,
+    /// Area fisica in cui il disegno ha effetto: restringerla limita il lavoro.
+    clip: Rect,
 }
 
 impl Vector {
-    /// Riempie il rettangolo fisico [x0,x1)×[y0,y1), ritagliato sullo schermo.
-    fn span(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, c: u32) {
-        for y in y0.max(0)..y1.min(self.ph) {
-            let row = (y * self.pw) as usize;
-            for x in x0.max(0)..x1.min(self.pw) {
-                self.buf[row + x as usize] = c;
+    fn new(pw: i32, ph: i32) -> Vector {
+        let n = (pw * ph) as usize;
+        Vector { pw, ph, s: pw / LW, buf: vec![0; n], front: vec![0; n], dirty: Dirty::new(), clip: Rect::new(0, 0, pw, ph) }
+    }
+
+    /// Copia le zone sporche dal back buffer al front buffer e le svuota.
+    fn present(&mut self) {
+        for r in self.dirty.rects() {
+            if let Some(r) = gfx::clip(*r, self.pw, self.ph) {
+                gfx::copy(&mut self.front, &self.buf, self.pw as usize, r);
             }
+        }
+        self.dirty.clear();
+    }
+
+    /// Riempie il rettangolo fisico [x0,x1)×[y0,y1), limitato all'area di disegno.
+    fn span(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, c: u32) {
+        if let Some(r) = gfx::intersect(Rect::new(x0, y0, x1 - x0, y1 - y0), self.clip) {
+            gfx::fill(&mut self.buf, self.pw as usize, r, c);
         }
     }
 
     /// Mescola il colore `c` sul pixel fisico (x, y) con copertura `a` (0..=255).
     fn mix(&mut self, x: i32, y: i32, a: u8, c: u32) {
-        if x < 0 || y < 0 || x >= self.pw || y >= self.ph {
+        if !self.clip.contains(x, y) {
             return;
         }
         let p = &mut self.buf[(y * self.pw + x) as usize];
@@ -105,8 +124,14 @@ impl Canvas for Vector {
         let (x0, y0, x1, y1) = (r.x * s, r.y * s, (r.x + r.w) * s, (r.y + r.h) * s);
         let rr = radius * s;
         let c = t.rgb();
-        for py in y0.max(0)..y1.min(self.ph) {
-            for px in x0.max(0)..x1.min(self.pw) {
+        let Some(cl) = gfx::intersect(Rect::new(x0, y0, x1 - x0, y1 - y0), self.clip) else { return };
+        for py in cl.y..cl.y + cl.h {
+            // Fuori dagli angoli la riga è piena: una `fill` invece di un test per pixel.
+            if rr == 0 || (py >= y0 + rr && py < y1 - rr) {
+                self.span(cl.x, py, cl.x + cl.w, py + 1, c);
+                continue;
+            }
+            for px in cl.x..cl.x + cl.w {
                 let d = |v: i32, a: i32, b: i32| {
                     if v < a + rr {
                         a + rr - 1 - v
@@ -117,7 +142,7 @@ impl Canvas for Vector {
                     }
                 };
                 let (dx, dy) = (d(px, x0, x1), d(py, y0, y1));
-                if rr == 0 || dx * dx + dy * dy < rr * rr {
+                if dx * dx + dy * dy < rr * rr {
                     self.buf[(py * self.pw + px) as usize] = c;
                 }
             }
@@ -165,7 +190,7 @@ fn main() {
         shell.sel = i;
         let _ = shell.key(Key::A);
     }
-    let mut v = Vector { pw: w, ph: h, s: w / LW, buf: vec![0; (w * h) as usize] };
+    let mut v = Vector::new(w, h);
     // "app=N": una sola finestra a schermo intero con l'app N (es. app=3 calcolatrice).
     if let Some(n) = a.get(4).and_then(|p| p.strip_prefix("app=")).and_then(|p| p.parse::<u8>().ok()) {
         let title = ICONS.iter().find(|i| i.app == n).map(|i| i.title).unwrap_or("");
@@ -218,12 +243,18 @@ fn main() {
 
     // Budget di frame: 30 render misurati, µs per frame (target 60 Hz).
     let mut bud = Budget::new(FRAME_US);
+    let mut present_us = 0u64;
     for _ in 0..30 {
         let t0 = std::time::Instant::now();
         draw_motion(&mut v, &shell, &m);
         bud.record(t0.elapsed().as_micros() as u32);
+        v.dirty.add(Rect::new(0, 0, w, h));
+        let t1 = std::time::Instant::now();
+        v.present();
+        present_us += t1.elapsed().as_micros() as u64;
     }
     println!("frame: media {} µs, max {} µs, oltre 16667 µs: {}/{}", bud.avg_us(), bud.max_us, bud.over, bud.frames);
+    println!("present (copia zone sporche): media {} µs", present_us / 30);
 
     let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
     write!(f, "P6\n{w} {h}\n255\n").unwrap();

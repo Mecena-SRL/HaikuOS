@@ -15,10 +15,15 @@ version = "0.1.0"
 dependencies = [
  "haiku-gui",
  "haiku-office",
+ "haiku-ps2",
 ]
 
 [[package]]
 name = "haiku-office"
+version = "0.1.0"
+
+[[package]]
+name = "haiku-ps2"
 version = "0.1.0"
 
 [[package]]
