@@ -56,9 +56,9 @@ struct Vector {
 }
 
 impl Vector {
-    fn new(pw: i32, ph: i32) -> Vector {
+    fn new(pw: i32, ph: i32, lw: i32) -> Vector {
         let n = (pw * ph) as usize;
-        Vector { pw, ph, s: pw / LW, buf: vec![0; n], front: vec![0; n], dirty: Dirty::new(), clip: Rect::new(0, 0, pw, ph) }
+        Vector { pw, ph, s: pw / lw, buf: vec![0; n], front: vec![0; n], dirty: Dirty::new(), clip: Rect::new(0, 0, pw, ph) }
     }
 
     /// Copia le zone sporche dal back buffer al front buffer e le svuota.
@@ -250,25 +250,29 @@ fn main() {
     let w: i32 = a.get(1).and_then(|v| v.parse().ok()).unwrap_or(3840);
     let h: i32 = a.get(2).and_then(|v| v.parse().ok()).unwrap_or(2160);
     let out = a.get(3).map(String::as_str).unwrap_or("desktop.ppm");
-    if w % LW != 0 || h < w / LW * LH {
-        eprintln!("risoluzione {w}x{h} non multipla intera di {LW}x{LH}");
+    // Scala per diagonale: 480×272 (PSP, 4,3") usa 2 px per punto logico; 1080p (7") e 4K (14") usano 8 px,
+    // stessa densità (~315 PPI). Il 4K ha più punti logici: più superficie, stessi elementi fisici.
+    let s = if w >= 1920 { 8 } else { 2 };
+    let (lw, lh) = (w / s, h / s);
+    if w % s != 0 || h % s != 0 || lh < 135 {
+        eprintln!("risoluzione {w}x{h} non compatibile con scala {s}");
         std::process::exit(1);
     }
 
-    let mut shell = Shell::new(&ICONS, LW, LH);
+    let mut shell = Shell::new(&ICONS, lw, lh);
     shell.set_clock(10, 30);
     // Quinto argomento (opzionale): indice dell'icona da aprire, per gli screenshot delle app.
     if let Some(i) = a.get(5).and_then(|p| p.parse::<usize>().ok()) {
         shell.sel = i;
         let _ = shell.key(Key::A);
     }
-    let mut v = Vector::new(w, h);
+    let mut v = Vector::new(w, h, lw);
     // "wins2": scrivania con due finestre aperte, FILE (1) e CALC (3); lo spazio sotto la scala intera resta nero.
     if a.get(4).map(String::as_str) == Some("wins2") {
-        shell.wm.open(1, "FILE", 120, 80, LW, LH);
-        shell.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
-        if let Some(i) = shell.wm.find_app(1) { shell.wm.move_win(i, 14, 30, LW, LH); }
-        if let Some(i) = shell.wm.find_app(3) { shell.wm.move_win(i, 140, 42, LW, LH); }
+        shell.wm.open(1, "FILE", 120, 80, lw, lh);
+        shell.wm.open(3, "CALCOLATRICE", 80, 60, lw, lh);
+        if let Some(i) = shell.wm.find_app(1) { shell.wm.move_win(i, 14, 30, lw, lh); }
+        if let Some(i) = shell.wm.find_app(3) { shell.wm.move_win(i, 140, 42, lw, lh); }
         draw(&mut v, &shell);
         let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
         write!(f, "P6\n{w} {h}\n255\n").unwrap();
@@ -281,7 +285,7 @@ fn main() {
     // "app=N": una sola finestra a schermo intero con l'app N (es. app=3 calcolatrice).
     if let Some(n) = a.get(4).and_then(|p| p.strip_prefix("app=")).and_then(|p| p.parse::<u8>().ok()) {
         let title = ICONS.iter().find(|i| i.app == n).map(|i| i.title).unwrap_or("");
-        shell.wm.open(n, title, LW - 2, LH - 2, LW, LH);
+        shell.wm.open(n, title, lw - 2, lh - 2, lw, lh);
         draw(&mut v, &shell);
         let mut f = std::io::BufWriter::new(std::fs::File::create(out).expect("file"));
         write!(f, "P6\n{w} {h}\n255\n").unwrap();
@@ -303,7 +307,7 @@ fn main() {
     if let Some(ms) = ms {
         match mode {
             "close" => {
-                shell.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
+                shell.wm.open(3, "CALCOLATRICE", 80, 60, lw, lh);
                 let mut r = Reactive::new(0);
                 r.set(WIN_DY, 0, CLOSE_MS, Ease::InQuad);
                 dy[0] = r.get(ms);
@@ -318,7 +322,7 @@ fn main() {
                 sel = Some(Rect::new(x.get(ms), y.get(ms), to.w, to.h));
             }
             "open" => {
-                shell.wm.open(3, "CALCOLATRICE", 80, 60, LW, LH);
+                shell.wm.open(3, "CALCOLATRICE", 80, 60, lw, lh);
                 let mut r = Reactive::new(WIN_DY);
                 r.set(0, 0, OPEN_MS, Ease::OutCubic);
                 dy[0] = r.get(ms);
