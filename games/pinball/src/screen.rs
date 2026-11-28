@@ -57,23 +57,6 @@ impl Img {
         }
     }
 
-    fn disc(&mut self, cx: i32, cy: i32, r: i32, c: [u8; 3]) {
-        for dy in -r..=r {
-            for dx in -r..=r {
-                if dx * dx + dy * dy <= r * r {
-                    self.put(cx + dx, cy + dy, 1, 1, c);
-                }
-            }
-        }
-    }
-
-    fn seg(&mut self, a: (i32, i32), b: (i32, i32), r: i32, c: [u8; 3]) {
-        let n = (b.0 - a.0).abs().max((b.1 - a.1).abs()).max(1);
-        for k in 0..=n {
-            self.disc(a.0 + (b.0 - a.0) * k / n, a.1 + (b.1 - a.1) * k / n, r, c);
-        }
-    }
-
     /// Scurisce il fotogramma (fondo dei menu).
     fn dim(&mut self) {
         for p in &mut self.px {
@@ -97,6 +80,22 @@ impl Img {
 impl Canvas for Img {
     fn fill(&mut self, r: Rect, t: Tok) {
         self.put(r.x, r.y, r.w, r.h, rgb(t));
+    }
+
+    /// Rettangolo con angoli arrotondati di raggio `radius` (raggio = metà lato: cerchio).
+    fn rect_rounded(&mut self, r: Rect, radius: i32, t: Tok) {
+        let c = rgb(t);
+        let rad = radius.min(r.w / 2).min(r.h / 2).max(0);
+        for y in r.y.max(0)..(r.y + r.h).min(self.h as i32) {
+            for x in r.x.max(0)..(r.x + r.w).min(self.w as i32) {
+                let (dx, dy) = (x - r.x, y - r.y);
+                let ox = if dx < rad { rad - 1 - dx } else if dx >= r.w - rad { dx - (r.w - rad) } else { 0 };
+                let oy = if dy < rad { rad - 1 - dy } else if dy >= r.h - rad { dy - (r.h - rad) } else { 0 };
+                if ox * ox + oy * oy < rad * rad || (ox == 0 && oy == 0) {
+                    self.px[y as usize * self.w + x as usize] = c;
+                }
+            }
+        }
     }
 
     fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
@@ -140,17 +139,22 @@ pub fn frame(g: &Pinball, screen: Screen) -> Img {
     let to = |v: (i64, i64)| ((v.0 / FP) as i32, (v.1 / FP) as i32);
     for c in BUMPERS {
         let (x, y) = (c.0 as i32, c.1 as i32);
-        im.disc(x, y, 8, [255, 90, 160]);
+        im.rect_rounded(Rect::new(x - 8, y - 8, 16, 16), 8, Tok::A(7));
     }
     for f in &g.flips {
-        im.seg(to(f.pivot), to(f.tip()), 2, [240, 240, 250]);
+        let (a, b) = (to(f.pivot), to(f.tip()));
+        im.line(a.0, a.1, b.0, b.1, 4, Tok::T1);
     }
     for b in g.balls.iter().filter(|b| b.live) {
         let (x, y) = to(b.pos);
-        im.disc(x, y, 3, [255, 230, 80]);
+        im.rect_rounded(Rect::new(x - 3, y - 3, 6, 6), 3, Tok::A(1));
     }
     match screen {
-        Screen::Play => im.text(2, 2, &format!("PUNTI {}  VITE {}", g.score, g.lives), Tok::T1),
+        Screen::Play => {
+            let s = format!("PUNTI {}  VITE {}", g.score, g.lives);
+            im.rect_rounded(Rect::new(1, 1, s.len() as i32 * font::ADVANCE as i32 + 6, 9), 3, Tok::T0);
+            im.text(4, 3, &s, Tok::T1);
+        }
         s => overlay(&mut im, s),
     }
     im
@@ -182,5 +186,22 @@ mod tests {
         let im = frame(&Pinball::new(), Screen::Pause);
         assert_eq!((im.w, im.h), (TABLE_W as usize, TABLE_H as usize));
         assert_eq!(im.px.len(), im.w * im.h);
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use super::*;
+
+    /// Costo di un fotogramma (tavolo + HUD): `cargo test --release -- --ignored --nocapture bench`.
+    #[test]
+    #[ignore]
+    fn bench_frame() {
+        let g = Pinball::new();
+        let t = std::time::Instant::now();
+        for _ in 0..2000 {
+            std::hint::black_box(frame(&g, Screen::Play));
+        }
+        println!("BENCH pinball {:.1} us/frame", t.elapsed().as_secs_f64() * 1e6 / 2000.0);
     }
 }

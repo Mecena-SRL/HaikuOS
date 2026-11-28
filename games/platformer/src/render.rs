@@ -1,6 +1,12 @@
 //! Rendering su framebuffer ARGB (VIEW_W x VIEW_H). Legge lo stato, non lo modifica.
 use crate::levels::LEVELS;
 use crate::*;
+use haiku_gui::layout::Rect;
+use haiku_gui::palette::Tok;
+use haiku_gui::render::Canvas;
+
+#[path = "../../../gba/src/font.rs"]
+mod font;
 
 const SKY: u32 = 0xFF6BB8F0;
 const GROUND: u32 = 0xFF8B5A2B;
@@ -17,33 +23,51 @@ const STAR_C: u32 = 0xFFFFE94D;
 const PLAYER: u32 = 0xFF2A5FD8;
 const CAP: u32 = 0xFFD83A2A;
 const WHITE: u32 = 0xFFFFFFFF;
-const MAP_BG: u32 = 0xFF1F3A5F;
 
-const FONT: [[u8; 5]; 10] = [
-    [7, 5, 5, 5, 7],
-    [2, 6, 2, 2, 7],
-    [7, 1, 7, 4, 7],
-    [7, 1, 7, 1, 7],
-    [5, 5, 7, 1, 1],
-    [7, 4, 7, 1, 7],
-    [7, 4, 7, 5, 7],
-    [7, 1, 2, 2, 2],
-    [7, 5, 7, 5, 7],
-    [7, 5, 7, 1, 7],
-];
+/// Canvas sul framebuffer ARGB (VIEW_W x VIEW_H): rettangoli, angoli arrotondati e testo 3x5 di gba.
+pub struct Fb<'a>(pub &'a mut [u32]);
+
+fn argb(t: Tok) -> u32 {
+    0xFF00_0000 | t.rgb()
+}
+
+impl Canvas for Fb<'_> {
+    fn fill(&mut self, r: Rect, t: Tok) {
+        let c = argb(t);
+        for y in r.y.max(0)..(r.y + r.h).min(VIEW_H) {
+            for x in r.x.max(0)..(r.x + r.w).min(VIEW_W) {
+                self.0[(y * VIEW_W + x) as usize] = c;
+            }
+        }
+    }
+
+    fn text(&mut self, x: i32, y: i32, s: &str, t: Tok) {
+        for (i, ch) in s.bytes().enumerate() {
+            let gx = x + i as i32 * font::ADVANCE as i32;
+            for (row, bits) in font::glyph(ch).iter().enumerate() {
+                for col in 0..font::GLYPH_W {
+                    if (bits >> (font::GLYPH_W - 1 - col)) & 1 == 1 {
+                        self.fill(Rect::new(gx + col as i32, y + row as i32, 1, 1), t);
+                    }
+                }
+            }
+        }
+    }
+}
 
 /// Disegna lo stato corrente di `g` in `fb` (VIEW_W * VIEW_H pixel).
 pub fn draw(g: &Game, fb: &mut [u32]) {
     if g.state == State::Map {
-        return draw_map(g, fb);
+        return draw_map(g, &mut Fb(fb));
     }
     fill(fb, SKY);
     draw_level(g, fb);
-    draw_hud(g, fb);
+    let mut c = Fb(fb);
+    draw_hud(g, &mut c);
     match g.state {
-        State::Clear => banner(fb, FLAG),
-        State::Over => banner(fb, 0xFFB00020),
-        State::Won => banner(fb, COIN),
+        State::Clear => banner(&mut c, Tok::A(8)),
+        State::Over => banner(&mut c, Tok::A(11)),
+        State::Won => banner(&mut c, Tok::A(1)),
         _ => {}
     }
 }
@@ -63,8 +87,8 @@ fn rect(fb: &mut [u32], x: i32, y: i32, w: i32, h: i32, c: u32) {
     }
 }
 
-fn banner(fb: &mut [u32], c: u32) {
-    rect(fb, 48, 100, 160, 40, c);
+fn banner(c: &mut Fb, t: Tok) {
+    c.rect_rounded(Rect::new(48, 100, 160, 40), 6, t);
 }
 
 fn draw_level(g: &Game, fb: &mut [u32]) {
@@ -126,55 +150,48 @@ fn draw_level(g: &Game, fb: &mut [u32]) {
     }
 }
 
-fn draw_hud(g: &Game, fb: &mut [u32]) {
-    num(fb, 4, 4, g.score, WHITE);
-    rect(fb, 110, 4, 8, 10, COIN);
-    num(fb, 122, 4, g.coins, WHITE);
-    rect(fb, 180, 4, 10, 10, PLAYER);
-    num(fb, 194, 4, g.lives as u32, WHITE);
+/// HUD: barra superiore con punteggio, monete e vite. Testo senza allocazioni.
+fn draw_hud(g: &Game, c: &mut Fb) {
+    let mut b = [0u8; 10];
+    c.fill(Rect::new(0, 0, VIEW_W, 14), Tok::T0);
+    c.text(4, 4, num_str(g.score, &mut b), Tok::T1);
+    c.rect_rounded(Rect::new(110, 3, 8, 10), 2, Tok::A(1));
+    c.text(122, 4, num_str(g.coins, &mut b), Tok::T1);
+    c.rect_rounded(Rect::new(180, 3, 10, 10), 2, Tok::A(4));
+    c.text(194, 4, num_str(g.lives as u32, &mut b), Tok::T1);
 }
 
-/// Numero con font 3x5 scalato x2.
-fn num(fb: &mut [u32], x: i32, y: i32, mut n: u32, c: u32) {
-    let mut digits = [0u8; 10];
-    let mut k = 0;
+/// Cifre decimali in `buf`, senza allocare: restituisce la parte usata.
+fn num_str(mut n: u32, buf: &mut [u8; 10]) -> &str {
+    let mut i = buf.len();
     loop {
-        digits[k] = (n % 10) as u8;
-        k += 1;
+        i -= 1;
+        buf[i] = b'0' + (n % 10) as u8;
         n /= 10;
         if n == 0 {
             break;
         }
     }
-    let mut cx = x;
-    for i in (0..k).rev() {
-        for (r, &bits) in FONT[digits[i] as usize].iter().enumerate() {
-            for col in 0..3 {
-                if bits & (4u8 >> col) != 0 {
-                    rect(fb, cx + col * 2, y + r as i32 * 2, 2, 2, c);
-                }
-            }
-        }
-        cx += 8;
-    }
+    core::str::from_utf8(&buf[i..]).unwrap_or("")
 }
 
-fn draw_map(g: &Game, fb: &mut [u32]) {
-    fill(fb, MAP_BG);
+fn draw_map(g: &Game, c: &mut Fb) {
+    let mut b = [0u8; 10];
+    c.fill(Rect::new(0, 0, VIEW_W, VIEW_H), Tok::T0);
     for i in 0..LEVELS.len() {
         let x = 40 + i as i32 * 80;
         let y = 100;
         if i + 1 < LEVELS.len() {
-            rect(fb, x + 24, y + 10, 56, 4, 0xFFE0C080);
+            c.fill(Rect::new(x + 24, y + 10, 56, 4), Tok::T3);
         }
-        let c = if i < g.unlocked { FLAG } else { 0xFF555555 };
-        rect(fb, x, y, 24, 24, c);
+        let t = if i < g.unlocked { Tok::A(8) } else { Tok::A(6) };
+        c.rect_rounded(Rect::new(x, y, 24, 24), 4, t);
         if i == g.cursor {
-            rect(fb, x - 3, y - 3, 30, 3, WHITE);
-            rect(fb, x - 3, y + 24, 30, 3, WHITE);
-            rect(fb, x - 3, y - 3, 3, 30, WHITE);
-            rect(fb, x + 24, y - 3, 3, 30, WHITE);
+            c.rect_rounded(Rect::new(x - 3, y - 3, 30, 3), 1, Tok::T1);
+            c.rect_rounded(Rect::new(x - 3, y + 24, 30, 3), 1, Tok::T1);
+            c.rect_rounded(Rect::new(x - 3, y - 3, 3, 30), 1, Tok::T1);
+            c.rect_rounded(Rect::new(x + 24, y - 3, 3, 30), 1, Tok::T1);
         }
-        num(fb, x + 8, y + 34, i as u32 + 1, WHITE);
+        c.text(x + 8, y + 34, num_str(i as u32 + 1, &mut b), Tok::T1);
     }
 }
