@@ -26,3 +26,8 @@ pub mod software;
 pub mod tour;
 pub mod ui;
 pub mod vault;
+pub mod contatore;
+pub mod distruggi;
+pub mod orologio_scacchi;
+pub mod testo_segnaposto;
+pub mod timer_esercizi;
