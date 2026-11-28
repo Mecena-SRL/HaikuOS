@@ -12,7 +12,7 @@ if os.path.exists(SOCK):
     os.remove(SOCK)
 
 qemu = subprocess.Popen(["qemu-system-x86_64", "-drive", f"file={ROOT}/build/haikuos.img,format=raw,if=ide,index=0,media=disk",
-                         "-m", "128M", "-display", "none", "-vga", "std", "-no-reboot",
+                         "-m", "128M", "-display", "none", "-device", "VGA,vgamem_mb=64", "-no-reboot",
                          "-serial", f"file:{ROOT}/build/serial-shots.log", "-qmp", f"unix:{SOCK},server,nowait"])
 time.sleep(3)
 s = socket.socket(socket.AF_UNIX)
