@@ -10,6 +10,7 @@ mod font;
 
 use haiku_gui::anim::{Budget, Shifted, Slide, FRAME_US};
 use haiku_gui::icons;
+use haiku_gui::input::Key;
 use haiku_gui::layout::Rect;
 use haiku_gui::render::{draw, Canvas};
 use haiku_gui::{Icon, Shell, Tok};
@@ -133,6 +134,11 @@ fn main() {
 
     let mut shell = Shell::new(&ICONS, LW, LH);
     shell.set_clock(10, 30);
+    // Quinto argomento (opzionale): indice dell'icona da aprire, per gli screenshot delle app.
+    if let Some(i) = a.get(5).and_then(|p| p.parse::<usize>().ok()) {
+        shell.sel = i;
+        let _ = shell.key(Key::A);
+    }
     let mut v = Vector { pw: w, ph: h, s: w / LW, buf: vec![0; (w * h) as usize] };
     match a.get(4).and_then(|p| p.parse::<u32>().ok()) {
         Some(p) => {
