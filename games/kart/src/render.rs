@@ -36,7 +36,7 @@ const KART_HW: Fx = int(6);
 const KART_H: Fx = int(8);
 const KERB_W: i32 = 4;
 const SUBS: i32 = 8;
-const N_TRACK: usize = 512;
+const N_TRACK: usize = 640;
 const N_OBJ: usize = 256;
 
 #[derive(Clone, Copy, Default)]
@@ -292,6 +292,27 @@ fn solid(cam: &Cam, c: (Fx, Fx), zb: Fx, f: (Fx, Fx), dims: (Fx, Fx, Fx), col: u
     }
 }
 
+/// Alberi a due sottosegmenti di distanza ai lati della pista: tronco e chioma a scatola.
+fn trees(cam: &Cam, tr: &Track, list: &mut [Quad], len: &mut usize) {
+    let n = tr.n();
+    let off = tr.half_w + 34;
+    for seg in (0..n).step_by(3) {
+        let (ax, ay) = tr.point(seg, 0);
+        let (bx, by) = tr.point(seg, ONE);
+        let (dx, dy) = ((bx - ax) as i64, (by - ay) as i64);
+        let l = isqrt((dx * dx + dy * dy) as u64).max(1) as i64;
+        let nx = ((-dy) * off as i64 * ONE as i64 / l) as Fx;
+        let ny = (dx * off as i64 * ONE as i64 / l) as Fx;
+        let (cx, cy) = tr.point(seg, ONE / 2);
+        for side in [-1, 1] {
+            let (x, y) = (cx + side * nx, cy + side * ny);
+            let f = (ONE, 0);
+            solid(cam, (x, y), 0, f, (int(2), int(2), int(8)), 0xFF5D4037, list, len);
+            solid(cam, (x, y), int(8), f, (int(7), int(7), int(9)), 0xFF2E7D32, list, len);
+        }
+    }
+}
+
 pub fn draw(race: &Race, buf: &mut [u32], w: usize, h: usize, cam: usize) {
     let hor = h * 2 / 5;
     for y in 0..h {
@@ -313,6 +334,7 @@ pub fn draw(race: &Race, buf: &mut [u32], w: usize, h: usize, cam: usize) {
     let mut tq = [Quad::default(); N_TRACK];
     let mut nt = 0;
     track_quads(&cm, race.track, &mut tq, &mut nt);
+    trees(&cm, race.track, &mut tq, &mut nt);
     paint(buf, w, h, &mut tq[..nt]);
 
     let mut oq = [Quad::default(); N_OBJ];
@@ -335,6 +357,14 @@ pub fn draw(race: &Race, buf: &mut [u32], w: usize, h: usize, cam: usize) {
         let kk = race.karts[i];
         let fk = dir(kk.h);
         solid(&cm, (kk.x, kk.y), 0, fk, (KART_HL, KART_HW, KART_H), COLORS[i], &mut oq, &mut no);
+        // Abitacolo con vetro, quattro ruote scure agli angoli.
+        solid(&cm, (kk.x, kk.y), KART_H, fk, (KART_HL / 2, KART_HW / 2, int(4)), 0xFF90CAF9, &mut oq, &mut no);
+        let r = (fk.1, -fk.0);
+        for (sf, sr) in [(-1, -1), (-1, 1), (1, -1), (1, 1)] {
+            let wx = kk.x + mul(fk.0, KART_HL * sf / 2 + sf * int(2)) + mul(r.0, KART_HW * sr);
+            let wy = kk.y + mul(fk.1, KART_HL * sf / 2 + sf * int(2)) + mul(r.1, KART_HW * sr);
+            solid(&cm, (wx, wy), 0, fk, (int(3), int(1), int(3)), 0xFF212121, &mut oq, &mut no);
+        }
     }
     paint(buf, w, h, &mut oq[..no]);
 
