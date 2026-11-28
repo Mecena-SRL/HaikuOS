@@ -437,17 +437,19 @@ fn notice<C: Canvas>(c: &mut C, s: &Shell) {
 /// Simbolo del pulsante 8×8: `-` (riduci), `+` (massimizza), `x` (chiudi). Bibbia §13.
 fn glyph<C: Canvas>(c: &mut C, r: Rect, sym: char, col: Tok) {
     if c.smooth() {
-        // Tratti antialiasati: `-`, `+`, `x` sul centro del pulsante.
-        let (cx, cy) = (r.x + r.w / 2, r.y + r.h / 2);
+        // `-` e `+` sono barre piene da 2 px centrate (come nel ramo pixel): nitide e senza sbavature.
+        // `x` è un tratto antialiasato con estremi simmetrici sul centro del pulsante.
+        let (x0, x1) = (r.x + 1, r.x + r.w - 2);
+        let (y0, y1) = (r.y + 1, r.y + r.h - 2);
         match sym {
-            '-' => c.line(cx - 2, cy, cx + 2, cy, 2, col),
+            '-' => c.fill(Rect::new(r.x + 1, r.y + 3, 6, 2), col),
             '+' => {
-                c.line(cx - 2, cy, cx + 2, cy, 1, col);
-                c.line(cx, cy - 2, cx, cy + 2, 1, col);
+                c.fill(Rect::new(r.x + 1, r.y + 3, 6, 2), col);
+                c.fill(Rect::new(r.x + 3, r.y + 1, 2, 6), col);
             }
             _ => {
-                c.line(cx - 2, cy - 2, cx + 2, cy + 2, 1, col);
-                c.line(cx + 2, cy - 2, cx - 2, cy + 2, 1, col);
+                c.line(x0, y0, x1, y1, 1, col);
+                c.line(x1, y0, x0, y1, 1, col);
             }
         }
         return;
