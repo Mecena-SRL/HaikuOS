@@ -67,10 +67,7 @@ impl Flip {
     /// Punta del flipper in FP.
     pub fn tip(&self) -> V {
         let (c, s) = sin_cos(self.ang);
-        (
-            self.pivot.0 + FLIP_LEN * c / FP,
-            self.pivot.1 + FLIP_LEN * s / FP,
-        )
+        (self.pivot.0 + FLIP_LEN * c / FP, self.pivot.1 + FLIP_LEN * s / FP)
     }
 }
 
@@ -107,20 +104,8 @@ impl Pinball {
         let mut p = Pinball {
             balls: [Ball::default(); MAX_BALLS],
             flips: [
-                Flip {
-                    pivot: (50 * FP, 220 * FP),
-                    ang: 25,
-                    dps: 0,
-                    rest: 25,
-                    up: -30,
-                },
-                Flip {
-                    pivot: (110 * FP, 220 * FP),
-                    ang: 155,
-                    dps: 0,
-                    rest: 155,
-                    up: 210,
-                },
+                Flip { pivot: (50 * FP, 220 * FP), ang: 25, dps: 0, rest: 25, up: -30 },
+                Flip { pivot: (110 * FP, 220 * FP), ang: 155, dps: 0, rest: 155, up: 210 },
             ],
             state: State::Ready,
             score: 0,
@@ -147,11 +132,7 @@ impl Pinball {
         self.prev_plunger = false;
         self.state = State::Ready;
         self.balls = [Ball::default(); MAX_BALLS];
-        self.balls[0] = Ball {
-            pos: LANE,
-            vel: (0, 0),
-            live: true,
-        };
+        self.balls[0] = Ball { pos: LANE, vel: (0, 0), live: true };
     }
 
     pub fn tick(&mut self, i: Input) {
@@ -256,13 +237,7 @@ impl Pinball {
         let mut spawn = [(-3 * FP, -6 * FP), (3 * FP, -6 * FP)].into_iter();
         for b in self.balls.iter_mut().filter(|b| !b.live) {
             match spawn.next() {
-                Some(v) => {
-                    *b = Ball {
-                        pos: (70 * FP, 150 * FP),
-                        vel: v,
-                        live: true,
-                    }
-                }
+                Some(v) => *b = Ball { pos: (70 * FP, 150 * FP), vel: v, live: true },
                 None => break,
             }
         }
@@ -276,11 +251,7 @@ impl Pinball {
             self.high = self.high.max(self.score);
             return;
         }
-        self.balls[0] = Ball {
-            pos: LANE,
-            vel: (0, 0),
-            live: true,
-        };
+        self.balls[0] = Ball { pos: LANE, vel: (0, 0), live: true };
         self.state = State::Ready;
         self.charge = 0;
     }
@@ -397,11 +368,7 @@ mod tests {
     fn ball(x: i64, y: i64, vx: i64, vy: i64) -> Pinball {
         let mut g = Pinball::new();
         g.state = State::Playing;
-        g.balls[0] = Ball {
-            pos: (x * FP, y * FP),
-            vel: (vx * FP, vy * FP),
-            live: true,
-        };
+        g.balls[0] = Ball { pos: (x * FP, y * FP), vel: (vx * FP, vy * FP), live: true };
         g
     }
 
@@ -463,10 +430,7 @@ mod tests {
     #[test]
     fn flipper_rises_when_pressed() {
         let mut g = Pinball::new();
-        let left = Input {
-            left: true,
-            ..Input::default()
-        };
+        let left = Input { left: true, ..Input::default() };
         for _ in 0..3 {
             g.tick(left);
         }
@@ -504,10 +468,7 @@ mod tests {
     #[test]
     fn plunger_launches_up() {
         let mut g = Pinball::new();
-        let hold = Input {
-            plunger: true,
-            ..Input::default()
-        };
+        let hold = Input { plunger: true, ..Input::default() };
         for _ in 0..20 {
             g.tick(hold);
         }
@@ -547,11 +508,7 @@ mod tests {
             }
             g.tick(inp);
             for b in g.balls.iter().filter(|b| b.live) {
-                assert!(
-                    b.pos.0 >= 0 && b.pos.0 <= TABLE_W * FP,
-                    "fuori x: {:?}",
-                    b.pos
-                );
+                assert!(b.pos.0 >= 0 && b.pos.0 <= TABLE_W * FP, "fuori x: {:?}", b.pos);
             }
         }
     }
