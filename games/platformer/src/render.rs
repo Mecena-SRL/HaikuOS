@@ -355,15 +355,29 @@ impl Canvas for Fb<'_> {
     }
 }
 
+/// Pixel del buffer di appoggio a metà risoluzione per i piani lontani.
+pub fn scratch_len(w: usize, h: usize) -> usize {
+    ((w + 1) / 2) * ((h + 1) / 2)
+}
+
 /// Disegna lo stato corrente di `g` nel buffer `w`×`h` (ARGB).
-pub fn draw(g: &Game, buf: &mut [u32], w: usize, h: usize) {
-    let mut c = Fb::new(buf, w, h);
+/// `scratch` deve avere almeno `scratch_len(w, h)` pixel: vi vengono disegnati
+/// i piani lontani a metà risoluzione, poi ingranditi nel buffer di uscita.
+pub fn draw(g: &Game, buf: &mut [u32], scratch: &mut [u32], w: usize, h: usize) {
     if g.state == State::Map {
+        let mut c = Fb::new(buf, w, h);
         c.clear(0xFF000000);
         draw_map(g, &mut c);
         c.bars();
         return;
     }
+    let (hw, hh) = ((w + 1) / 2, (h + 1) / 2);
+    {
+        let mut far = Fb::new(&mut scratch[..hw * hh], hw, hh);
+        backdrop_far(&mut far, g.cam_x);
+    }
+    upscale2(buf, w, h, &scratch[..hw * hh], hw);
+    let mut c = Fb::new(buf, w, h);
     world(g, &mut c);
     c.bars();
     hud(g, &mut c);
@@ -393,8 +407,19 @@ fn cloud(c: &mut Fb, x: i32, y: i32, col: u32) {
     c.disc(p(x + 22), p(y), p(7), col);
 }
 
-/// Sfondo a 5 piani di parallasse: cielo a gradiente, sole, montagne, colline, cespugli, nuvole.
-fn backdrop(c: &mut Fb, cam: i32) {
+/// Copia `src` (larghezza `sw`, metà risoluzione) nel buffer `w`×`h` raddoppiando i pixel.
+fn upscale2(dst: &mut [u32], w: usize, h: usize, src: &[u32], sw: usize) {
+    for y in 0..h {
+        let srow = &src[(y / 2) * sw..(y / 2) * sw + sw];
+        let drow = &mut dst[y * w..y * w + w];
+        for (x, d) in drow.iter_mut().enumerate() {
+            *d = srow[x / 2];
+        }
+    }
+}
+
+/// Piani lontani (a metà risoluzione): cielo, sole, montagne, nuvole lontane, colline lontane.
+fn backdrop_far(c: &mut Fb, cam: i32) {
     sky(c);
     c.disc(p(206), p(48), p(30), SUN_HALO);
     c.disc(p(206), p(48), p(18), SUN);
@@ -410,6 +435,10 @@ fn backdrop(c: &mut Fb, cam: i32) {
         let x = k * 120 + 60 - (cam / 4).rem_euclid(120);
         c.ell(p(x), p(200), p(70), p(48), HILL_FAR);
     }
+}
+
+/// Piani vicini (a piena risoluzione): colline, cespugli, nuvole.
+fn backdrop_near(c: &mut Fb, cam: i32) {
     for k in -1..5 {
         let x = k * 100 + 30 - (cam / 3).rem_euclid(100);
         c.ell(p(x), p(206), p(50), p(36), HILL);
@@ -426,7 +455,7 @@ fn backdrop(c: &mut Fb, cam: i32) {
 
 fn world(g: &Game, c: &mut Fb) {
     let cam = g.cam_x;
-    backdrop(c, cam);
+    backdrop_near(c, cam);
     tiles(g, c);
     for m in g.mobs.iter().filter(|m| m.alive) {
         let (x, y) = (m.b.x / SUB - cam, m.b.y / SUB);
@@ -615,7 +644,8 @@ pub fn num_str(mut n: u32, buf: &mut [u8; 10]) -> &str {
 }
 
 fn draw_map(g: &Game, c: &mut Fb) {
-    backdrop(c, 0);
+    backdrop_far(c, 0);
+    backdrop_near(c, 0);
     let mut b = [0u8; 10];
     for i in 0..LEVELS.len() {
         let (cx, cy) = (52 + i as i32 * 80, 112);

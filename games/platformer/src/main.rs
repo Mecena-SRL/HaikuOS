@@ -43,6 +43,7 @@ fn main() {
         .cloned()
         .unwrap_or_else(|| "platformer.ppm".into());
     let mut fb = vec![0u32; BENCH_W * BENCH_H];
+    let mut scr = vec![0u32; render::scratch_len(BENCH_W, BENCH_H)];
     let (mut frames, mut spent) = (0u32, Duration::ZERO);
     for (k, src) in LEVELS.iter().enumerate() {
         let mut g = Game::from_src(src);
@@ -52,7 +53,7 @@ fn main() {
             let input = bot.input(&g);
             let t = Instant::now();
             g.update(input);
-            render::draw(&g, &mut fb, BENCH_W, BENCH_H);
+            render::draw(&g, &mut fb, &mut scr, BENCH_W, BENCH_H);
             spent += t.elapsed();
             n += 1;
             if k == 0 && n == 300 {
@@ -95,6 +96,7 @@ fn advance(g: &mut Game, bot: &mut Bot, k: &mut usize) {
 fn interactive() {
     let (mut k, mut g, mut bot) = (0usize, Game::from_src(LEVELS[0]), Bot::default());
     let mut fb = vec![0u32; BENCH_W * BENCH_H];
+    let mut scr = vec![0u32; render::scratch_len(BENCH_W, BENCH_H)];
     let mut screen = Screen::Title;
     menu_text(screen);
     for line in std::io::stdin().lock().lines().map_while(Result::ok) {
@@ -119,7 +121,7 @@ fn interactive() {
                 }
             },
         }
-        render::draw(&g, &mut fb, BENCH_W, BENCH_H);
+        render::draw(&g, &mut fb, &mut scr, BENCH_W, BENCH_H);
         overlay(&mut Fb::new(&mut fb, BENCH_W, BENCH_H), screen);
         if screen == Screen::Play {
             println!(
@@ -142,7 +144,8 @@ fn shot(path: &str, screen: Screen, size: Option<(usize, usize)>) {
     }
     let (w, h) = size.unwrap_or((1920, 1080));
     let mut fb = vec![0u32; w * h];
-    render::draw(&g, &mut fb, w, h);
+    let mut scr = vec![0u32; render::scratch_len(w, h)];
+    render::draw(&g, &mut fb, &mut scr, w, h);
     overlay(&mut Fb::new(&mut fb, w, h), screen);
     write_ppm(path, &fb, w, h);
     println!("fotogramma {w}x{h} scritto in {path}");

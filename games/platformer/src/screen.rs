@@ -84,9 +84,10 @@ mod bench {
     fn bench_frame() {
         let g = platformer::Game::from_src(platformer::levels::LEVELS[0]);
                 let mut fb = vec![0u32; 800 * 480];
+        let mut scr = vec![0u32; platformer::render::scratch_len(800, 480)];
         let t = std::time::Instant::now();
         for _ in 0..2000 {
-            platformer::render::draw(&g, &mut fb, 800, 480);
+            platformer::render::draw(&g, &mut fb, &mut scr, 800, 480);
             overlay(&mut Fb::new(&mut fb, 800, 480), Screen::Pause);
             std::hint::black_box(&fb);
         }

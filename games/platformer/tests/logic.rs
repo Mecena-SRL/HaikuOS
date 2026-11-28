@@ -97,7 +97,7 @@ fn bot_plays_every_level_without_panic() {
         for _ in 0..3_000 {
             let input = bot.input(&g);
             g.update(input);
-            platformer::render::draw(&g, &mut vec![0u32; 256 * 240], 256, 240);
+            platformer::render::draw(&g, &mut vec![0u32; 256 * 240], &mut vec![0u32; platformer::render::scratch_len(256, 240)], 256, 240);
         }
     }
 }
