@@ -269,6 +269,7 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
    <div class="seg" id="ori"></div>
    <div class="seg" id="pct"></div>
    <div class="seg" id="fit"></div>
+   <div class="seg" id="pal"></div>
    <button class="btnpri" id="reopen">Ripristina finestra</button>
   </div>
   <div class="legend" id="meta"></div>
@@ -285,8 +286,14 @@ const VOCAB=/*VOCAB*/null;
 const DEFAULTS=/*DEFAULTS*/null;
 const DEV={"5":{w:800,h:480,l:'5"'},"7":{w:1024,h:600,l:'7"'},"14":{w:1920,h:1080,l:'14"'}};
 const ORI={l:'Orizzontale',p:'Verticale'};
+// palette di sistema: solo i valori ricavati da fonti ufficiali; null = colore attuale invariato
+const PALETTES={attuale:{nome:'Attuale',v:null},
+ adwaita:{nome:'Fedora · Adwaita',v:{T0:'#000006',T1:'#fafafb',T2:'#3584e4',T3:'#ffffff'},src:'libadwaita 1.7 (gnome.pages.gitlab.gnome.org/libadwaita/doc/1.7/css-variables.html): window_bg, accent_bg blu, headerbar_bg, window_fg'},
+ breeze:{nome:'KDE · Breeze Dark',v:{T0:'#1b1e20',T1:'#fcfcfc',T2:'#3daee9',T3:'#31363b'},src:'Breeze Dark (kf6, lxr.kde.org/source/plasma/breeze/colors/BreezeDark.colors): View BG, ForegroundNormal, DecorationFocus, Button BG'},
+ macos:{nome:'macOS · accento blu',v:{T2:'#0088ff'},src:'Apple HIG color (developer.apple.com/design/human-interface-guidelines/color.md): systemBlue chiaro. Solo accento: il resto resta invariato'}};
+
 const PCTS=[100,125,150];
-const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,fit:true,ans:{},cust:{}};
+const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,fit:true,pal:'attuale',ans:{},cust:{}};
 const $=id=>document.getElementById(id);
 
 // ---- build tree
@@ -441,6 +448,7 @@ function calcU(){return uPx()}
 function updatePreview(){
  const st=$('stage');
  st.dataset.ready=1;updateStrokes();
+ const pv=PALETTES[S.pal].v;['T0','T1','T2','T3'].forEach(t=>{if(pv&&pv[t])st.style.setProperty('--'+t,pv[t]);else st.style.removeProperty('--'+t)});
  const attrs={};
  for(const qid of S.order){const a=S.ans[qid];if(a&&MAP[a])Object.assign(attrs,MAP[a])}
  for(const k in VOCAB){
@@ -456,6 +464,7 @@ function segs(){
  $('dev').innerHTML=Object.keys(DEV).map(k=>`<button data-k="dev" data-v="${k}" class="${k===S.dev?'on':''}">${DEV[k].l}</button>`).join('');
  $('ori').innerHTML=Object.keys(ORI).map(k=>`<button data-k="ori" data-v="${k}" class="${k===S.ori?'on':''}">${ORI[k]==='Orizzontale'?'Orizz.':'Vert.'}</button>`).join('');
  $('pct').innerHTML=PCTS.map(k=>`<button data-k="pct" data-v="${k}" class="${k===S.pct?'on':''}">${k}%</button>`).join('');
+ $('pal').innerHTML=Object.keys(PALETTES).map(k=>`<button data-k="pal" data-v="${k}" class="${k===S.pal?'on':''}">${PALETTES[k].nome}</button>`).join('');
  $('fit').innerHTML=`<button data-k="fit" data-v="1" class="${S.fit?'on':''}">Adatta</button><button data-k="fit" data-v="0" class="${S.fit?'':'on'}">1:1</button>`;
 }
 document.querySelector('.ctl').addEventListener('click',e=>{
