@@ -5,10 +5,12 @@
 //! Fotogrammi con menu: `--shot-title|--shot-play|--shot-pause <out.ppm>`.
 mod screen;
 
-#[path = "../../hd_shot.rs"]
-mod hd_shot;
+use platformer::render::Fb;
+/// Risoluzione del banco di misura e del terminale (5 pollici).
+const BENCH_W: usize = 800;
+const BENCH_H: usize = 480;
 
-use platformer::{bot::Bot, levels::LEVELS, render, Game, State, VIEW_H, VIEW_W};
+use platformer::{bot::Bot, levels::LEVELS, render, Game, State};
 use screen::{menu_text, on_menu_key, overlay, Next, Screen};
 use std::io::BufRead;
 use std::{
@@ -27,12 +29,12 @@ fn main() {
                 "--shot-play" => Screen::Play,
                 _ => Screen::Pause,
             };
-            // Facoltativo `W H` dopo il file: screenshot ingrandito a quella risoluzione.
-            let hd = match args.get(3..5) {
+            // Facoltativo `W H` dopo il file: risoluzione di uscita (predefinita 1920x1080).
+            let size = match args.get(3..5) {
                 Some([w, h]) => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
                 _ => None,
             };
-            return shot(args.get(2).map_or("platformer.ppm", String::as_str), screen, hd);
+            return shot(args.get(2).map_or("platformer.ppm", String::as_str), screen, size);
         }
         _ => {}
     }
@@ -40,7 +42,7 @@ fn main() {
         .get(1)
         .cloned()
         .unwrap_or_else(|| "platformer.ppm".into());
-    let mut fb = vec![0u32; (VIEW_W * VIEW_H) as usize];
+    let mut fb = vec![0u32; BENCH_W * BENCH_H];
     let (mut frames, mut spent) = (0u32, Duration::ZERO);
     for (k, src) in LEVELS.iter().enumerate() {
         let mut g = Game::from_src(src);
@@ -50,11 +52,11 @@ fn main() {
             let input = bot.input(&g);
             let t = Instant::now();
             g.update(input);
-            render::draw(&g, &mut fb);
+            render::draw(&g, &mut fb, BENCH_W, BENCH_H);
             spent += t.elapsed();
             n += 1;
             if k == 0 && n == 300 {
-                write_ppm(&out, &fb, None);
+                write_ppm(&out, &fb, BENCH_W, BENCH_H);
             }
         }
         frames += n;
@@ -92,7 +94,7 @@ fn advance(g: &mut Game, bot: &mut Bot, k: &mut usize) {
 
 fn interactive() {
     let (mut k, mut g, mut bot) = (0usize, Game::from_src(LEVELS[0]), Bot::default());
-    let mut fb = vec![0u32; (VIEW_W * VIEW_H) as usize];
+    let mut fb = vec![0u32; BENCH_W * BENCH_H];
     let mut screen = Screen::Title;
     menu_text(screen);
     for line in std::io::stdin().lock().lines().map_while(Result::ok) {
@@ -106,11 +108,19 @@ fn interactive() {
             Screen::Play => match key {
                 "p" => screen = Screen::Pause,
                 "q" => break,
-                _ => (0..60).for_each(|_| advance(&mut g, &mut bot, &mut k)),
+                _ => {
+                    // Si ferma appena la partita finisce, così Over/Won resta visibile.
+                    for _ in 0..60 {
+                        advance(&mut g, &mut bot, &mut k);
+                        if g.state != State::Playing {
+                            break;
+                        }
+                    }
+                }
             },
         }
-        render::draw(&g, &mut fb);
-        overlay(&mut fb, screen);
+        render::draw(&g, &mut fb, BENCH_W, BENCH_H);
+        overlay(&mut Fb::new(&mut fb, BENCH_W, BENCH_H), screen);
         if screen == Screen::Play {
             println!(
                 "livello {}: {:?}, punteggio {}, vite {}",
@@ -125,23 +135,22 @@ fn interactive() {
     }
 }
 
-fn shot(path: &str, screen: Screen, hd: Option<(usize, usize)>) {
+fn shot(path: &str, screen: Screen, size: Option<(usize, usize)>) {
     let (mut k, mut g, mut bot) = (0usize, Game::from_src(LEVELS[0]), Bot::default());
     for _ in 0..300 {
         advance(&mut g, &mut bot, &mut k);
     }
-    let mut fb = vec![0u32; (VIEW_W * VIEW_H) as usize];
-    render::draw(&g, &mut fb);
-    overlay(&mut fb, screen);
-    write_ppm(path, &fb, hd);
-    println!("fotogramma {VIEW_W}x{VIEW_H} scritto in {path}");
+    let (w, h) = size.unwrap_or((1920, 1080));
+    let mut fb = vec![0u32; w * h];
+    render::draw(&g, &mut fb, w, h);
+    overlay(&mut Fb::new(&mut fb, w, h), screen);
+    write_ppm(path, &fb, w, h);
+    println!("fotogramma {w}x{h} scritto in {path}");
 }
 
-fn write_ppm(path: &str, fb: &[u32], hd: Option<(usize, usize)>) {
+fn write_ppm(path: &str, fb: &[u32], w: usize, h: usize) {
     let mut f = File::create(path).expect("creazione file");
-    let (w, h) = (VIEW_W as usize, VIEW_H as usize);
-    let px: Vec<[u8; 3]> = fb.iter().map(|&c| [(c >> 16) as u8, (c >> 8) as u8, c as u8]).collect();
-    // Predefinito: ingrandimento x2 (vicino più prossimo) per leggere i menu.
-    let (ow, oh) = hd.unwrap_or((2 * w, 2 * h));
-    hd_shot::write_fit(&mut f, w, h, &px, ow, oh).unwrap();
+    write!(f, "P6\n{w} {h}\n255\n").unwrap();
+    let px: Vec<u8> = fb.iter().flat_map(|&c| [(c >> 16) as u8, (c >> 8) as u8, c as u8]).collect();
+    f.write_all(&px).unwrap();
 }

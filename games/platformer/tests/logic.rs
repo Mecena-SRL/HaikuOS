@@ -97,7 +97,7 @@ fn bot_plays_every_level_without_panic() {
         for _ in 0..3_000 {
             let input = bot.input(&g);
             g.update(input);
-            platformer::render::draw(&g, &mut vec![0u32; (VIEW_W * VIEW_H) as usize]);
+            platformer::render::draw(&g, &mut vec![0u32; 256 * 240], 256, 240);
         }
     }
 }
@@ -111,4 +111,20 @@ fn map_moves_to_next_level_after_clear() {
     run(&mut g, 0, 200);
     assert_eq!(g.state, State::Map);
     assert_eq!((g.cursor, g.unlocked), (1, 2));
+}
+
+#[test]
+fn game_over_after_last_life() {
+    let mut g = custom("P.\n..\n..\n..\n.#");
+    g.lives = 1;
+    run(&mut g, 0, 25);
+    assert_eq!(g.state, State::Over);
+    assert_eq!(g.lives, 0);
+}
+
+#[test]
+fn flag_clears_level() {
+    let mut g = custom("P..F\n####");
+    run(&mut g, BTN_RIGHT | BTN_RUN, 120);
+    assert_eq!(g.state, State::Clear);
 }
