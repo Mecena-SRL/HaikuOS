@@ -5,9 +5,6 @@ use citybuilder::menu::{on_menu_key, Next, Screen};
 use citybuilder::{Building, Game, Status, Terrain, WIN_POP};
 use std::io::{self, BufRead};
 
-#[path = "../../hd_shot.rs"]
-mod hd_shot;
-
 fn main() {
     let mut g = Game::new(24, 12, 0x4841494B55);
     // `--shot <file.ppm>` (partita), `--shot-title` e `--shot-pause`: fotogrammi grafici, senza terminale.
@@ -20,12 +17,12 @@ fn main() {
             _ => None,
         };
         if let Some(screen) = screen {
-            // Facoltativo `W H`: screenshot ingrandito a quella risoluzione.
-            let hd = match rest {
-                [w, h] => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
-                _ => None,
+            // Facoltativo `W H`: risoluzione della scena vettoriale (default 1920x1080).
+            let (w, h) = match rest {
+                [w, h] => (w.parse().expect("larghezza"), h.parse().expect("altezza")),
+                _ => (1920, 1080),
             };
-            shot(&mut g, path, screen, hd);
+            shot(&mut g, path, screen, w, h);
             return;
         }
     }
@@ -150,7 +147,7 @@ fn draw(g: &Game) {
 }
 
 /// Gioca alcuni turni con poche costruzioni valide e scrive un PPM.
-fn shot(g: &mut Game, path: &str, screen: Screen, hd: Option<(usize, usize)>) {
+fn shot(g: &mut Game, path: &str, screen: Screen, w: usize, h: usize) {
     for _ in 0..6 {
         g.end_turn();
     }
@@ -173,12 +170,9 @@ fn shot(g: &mut Game, path: &str, screen: Screen, hd: Option<(usize, usize)>) {
         }
         g.end_turn();
     }
-    let mut frame = citybuilder::view::render(g);
+    let mut frame = citybuilder::view::render(g, w, h);
     citybuilder::view::overlay(&mut frame, screen);
     let mut out = std::fs::File::create(path).expect("impossibile creare il file");
-    match hd {
-        Some((ow, oh)) => hd_shot::write_fit(&mut out, frame.w, frame.h, &frame.px, ow, oh).expect("scrittura fallita"),
-        None => frame.write_ppm(&mut out).expect("scrittura fallita"),
-    }
+    frame.write_ppm(&mut out).expect("scrittura fallita");
     println!("fotogramma {}x{} scritto in {path}", frame.w, frame.h);
 }

@@ -2,6 +2,7 @@
 //! il rendering vive in main.rs e legge solo lo stato pubblico.
 
 pub mod menu;
+pub mod raster;
 pub mod view;
 
 pub const WIN_POP: u32 = 50;
