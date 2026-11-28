@@ -1,0 +1,9 @@
+[package]
+name = "haiku-ps2"
+version = "0.1.0"
+edition = "2021"
+
+# Studio P2 (idea 9): decoder PS/2 puro, no_std, nessuna dipendenza, testabile su host.
+[dependencies]
+
+[workspace]
