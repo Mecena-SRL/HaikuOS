@@ -58,3 +58,27 @@ cd gui && cargo run --release --features wide-font --example desktop_vector -- 3
 ```
 
 Output committati: `design/screens/desktop_vector_*.png`. Limiti: il testo è il font 5×8 scalato a blocchi, e lo sfondo usa ancora le colline (`hills`), non il wallpaper bitmap di `design/wallpapers/`.
+
+## 7. Font vettoriale con antialiasing
+
+Modulo `gui/src/vfont.rs` (no_std, senza allocazione, senza dipendenze). Metodo del trait: `c.vtext(x, y, size, s, t) -> i32` (ritorna la larghezza in px); `size` = px per em, 1..=64.
+
+Formato dei glifi (byte, coordinate `0..=64` per em, y verso il basso):
+
+| Op | Argomenti | Significato |
+|---|---|---|
+| `0` | `x y` | move: apre un contorno |
+| `1` | `x y` | linea |
+| `2` | `cx cy x y` | curva quadratica (4 segmenti) |
+| `3` | — | chiude il contorno |
+| `4` | `x0 y0 x1 y1` | rettangolo (scorciatoia per 4 linee) |
+
+Riempimento non zero. Copertura: 4 sotto-scanline per riga, area orizzontale esatta, valore 0..255.
+
+Dati: `gui/src/vfont_data.rs` è generato da `gui/tools/gen_vfont.py` dai glifi 5×8 di `x86/kernel/src/font.rs` (ASCII 0x20..0x7E). Passo fisso: 48 unità. Ogni altro byte disegna uno spazio.
+
+Antialiasing sul canvas: `Canvas::blend(x, y, a, t)`. Di base è a soglia (pixel pieno se `a ≥ 128`), quindi GBA e test funzionano. Il backend a 32 bit deve ridefinirlo per mescolare col fondo.
+
+Limiti: al massimo 128 lati per glifo (quelli in eccesso sono scartati), `size ≤ 64`, stack di circa 3 KB per glifo.
+
+Test: `gui/tests/vfont.rs`. Demo: `cargo run --release --example vtext_demo -- 3840 2160 out.ppm`, immagini in `design/screens/vtext_*.png`.
