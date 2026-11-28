@@ -8,7 +8,7 @@ Pilastri:
 
 Non è un clone: gli esplosivi cambiano il modo di pianificare i colpi.
 
-Stato: sei livelli, il bot li completa. Restano da fare: livello di tutorial, pausa, input su framebuffer.
+Stato: sei livelli, pausa (P), suggerimento di comandi al primo livello, il bot li completa. Restano da fare: tutorial completo, input su framebuffer (serve il backend della piattaforma).
 
 ## File
 - `src/lib.rs`: logica (fasi, racchetta, palle, mattoni, esplosivi, power-up, livelli, bot `autoplay`) e test.

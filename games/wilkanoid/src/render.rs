@@ -412,7 +412,7 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         Phase::Ready => {
             c.text_c(b"PREMI SPAZIO", 96.0, 1.0, TXT);
             if g.level == 0 && g.score == 0 {
-                c.text_c(b"A D MUOVI", 106.0, 1.0, TXT);
+                c.text_c(b"A D MUOVI  P PAUSA", 106.0, 1.0, TXT);
             }
         }
         Phase::Lost => {
