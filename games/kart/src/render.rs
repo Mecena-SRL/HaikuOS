@@ -313,8 +313,10 @@ fn trees(cam: &Cam, tr: &Track, list: &mut [Quad], len: &mut usize) {
         for side in [-1, 1] {
             let (x, y) = (cx + side * nx, cy + side * ny);
             let f = (ONE, 0);
-            solid(cam, (x, y), 0, f, (int(2), int(2), int(8)), 0xFF5D4037, list, len);
-            solid(cam, (x, y), int(8), f, (int(7), int(7), int(9)), 0xFF2E7D32, list, len);
+            // Pino a due blocchi: tronco, chioma inferiore larga, chioma superiore più stretta.
+            solid(cam, (x, y), 0, f, (int(1), int(1), int(8)), 0xFF6B4423, list, len);
+            solid(cam, (x, y), int(8), f, (int(4), int(4), int(5)), 0xFF2E7D32, list, len);
+            solid(cam, (x, y), int(13), f, (int(3), int(3), int(5)), 0xFF43A047, list, len);
         }
     }
 }
