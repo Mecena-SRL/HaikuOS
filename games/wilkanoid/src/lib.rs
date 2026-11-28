@@ -36,6 +36,8 @@ const DROP_V: i32 = 8;
 const WIDE_TICKS: u32 = 600;
 const LOST_TICKS: u32 = 60;
 const FLASH_TICKS: u8 = 6;
+/// Durata del tutorial al primo livello: cinque suggerimenti di 120 tick.
+pub const TUT_TICKS: u32 = 600;
 
 pub const EMPTY: u8 = 0;
 pub const NORMAL: u8 = 1;
@@ -78,6 +80,15 @@ pub enum Cmd {
     Fire,
     /// Pausa on/off (in gioco).
     Pause,
+}
+
+/// Tasti logici di un frame. Ogni backend (GBA, framebuffer, simulatore) li mappa qui.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct Input {
+    pub left: bool,
+    pub right: bool,
+    pub fire: bool,
+    pub pause: bool,
 }
 
 /// Palla, in subunità (posizione del centro, velocità per tick; y negativo = su).
@@ -131,6 +142,8 @@ pub struct Game {
     pub launch: bool,
     /// Pausa: il tempo è fermo, la scena resta visibile.
     pub paused: bool,
+    /// Tick del tutorial al primo livello (si ferma a `TUT_TICKS`).
+    pub tut: u32,
     timer: u32,
     rng: u32,
 }
@@ -154,6 +167,7 @@ impl Game {
             shake: 0,
             launch: false,
             paused: false,
+            tut: 0,
             timer: 0,
             rng: seed | 1,
         };
@@ -221,6 +235,9 @@ impl Game {
     pub fn tick(&mut self) {
         if self.paused {
             return;
+        }
+        if self.level == 0 && self.tut < TUT_TICKS && matches!(self.phase, Phase::Ready | Phase::Play) {
+            self.tut += 1;
         }
         match self.phase {
             Phase::Ready => {
@@ -540,6 +557,24 @@ impl Game {
     }
 }
 
+/// Un frame: applica l'input (tasti tenuti per la racchetta, fronti per fuoco e pausa), avanza di un tick.
+/// Il disegno è a carico del chiamante (`render::render`). Nessun backend è richiesto qui.
+pub fn frame(g: &mut Game, now: Input, prev: Input) {
+    if now.left {
+        g.input(Cmd::Left);
+    }
+    if now.right {
+        g.input(Cmd::Right);
+    }
+    if now.fire && !prev.fire {
+        g.input(Cmd::Fire);
+    }
+    if now.pause && !prev.pause {
+        g.input(Cmd::Pause);
+    }
+    g.tick();
+}
+
 /// Giocatore automatico: segue la palla di riferimento e lancia. Serve per i test e gli screenshot.
 pub fn autoplay(g: &mut Game) {
     match g.phase {
@@ -592,6 +627,25 @@ mod tests {
         }
         assert_eq!(g.phase, Phase::Over);
         assert_eq!(g.lives, 0);
+    }
+
+    #[test]
+    fn held_left_moves_paddle_and_pause_edge_works() {
+        let mut g = Game::at_level(1, 0);
+        let hold = Input { left: true, ..Input::default() };
+        let start = g.paddle;
+        frame(&mut g, hold, Input::default());
+        assert!(g.paddle < start);
+        g.input(Cmd::Fire); // Ready -> Play, la pausa vale solo in gioco
+        let p = Input { pause: true, ..Input::default() };
+        frame(&mut g, p, Input::default());
+        assert!(g.paused);
+        // Il tasto tenuto non ripete il fronte: resta in pausa.
+        frame(&mut g, p, p);
+        assert!(g.paused);
+        frame(&mut g, Input::default(), p);
+        frame(&mut g, p, Input::default());
+        assert!(!g.paused);
     }
 
     #[test]

@@ -2,7 +2,7 @@
 //! Coordinate logiche -> pixel con scala uniforme (letterbox).
 
 use crate::{
-    Game, Phase, BALL_R, BGX, BGY, BH, BW, BOMB, BX0, BY0, COLS, CRACKED, DROP_MULTI, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB, TRAIL,
+    Game, Phase, TUT_TICKS, BALL_R, BGX, BGY, BH, BW, BOMB, BX0, BY0, COLS, CRACKED, DROP_MULTI, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB, TRAIL,
 };
 
 const BG_T: u32 = 0xFF0E1433;
@@ -395,6 +395,14 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         c.disc(x, 6.0, 1.5, BALL);
     }
 
+    // Tutorial al primo livello: un suggerimento ogni 120 tick, sopra la racchetta.
+    if g.level == 0 && g.tut < TUT_TICKS && matches!(g.phase, Phase::Ready | Phase::Play) {
+        let lines: [&[u8]; 5] = [b"A D MUOVI LA RACCHETTA", b"SPAZIO LANCIA LA PALLA", b"ACCIAIO: DUE COLPI", b"ESPLOSIVO: ROMPE I VICINI", b"P PAUSA"];
+        let line = lines[((g.tut / 120) as usize).min(lines.len() - 1)];
+        c.rr_a(-3.0, 104.0, pw + 3.0, 116.0, 0.5, 0xFF000000, 0xFF000000, 0.4);
+        c.text_c(line, 108.0, 1.0, TXT);
+    }
+
     if g.paused {
         c.rr_a(-1.0, -1.0, pw + 1.0, ph + 1.0, 0.5, 0xFF000000, 0xFF000000, 0.5);
         c.panel(90.0, 56.0, 150.0, 80.0);
@@ -411,9 +419,6 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         }
         Phase::Ready => {
             c.text_c(b"PREMI SPAZIO", 96.0, 1.0, TXT);
-            if g.level == 0 && g.score == 0 {
-                c.text_c(b"A D MUOVI  P PAUSA", 106.0, 1.0, TXT);
-            }
         }
         Phase::Lost => {
             c.panel(60.0, 50.0, 180.0, 80.0);
