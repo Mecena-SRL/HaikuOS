@@ -71,6 +71,7 @@ pub mod storage;
 #[cfg(feature = "std")]
 pub mod swap;
 pub mod tcp;
+pub mod deferred;
 pub use agent::{Agent, GreedyAgent, Proposal, QuotaRequest};
 
 // Limiti di partenza: docs/architecture.md, sezione 6. Tutti da verificare.
