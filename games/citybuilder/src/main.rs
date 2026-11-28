@@ -6,6 +6,14 @@ use std::io::{self, BufRead};
 
 fn main() {
     let mut g = Game::new(24, 12, 0x4841494B55);
+    // `--shot <file.ppm>`: partita scriptata e un fotogramma grafico, senza terminale.
+    let args: Vec<String> = std::env::args().collect();
+    if let [_, flag, path] = args.as_slice() {
+        if flag == "--shot" {
+            shot(&mut g, path);
+            return;
+        }
+    }
     draw(&g);
     for line in io::stdin().lock().lines().map_while(Result::ok) {
         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -94,4 +102,34 @@ fn draw(g: &Game) {
         g.player.citizens, s.food, s.wood, s.stone, s.gold, g.player.knowledge, g.turns
     );
     println!("IA (x): pop {}", g.rival.citizens);
+}
+
+/// Gioca alcuni turni con poche costruzioni valide e scrive un PPM.
+fn shot(g: &mut Game, path: &str) {
+    for _ in 0..6 {
+        g.end_turn();
+    }
+    let plan = [
+        Building::Farm,
+        Building::House,
+        Building::Lumber,
+        Building::Quarry,
+        Building::Farm,
+    ];
+    for b in plan {
+        let spot = (0..g.map.w * g.map.h).find(|&i| {
+            g.player.building_at(i).is_none()
+                && g.map.terrain(i).is_some_and(|t| t != Terrain::Water)
+                && b.terrain()
+                    .is_none_or(|need| g.map.terrain(i) == Some(need))
+        });
+        if let Some(i) = spot {
+            let _ = g.player.build(&g.map, i, b);
+        }
+        g.end_turn();
+    }
+    let frame = citybuilder::view::render(g);
+    let mut out = std::fs::File::create(path).expect("impossibile creare il file");
+    frame.write_ppm(&mut out).expect("scrittura fallita");
+    println!("fotogramma {}x{} scritto in {path}", frame.w, frame.h);
 }

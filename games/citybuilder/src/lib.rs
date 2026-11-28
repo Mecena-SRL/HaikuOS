@@ -1,6 +1,8 @@
 //! Città-impero: logica di gioco pura. Nessun I/O e nessun rendering;
 //! il rendering vive in main.rs e legge solo lo stato pubblico.
 
+pub mod view;
+
 pub const WIN_POP: u32 = 50;
 const HOUSE_CAP: u32 = 5;
 const IRRIGATION_COST: i32 = 20;
