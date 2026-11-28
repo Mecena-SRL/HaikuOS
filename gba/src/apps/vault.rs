@@ -147,6 +147,15 @@ impl Ingresso {
     }
 }
 
+/// Mescola un nuovo campione di entropia nel seme (splitmix64). Il GBA non ha generatore hardware:
+/// i campioni vengono da timer e tasti, quindi l'entropia è limitata (vedi docs/apps-system.md).
+pub fn mescola(seme: u64, campione: u64) -> u64 {
+    let mut z = seme ^ campione.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
 /// Sale casuale per una nuova cassaforte, dal seme di sistema (PRF Ascon). Unico per vault, non segreto.
 pub fn sale_da_seme(seme: u64) -> [u8; 16] {
     let mut k = [0u8; 16];
@@ -212,6 +221,8 @@ pub struct Cassa {
     pub seme: u64,
     /// Voce in composizione, se c'è.
     pub modifica: Option<Modifica>,
+    /// Il prossimo L elimina la voce selezionata (il primo L chiede conferma).
+    pub da_eliminare: bool,
     /// Master password dell'archivio aperto, per risalvarlo. Azzerata alla chiusura.
     master: Ingresso,
     sale: [u8; 16],
@@ -231,6 +242,7 @@ impl Cassa {
             da_salvare: false,
             seme: 0,
             modifica: None,
+            da_eliminare: false,
             master: Ingresso::new(),
             sale: [0; 16],
             contatore: 0,
@@ -291,6 +303,15 @@ impl Cassa {
         self.modifica = Some(Modifica { campi: [CAMPO_VUOTO; 3], campo: 0, indice });
         self.ingresso.azzera();
         self.esito = b"";
+    }
+
+    /// Elimina la voce selezionata e salva.
+    pub fn elimina(&mut self) {
+        let i = self.archivio.selezionata();
+        self.da_eliminare = false;
+        if self.archivio.rimuovi(i).is_ok() {
+            self.esito = if self.salva() { b"VOCE ELIMINATA" } else { b"ERRORE SALVATAGGIO" };
+        }
     }
 
     /// Annulla la composizione in corso.
@@ -492,6 +513,38 @@ mod tests {
         c.sblocca(Some(&salvato));
         assert!(c.aperta);
         assert_eq!(c.archivio.voce(0).unwrap().segreto(), b"1234");
+    }
+
+    #[test]
+    fn elimina_voce_persiste() {
+        let mut c = Cassa::new();
+        c.seme = 3;
+        digita(&mut c, b"K1");
+        c.sblocca(None);
+        for nome in [&b"Uno"[..], &b"Due"[..]] {
+            c.inizia(None);
+            digita(&mut c, nome);
+            c.avanti();
+            digita(&mut c, b"u");
+            c.avanti();
+            digita(&mut c, b"p");
+            c.avanti();
+        }
+        c.archivio.seleziona(0);
+        c.elimina();
+        assert_eq!(c.archivio.len(), 1);
+        assert_eq!(c.archivio.voce(0).unwrap().servizio(), b"Due");
+        let salvato = c.blob[..c.blob_len].to_vec();
+        c.chiudi();
+        digita(&mut c, b"K1");
+        c.sblocca(Some(&salvato));
+        assert_eq!(c.archivio.len(), 1);
+    }
+
+    #[test]
+    fn mescola_cambia_con_il_campione() {
+        assert_ne!(mescola(1, 2), mescola(1, 3));
+        assert_ne!(mescola(1, 2), mescola(2, 2));
     }
 
     #[test]

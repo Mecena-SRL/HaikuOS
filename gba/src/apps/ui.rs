@@ -92,6 +92,18 @@ impl AppsUi {
             }
             return cambiato;
         }
+        if pressed & KEY_L != 0 && !self.cassa.archivio.is_empty() {
+            if self.cassa.da_eliminare {
+                self.cassa.elimina();
+            } else {
+                self.cassa.da_eliminare = true;
+                self.cassa.esito = b"L DI NUOVO PER ELIMINARE";
+            }
+            return true;
+        }
+        if pressed & (KEY_UP | KEY_DOWN) != 0 {
+            self.cassa.da_eliminare = false;
+        }
         if pressed & KEY_R != 0 {
             self.cassa.inizia(None);
             return true;
