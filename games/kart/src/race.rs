@@ -51,7 +51,11 @@ fn lap(k: &mut Kart, seg: usize, n: usize, laps: u8, tick: u32) {
             k.finish = Some(tick);
         }
     } else if k.seg < f && seg >= q {
-        k.count = k.count.saturating_sub(1);
+        // Retromarcia sulla linea a giro 0: niente da annullare, il segmento resta quello di prima.
+        if k.count == 0 {
+            return;
+        }
+        k.count -= 1;
     }
     k.seg = seg;
 }
@@ -131,7 +135,7 @@ impl<'a> Race<'a> {
             let near = track.nearest(k.x, k.y);
             let mut inp = match (i, human) {
                 (0, Some(h)) => h,
-                _ => ai::drive(track, &k, &near),
+                _ => ai::drive(track, &k, &near, ai::look_for(i)),
             };
             if i > 0 {
                 inp.item = self.rand(60) == 0;
@@ -427,5 +431,25 @@ mod tests {
         let pts = run_cup(&TRACKS[..2], 8);
         let total: u32 = pts.iter().sum();
         assert_eq!(total, 2 * POINTS.iter().sum::<u32>());
+    }
+}
+
+#[cfg(test)]
+mod ai_line {
+    use super::*;
+
+    /// L'IA da sola resta entro il muro su ogni pista per 1500 tick.
+    #[test]
+    fn ai_stays_on_track_all_tracks() {
+        for track in crate::track::TRACKS.iter() {
+            let mut r = Race::new(track, 1, 1);
+            r.countdown = 0;
+            for t in 0..1500 {
+                r.tick(None);
+                let k = r.karts[0];
+                let nr = track.nearest(k.x, k.y);
+                assert!(nr.d2 <= track.off_d2(), "{} uscito al tick {t}: seg {} v {}", track.name, nr.seg, k.v >> 16);
+            }
+        }
     }
 }

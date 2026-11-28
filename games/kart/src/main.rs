@@ -1,4 +1,5 @@
-//! Host: `kart cup` (coppa solo IA), `kart bench` (costo per tick e per frame).
+//! Host: `kart cup` (coppa solo IA), `kart bench` (costo per tick e per frame),
+//! `kart shot W H out.ppm [tick]` (fotogramma 3D in PPM).
 
 use kart::{
     race::{run_cup, Race},
@@ -15,7 +16,12 @@ fn main() {
             }
         }
         Some("bench") => bench(),
-        _ => eprintln!("uso: kart cup | bench"),
+        Some("shot") => {
+            let a: Vec<String> = std::env::args().collect();
+            let num = |i: usize, d: usize| a.get(i).and_then(|v| v.parse().ok()).unwrap_or(d);
+            shot(num(2, 800), num(3, 480), a.get(4).map(String::as_str).unwrap_or("shot.ppm"), num(5, 240));
+        }
+        _ => eprintln!("uso: kart cup | bench | shot W H out.ppm [tick]"),
     }
 }
 
@@ -43,4 +49,19 @@ fn bench() {
     println!("pista {}: gara finita in {ticks} tick", track.name);
     println!("simulazione: {:.2} us/tick (8 kart)", sim_ns / 1000.0);
     println!("frame sim+render 640x480: {frame_us:.1} us");
+}
+
+/// Un fotogramo dopo `ticks` tick di gara (guida l'IA anche il giocatore, kart 0).
+fn shot(w: usize, h: usize, path: &str, ticks: usize) {
+    let mut race = Race::new(&TRACKS[0], 4, 42);
+    for _ in 0..ticks {
+        race.tick(None);
+    }
+    let mut buf = vec![0u32; w * h];
+    render::draw(&race, &mut buf, w, h, 0);
+    let mut out = format!("P6\n{w} {h}\n255\n").into_bytes();
+    for p in &buf {
+        out.extend_from_slice(&[(p >> 16) as u8, (p >> 8) as u8, *p as u8]);
+    }
+    std::fs::write(path, out).expect("scrittura PPM");
 }

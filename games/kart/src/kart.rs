@@ -11,6 +11,8 @@ const OFF_DRAG: Fx = ONE / 32;
 /// Rotazione massima per tick (passi di angolo) a piena sterzata e velocità massima.
 const TURN: Fx = ONE * 3 / 2;
 pub const SPIN_TICKS: u16 = 60;
+/// Sterzo pieno: `Input.steer` va da -STEER_FULL a STEER_FULL (proporzionale).
+pub const STEER_FULL: i8 = 4;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub enum Item {
@@ -22,7 +24,7 @@ pub enum Item {
     Star,
 }
 
-/// Comandi di un tick. `steer`: -1 sinistra, 0 dritto, 1 destra.
+/// Comandi di un tick. `steer`: -STEER_FULL sinistra, 0 dritto, STEER_FULL destra.
 #[derive(Clone, Copy, Default)]
 pub struct Input {
     pub gas: bool,
@@ -64,7 +66,7 @@ impl Kart {
         let mut inp = inp;
         if self.spin > 0 {
             self.spin -= 1;
-            self.h += 8 * ONE;
+            self.h += FULL / SPIN_TICKS as Fx;
             inp = Input::default();
         }
         let fast = self.boost > 0 || self.star > 0;
@@ -85,8 +87,10 @@ impl Kart {
         }
         self.v = self.v.clamp(0, vmax);
         // Lo sterzo è pieno solo a velocità piena: da fermo non ruota.
-        let ratio = div(self.v, MAX_V);
-        self.h = (self.h + mul(TURN * inp.steer as Fx, ratio)).rem_euclid(FULL);
+        // Sotto metà velocità il raggio si stringe: curve strette a bassa velocità.
+        let ratio = div((self.v * 2).min(MAX_V), MAX_V);
+        let steer = inp.steer.clamp(-STEER_FULL, STEER_FULL);
+        self.h = (self.h + mul(TURN * steer as Fx / STEER_FULL as Fx, ratio)).rem_euclid(FULL);
         let (dx, dy) = dir(self.h);
         self.x += mul(dx, self.v);
         self.y += mul(dy, self.v);
@@ -124,14 +128,14 @@ mod tests {
     #[test]
     fn no_turn_when_stopped() {
         let mut k = Kart::default();
-        run(&mut k, Input { steer: 1, ..Default::default() }, 50, false);
+        run(&mut k, Input { steer: STEER_FULL, ..Default::default() }, 50, false);
         assert_eq!(k.h, 0);
     }
 
     #[test]
     fn turns_at_speed() {
         let mut k = Kart { v: MAX_V, ..Default::default() };
-        run(&mut k, Input { gas: true, steer: 1, ..Default::default() }, 10, false);
+        run(&mut k, Input { gas: true, steer: STEER_FULL, ..Default::default() }, 10, false);
         assert!(k.h > 0 && k.h < FULL / 4);
     }
 
