@@ -19,3 +19,8 @@ pub mod photo_view;
 pub mod photos;
 pub mod ui;
 pub mod vault;
+pub mod contatore;
+pub mod distruggi;
+pub mod orologio_scacchi;
+pub mod testo_segnaposto;
+pub mod timer_esercizi;

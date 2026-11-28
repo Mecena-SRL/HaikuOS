@@ -16,6 +16,16 @@ mod ascon;
 mod sysutil;
 #[path = "../src/apps/monitor.rs"]
 mod monitor;
+#[path = "../src/apps/timer_esercizi.rs"]
+mod timer_esercizi;
+#[path = "../src/apps/orologio_scacchi.rs"]
+mod orologio_scacchi;
+#[path = "../src/apps/contatore.rs"]
+mod contatore;
+#[path = "../src/apps/testo_segnaposto.rs"]
+mod testo_segnaposto;
+#[path = "../src/apps/distruggi.rs"]
+mod distruggi;
 
 use clock::Clock;
 use notes::{Notes, N};
