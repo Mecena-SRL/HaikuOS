@@ -36,3 +36,9 @@ testo normale
 1. Collegare `Store` al file system reale (**da verificare** dove stanno le pagine).
 2. Disegno del browser e dell'editor nel lanciatore.
 3. Net stack, per aprire URL veri.
+
+## Vault: punti di sicurezza aperti
+
+- **KDF:** `ITER = 4096` giri di Ascon (era 512). Host: 0,54 ms per derivazione. Costo su GBA **da misurare**. Cambiare `ITER` rende illeggibili i file salvati.
+- **Memoria:** la master password resta in RAM finché l'archivio è aperto (serve per risalvare). Alternativa: tenere solo la chiave derivata.
+- **Blocchi liberi:** dopo una modifica, il file cifrato precedente resta nei blocchi liberi del file system, con la stessa chiave. Serve cancellazione sicura a livello file system.

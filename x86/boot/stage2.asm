@@ -61,9 +61,13 @@ stage2:
     jmp .kload
 .kdone:
 
-    ; ---- VBE: framebuffer lineare 640x480. Prima 32 bit (0x142), poi 24 bit (0x112).
+    ; ---- VBE: framebuffer lineare. Prima il modo VBE 32 bit più grande fino a 3840x2160,
+    ; poi VGA Bochs 1280x800, poi 640x480 (0x142, 0x112).
     ; esito a 0x0600: magic(4) base(4) w(4) h(4) pitch(4) bpp(4); magic 0 = niente grafica
     mov dword [0x0600], 0
+    call vbe_scan
+    cmp dword [0x0600], 0x56424531
+    je .vbe_done
     call dispi_try              ; 1280x800x32 (VGA std QEMU/Bochs), se presente
     cmp dword [0x0600], 0x56424531
     je .vbe_done
@@ -166,6 +170,68 @@ dispi_try:
     mov byte [0x0621], 8
     mov byte [0x0622], 1        ; tipo RGB
 .fail:
+    ret
+
+; ---- vbe_scan: sceglie il modo VBE a 32 bit con LFB e area maggiore (1280 .. 3840x2160) e lo imposta.
+; Lista modi dal blocco VBE a 0x0C00 (offset 0x0E, segmento 0x10). Stato: 0x0640 area, 0x0644 modo, 0x0650/0x0652 lista, 0x0654 modo corrente.
+vbe_scan:
+    xor ax, ax
+    mov es, ax
+    mov dword [0x0C00], 0x32454256   ; "VBE2": richiede il blocco esteso
+    mov dword [0x0640], 0
+    mov word [0x0644], 0
+    mov ax, 0x4F00
+    mov di, 0x0C00
+    int 0x10
+    cmp ax, 0x004F
+    jne .done
+    mov ax, [es:0x0C0E]
+    mov [0x0650], ax
+    mov ax, [es:0x0C10]
+    mov [0x0652], ax
+.next:
+    mov si, [0x0650]
+    mov ax, [0x0652]
+    mov fs, ax
+    mov cx, [fs:si]
+    add word [0x0650], 2
+    cmp cx, 0xFFFF
+    je .done
+    mov [0x0654], cx
+    xor ax, ax
+    mov es, ax
+    mov ax, 0x4F01
+    mov di, 0x0700
+    int 0x10
+    cmp ax, 0x004F
+    jne .next
+    test word [es:0x0700], 0x80   ; bit 7: LFB disponibile
+    jz .next
+    cmp byte [es:0x0719], 32
+    jne .next
+    movzx eax, word [es:0x0712]   ; larghezza
+    cmp eax, 3840
+    ja .next
+    cmp eax, 1280
+    jb .next
+    movzx edx, word [es:0x0714]   ; altezza
+    cmp edx, 2160
+    ja .next
+    imul eax, edx                 ; area in pixel
+    cmp eax, [0x0640]
+    jbe .next
+    mov [0x0640], eax
+    mov ax, [0x0654]
+    mov [0x0644], ax
+    jmp .next
+.done:
+    xor ax, ax
+    mov es, ax
+    mov cx, [0x0644]
+    test cx, cx
+    jz .none
+    call vbe_try                  ; imposta il modo e riempie il blocco 0x0600
+.none:
     ret
 
 ; ---- vbe_try: cx = modo VBE (senza bit LFB). Imposta il modo e scrive l'esito a 0x0600.
