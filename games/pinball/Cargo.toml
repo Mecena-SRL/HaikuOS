@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+haiku-game = { path = "../haiku-game", features = ["host"] }
 haiku-gui = { path = "../../gui" }
 
 [workspace]

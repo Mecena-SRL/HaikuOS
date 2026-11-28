@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "haiku-game"
+version = "0.1.0"
+
+[[package]]
 name = "haiku-gui"
 version = "0.1.0"
 dependencies = [
@@ -13,6 +17,7 @@ dependencies = [
 name = "pinball"
 version = "0.1.0"
 dependencies = [
+ "haiku-game",
  "haiku-gui",
 ]
 

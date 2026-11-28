@@ -1,6 +1,7 @@
 //! Host grafico (solo std): il tavolo, titolo, pausa e HUD passano dal trait `Canvas` di `haiku-gui`.
 //! Il disegno è in coordinate del tavolo (1 px = 1 unità); il PPM è ingrandito di `SCALE`.
 
+use haiku_game::ppm::write_scaled;
 use haiku_gui::layout::{Rect, MENU_ROW};
 use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
@@ -21,15 +22,10 @@ pub enum Screen {
     Pause,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Next {
-    Go(Screen),
-    Quit,
-    Stay,
-}
+pub use haiku_game::scene::Next;
 
 /// Titolo: invio avvia (la pallina è già in `Ready`, la lancia la leva). Pausa: `r` o invio riprende, `q` esce.
-pub fn on_menu_key(s: Screen, key: &str) -> Next {
+pub fn on_menu_key(s: Screen, key: &str) -> Next<Screen> {
     match (s, key) {
         (Screen::Title | Screen::Pause, "q") => Next::Quit,
         (Screen::Title, _) => Next::Go(Screen::Play),
@@ -68,14 +64,7 @@ impl Img {
 
     /// PPM P6 ingrandito di `SCALE` (vicino più prossimo).
     pub fn write_ppm(&self, out: &mut impl std::io::Write) -> std::io::Result<()> {
-        let (w, h) = (self.w * SCALE, self.h * SCALE);
-        write!(out, "P6\n{w} {h}\n255\n")?;
-        for y in 0..h {
-            for x in 0..w {
-                out.write_all(&self.px[(y / SCALE) * self.w + x / SCALE])?;
-            }
-        }
-        Ok(())
+        write_scaled(out, self.w, self.h, &self.px, SCALE)
     }
 }
 

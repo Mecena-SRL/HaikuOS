@@ -3,6 +3,8 @@
 
 #![cfg_attr(not(test), no_std)]
 
+use haiku_game::math::isqrt_i64;
+
 pub type V = (i64, i64);
 
 pub const FP: i64 = 256;
@@ -271,19 +273,6 @@ fn px(w: [i64; 4]) -> (V, V) {
     ((w[0] * FP, w[1] * FP), (w[2] * FP, w[3] * FP))
 }
 
-fn isqrt(n: i64) -> i64 {
-    if n <= 0 {
-        return 0;
-    }
-    let mut x = n;
-    let mut y = (x + 1) / 2;
-    while y < x {
-        x = y;
-        y = (x + n / x) / 2;
-    }
-    x
-}
-
 /// (cos, sin) di `deg`, scala FP.
 fn sin_cos(deg: i64) -> V {
     let d = deg.rem_euclid(360);
@@ -306,7 +295,7 @@ fn unit(o: V, d2: i64) -> V {
     if d2 == 0 {
         return (0, -FP);
     }
-    let d = isqrt(d2);
+    let d = isqrt_i64(d2);
     (o.0 * FP / d, o.1 * FP / d)
 }
 
@@ -363,6 +352,7 @@ fn hit_circle(b: &mut Ball, c: V, rad: i64, e: i64) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use haiku_game::rng::Rng;
     use super::*;
 
     fn ball(x: i64, y: i64, vx: i64, vy: i64) -> Pinball {
@@ -374,10 +364,10 @@ mod tests {
 
     #[test]
     fn isqrt_ok() {
-        assert_eq!(isqrt(0), 0);
-        assert_eq!(isqrt(99), 9);
-        assert_eq!(isqrt(100), 10);
-        assert_eq!(isqrt(1 << 40), 1 << 20);
+        assert_eq!(isqrt_i64(0), 0);
+        assert_eq!(isqrt_i64(99), 9);
+        assert_eq!(isqrt_i64(100), 10);
+        assert_eq!(isqrt_i64(1 << 40), 1 << 20);
     }
 
     #[test]
@@ -494,10 +484,9 @@ mod tests {
     #[test]
     fn random_play_stays_in_table() {
         let mut g = Pinball::new();
-        let mut seed: u64 = 1;
+        let mut rng = Rng::new(1);
         for _ in 0..20_000 {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
-            let bits = seed >> 33;
+            let bits = rng.next_u32();
             let inp = Input {
                 left: bits & 1 == 1,
                 right: bits & 2 == 2,
