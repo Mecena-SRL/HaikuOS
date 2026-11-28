@@ -24,7 +24,10 @@ fn scenes() -> Vec<(&'static str, Game)> {
 
     let mut g = Game::new(5);
     g.input(Cmd::Fire);
-    while g.phase != Phase::Over {
+    for _ in 0..1_000_000 {
+        if g.phase == Phase::Over {
+            break;
+        }
         if g.phase == Phase::Ready {
             g.input(Cmd::Fire);
         }
@@ -34,7 +37,10 @@ fn scenes() -> Vec<(&'static str, Game)> {
 
     let mut g = Game::new(7);
     g.input(Cmd::Fire);
-    while !matches!(g.phase, Phase::Won | Phase::Over) {
+    for _ in 0..1_000_000 {
+        if matches!(g.phase, Phase::Won | Phase::Over) {
+            break;
+        }
         autoplay(&mut g);
     }
     v.push(("vittoria", g));

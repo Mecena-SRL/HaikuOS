@@ -273,12 +273,10 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     c.rr(px_ - hw, PAD_Y as f32, px_ + hw, (PAD_Y + PAD_H) as f32, 1.5, PAD_T, PAD_B);
 
     let mut buf = [0u8; 10];
-    let hud = num(g.score, &mut buf);
-    let hud_len = hud.len();
-    let _ = hud_len;
     c.text(b"LIVELLO", 4.0, 3.0, 1.0, TXT);
     let lvl = [b'0' + g.level as u8 + 1];
     c.text(&lvl, 36.0, 3.0, 1.0, TXT);
+    c.text(num(g.score, &mut buf), 4.0, 11.0, 1.0, TXT);
 
     if g.phase != Phase::Title {
         let (bx, by) = (g.ball.0 as f32 / SUB as f32, g.ball.1 as f32 / SUB as f32);

@@ -105,7 +105,7 @@ impl Game {
     /// Partita pronta (fase `Ready`) dal livello `l`.
     pub fn at_level(seed: u32, l: usize) -> Self {
         let mut g = Self::new(seed);
-        g.start_at(l);
+        g.start_at(l.min(LEVELS.len() - 1));
         g
     }
 
@@ -296,6 +296,7 @@ impl Game {
                 if ny >= top && ny <= top + (PAD_H + 2) * SUB && (dx - self.paddle).abs() <= self.half() + 4 * SUB {
                     self.wide = WIDE_TICKS;
                     self.drops[i] = None;
+                    self.move_paddle(0); // la racchetta larga non deve sporgere dal campo
                 } else if ny > PH * SUB {
                     self.drops[i] = None;
                 } else {
