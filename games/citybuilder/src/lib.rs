@@ -401,8 +401,10 @@ impl Empire {
                 self.citizens = (self.citizens + growth).min(self.capacity());
             }
         }
-        // Sussidio anti-stallo: senza legnaia e con legno sotto il costo minimo, +2 legno.
-        if self.stock.wood < 5 && self.count(Building::Lumber) == 0 {
+        // Sussidio anti-stallo: senza legnaia, con legno sotto il costo della prossima casa
+        // (o sotto il minimo), +2 legno. Vale per entrambi gli imperi.
+        let soglia = self.price(Building::House).wood.max(5);
+        if self.stock.wood < soglia && self.count(Building::Lumber) == 0 {
             self.stock.wood += 2;
         }
         self.check_milestones();
