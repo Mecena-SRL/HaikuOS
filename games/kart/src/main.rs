@@ -15,8 +15,28 @@ fn main() {
             }
         }
         Some("bench") => bench(),
+        Some("shot") => shot(),
         _ => eprintln!("uso: kart cup | bench"),
     }
+}
+
+/// `kart shot <w> <h> <traccia 0-2> <tick> <out.ppm>`: rende un frame di gara (PPM).
+fn shot() {
+    let a: Vec<String> = std::env::args().skip(2).collect();
+    let (w, h): (usize, usize) = (a[0].parse().unwrap(), a[1].parse().unwrap());
+    let track = &TRACKS[a[2].parse::<usize>().unwrap()];
+    let ticks: u32 = a[3].parse().unwrap();
+    let mut race = Race::new(track, 8, 42);
+    while race.tick < ticks && !race.finished() {
+        race.tick(None);
+    }
+    let mut buf = vec![0u32; w * h];
+    render::draw(&race, &mut buf, w, h, 0);
+    let mut out = format!("P6\n{w} {h}\n255\n").into_bytes();
+    for px in &buf {
+        out.extend_from_slice(&[(px >> 16) as u8, (px >> 8) as u8, *px as u8]);
+    }
+    std::fs::write(&a[4], out).unwrap();
 }
 
 fn bench() {
