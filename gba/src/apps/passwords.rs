@@ -149,6 +149,15 @@ impl Archivio {
         Ok(())
     }
 
+    /// Sostituisce la voce `i`. `NonTrovato` se `i` non esiste; altri errori se i campi non sono validi.
+    pub fn sostituisci(&mut self, i: usize, servizio: &[u8], utente: &[u8], segreto: &[u8]) -> Result<(), Errore> {
+        if i >= self.len {
+            return Err(Errore::NonTrovato);
+        }
+        self.voci[i] = Voce::new(servizio, utente, segreto)?;
+        Ok(())
+    }
+
     /// Indice della prima voce con questo servizio (maiuscole ignorate).
     pub fn cerca(&self, servizio: &[u8]) -> Option<usize> {
         (0..self.len).find(|&i| self.voci[i].servizio().eq_ignore_ascii_case(servizio))

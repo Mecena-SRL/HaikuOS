@@ -123,6 +123,25 @@ fn testo_a_capo(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, s: &[u
 /// Password: una voce alla volta. Il segreto è nascosto finché A non lo mostra.
 pub fn passwords(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &AppsUi, p: [u16; 4]) {
     body(fb, w, h, x0, y0, p);
+    if let Some(m) = a.cassa.modifica {
+        let titolo: &[u8] = if m.indice.is_some() { b"MODIFICA VOCE" } else { b"NUOVA VOCE" };
+        font::draw(fb, w, h, x0 + 2, y0 + 2, titolo, p[0]);
+        let nomi: [&[u8]; 3] = [b"SERVIZIO", b"UTENTE", b"SEGRETO"];
+        font::draw(fb, w, h, x0 + 2, y0 + 12, nomi[m.campo], p[2]);
+        let ing = &a.cassa.ingresso;
+        if m.campo == 2 {
+            let stelle = [b'*'; MAX_CAMPO];
+            font::draw(fb, w, h, x0 + 2, y0 + 22, &stelle[..ing.lunghezza()], p[0]);
+        } else {
+            font::draw(fb, w, h, x0 + 2, y0 + 22, ing.password(), p[0]);
+        }
+        font::draw(fb, w, h, x0 + 2, y0 + 34, &[ing.carattere()], p[2]);
+        if !a.cassa.esito.is_empty() {
+            font::draw(fb, w, h, x0 + 2, y0 + 46, a.cassa.esito, p[0]);
+        }
+        font::draw(fb, w, h, x0 + 2, y0 + 66, b"SU GIU A L AVANTI", p[2]);
+        return;
+    }
     if !a.cassa.aperta {
         font::draw(fb, w, h, x0 + 2, y0 + 2, b"MASTER PASSWORD", p[0]);
         let ing = &a.cassa.ingresso;
@@ -153,7 +172,10 @@ pub fn passwords(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &A
             font::draw(fb, w, h, x0 + 2, y0 + 44, &stelle[..v.segreto().len()], p[0]);
         }
     }
-    font::draw(fb, w, h, x0 + 2, y0 + 66, b"A MOSTRA", p[2]);
+    if !a.cassa.esito.is_empty() {
+        font::draw(fb, w, h, x0 + 2, y0 + 56, a.cassa.esito, p[0]);
+    }
+    font::draw(fb, w, h, x0 + 2, y0 + 66, b"A MOSTRA R NUOVA SEL MOD", p[2]);
 }
 
 /// Dizionario: una parola alla volta, con la definizione a capo.
