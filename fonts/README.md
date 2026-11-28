@@ -15,4 +15,4 @@ Tutti sotto licenza SIL Open Font License 1.1 (`OFL.txt` in ogni cartella). Una 
 | Space Mono | SpaceMono/SpaceMono-Regular.ttf | OFL | display / giochi |
 | Atkinson Hyperlegible | AtkinsonHyperlegible/AtkinsonHyperlegible-Regular.ttf | OFL | accessibilità |
 
-Tutti i file sono TrueType (contorni vettoriali). Default scelti in `gui/src/vfont.rs` (`default_font`).
+Tutti i file sono TrueType (contorni vettoriali). Default scelti in `gui/src/vfont.rs` (`default_font`); i file sono incorporati in `gui/src/fonts.rs` e letti da `gui/src/ttf.rs`.

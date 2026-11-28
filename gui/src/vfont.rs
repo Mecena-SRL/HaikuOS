@@ -1,23 +1,16 @@
-//! Font vettoriale con antialiasing. no_std, senza allocazione, senza dipendenze.
-//! Contorni in unità 0..=64 per em, y verso il basso. Ops (byte):
-//!   0 x y         move (apre un contorno)
-//!   1 x y         linea
-//!   2 cx cy x y   curva quadratica (4 segmenti)
-//!   3             chiude il contorno
-//!   4 x0 y0 x1 y1 rettangolo (scorciatoia per move+3 linee+chiusura)
-//! Riempimento non zero. Copertura: 4 sotto-scanline per riga, area orizzontale esatta.
-//! Limiti: MAX_EDGES lati per glifo (i lati in eccesso sono scartati), size ≤ MAX_SIZE.
+//! Testo vettoriale TrueType con antialiasing. no_std, senza allocazione.
+//! Contorni letti da `ttf.rs` dal font di sistema (`fonts.rs`), riempimento non zero, copertura
+//! per sotto-scanline con area orizzontale esatta. Limiti: MAX_EDGES lati per glifo, size ≤ MAX_SIZE.
+use crate::fonts;
 use crate::palette::Tok;
 use crate::render::Canvas;
+use crate::ttf::{Font, Glyph, MAX_PTS};
 
-pub const EM: i32 = 64;
-/// Passo tra due caratteri, in unità (glifo 5 colonne + 1 vuota, cella 8).
-pub const ADVANCE: i32 = 48;
-pub const MAX_SIZE: i32 = 64;
+pub const MAX_SIZE: i32 = 256;
 const SUB: i32 = 4;
-const MAX_EDGES: usize = 128;
+const MAX_EDGES: usize = 384;
 const CURVE_STEPS: i64 = 4;
-const ROW_W: usize = MAX_SIZE as usize + 2;
+const ROW_W: usize = 2 * MAX_SIZE as usize + 2;
 
 #[derive(Clone, Copy, Default)]
 struct Edge {
@@ -37,6 +30,11 @@ struct Edges {
 }
 
 impl Edges {
+    fn new() -> Edges {
+        Edges { e: [Edge::default(); MAX_EDGES], n: 0, ox: 0, oy: 0, k: 0 }
+    }
+
+    /// Punto degli ops (0..64 per em) in coordinate assolute.
     fn p(&self, x: u8, y: u8) -> (i32, i32) {
         (self.ox + x as i32 * self.k, self.oy + y as i32 * self.k)
     }
@@ -63,15 +61,12 @@ impl Edges {
     }
 }
 
-/// Converte gli ops di un glifo in lati, con origine `(gx, gy)` px e `size` px per em.
+/// Converte gli ops di un glifo (formato 0..64 per em) in lati, con origine `(gx, gy)` px.
 fn build(ops: &[u8], gx: i32, gy: i32, size: i32) -> Edges {
-    let mut ed = Edges {
-        e: [Edge::default(); MAX_EDGES],
-        n: 0,
-        ox: gx * 256,
-        oy: gy * 256,
-        k: size * 4,
-    };
+    let mut ed = Edges::new();
+    ed.ox = gx * 256;
+    ed.oy = gy * 256;
+    ed.k = size * 4;
     let (mut start, mut cur, mut open) = ((0, 0), (0, 0), false);
     let mut i = 0;
     while i < ops.len() {
@@ -143,16 +138,25 @@ fn add_span(acc: &mut [u16], a: i32, b: i32) {
     }
 }
 
-/// Rasterizza un glifo a `(gx, gy)` px (angolo alto-sinistro dell'em) con `size` px per em.
-pub fn raster<C: Canvas>(c: &mut C, ops: &[u8], gx: i32, gy: i32, size: i32, t: Tok) {
-    let size = size.clamp(1, MAX_SIZE);
-    let ed = build(ops, gx, gy, size);
-    let base = gx * 256;
+/// Riempie i lati con antialiasing: righe e colonne derivate dal loro bounding box.
+fn raster_edges<C: Canvas>(c: &mut C, ed: &Edges, t: Tok) {
+    if ed.n == 0 {
+        return;
+    }
+    let (mut x0, mut x1, mut y0, mut y1) = (i32::MAX, i32::MIN, i32::MAX, i32::MIN);
+    for e in &ed.e[..ed.n] {
+        x0 = x0.min(e.x0.min(e.x1));
+        x1 = x1.max(e.x0.max(e.x1));
+        y0 = y0.min(e.y0.min(e.y1));
+        y1 = y1.max(e.y0.max(e.y1));
+    }
+    let ax = x0 >> 8;
+    let w = (((x1 + 255) >> 8) - ax).clamp(0, ROW_W as i32) as usize;
     let mut xs = [(0i32, 0i32); MAX_EDGES];
-    for row in 0..size {
+    for row in (y0 >> 8)..((y1 + 255) >> 8) {
         let mut acc = [0u16; ROW_W];
         for s in 0..SUB {
-            let y = (gy + row) * 256 + ((2 * s + 1) * 256) / (2 * SUB);
+            let y = row * 256 + ((2 * s + 1) * 256) / (2 * SUB);
             let mut m = 0;
             for e in &ed.e[..ed.n] {
                 let (lo, hi, dir) = if e.y0 < e.y1 { (e.y0, e.y1, 1) } else { (e.y1, e.y0, -1) };
@@ -177,41 +181,121 @@ pub fn raster<C: Canvas>(c: &mut C, ops: &[u8], gx: i32, gy: i32, size: i32, t: 
             for j in 0..m {
                 wind += xs[j].1;
                 if wind != 0 && j + 1 < m {
-                    add_span(&mut acc, xs[j].0 - base, xs[j + 1].0 - base);
+                    add_span(&mut acc, xs[j].0 - (ax << 8), xs[j + 1].0 - (ax << 8));
                 }
             }
         }
-        for (i, &v) in acc.iter().enumerate().take((size + 2) as usize) {
+        for (i, &v) in acc.iter().enumerate().take(w) {
             let a = (v >> 2).min(255) as u8;
             if a > 0 {
-                c.blend(gx + i as i32, gy + row, a, t);
+                c.blend(ax + i as i32, row, a, t);
             }
         }
     }
 }
 
-/// Glifo ASCII 0x20..=0x7E; ogni altro byte è spazio.
-fn glyph(ch: u8) -> &'static [u8] {
-    if (0x20..=0x7E).contains(&ch) {
-        crate::vfont_data::GLYPHS[(ch - 0x20) as usize]
-    } else {
-        crate::vfont_data::GLYPHS[0]
-    }
-}
-
-/// Larghezza in px di `s` a `size` px per em (passo esatto per carattere, senza accumulo di errore).
-pub fn advance(size: i32, s: &str) -> i32 {
-    (s.len() as i32 * ADVANCE * size.clamp(1, MAX_SIZE)) / EM
-}
-
-/// Disegna `s` con origine `(x, y)` (alto-sinistra dell'em) e `size` px per em. Ritorna la larghezza.
-pub fn draw_text<C: Canvas>(c: &mut C, x: i32, y: i32, size: i32, s: &str, t: Tok) -> i32 {
+/// Rasterizza un glifo in formato ops a `(gx, gy)` px (angolo alto-sinistro dell'em), `size` px per em.
+pub fn raster<C: Canvas>(c: &mut C, ops: &[u8], gx: i32, gy: i32, size: i32, t: Tok) {
     let size = size.clamp(1, MAX_SIZE);
-    for (i, ch) in s.bytes().enumerate() {
-        let gx = x + (i as i32 * ADVANCE * size) / EM;
-        raster(c, glyph(ch), gx, y, size, t);
+    raster_edges(c, &build(ops, gx, gy, size), t);
+}
+
+/// Lati di un glifo TrueType: origine della penna `pen` e linea di base `base` (1/256 px), `size` px per em.
+fn glyph_edges(g: &Glyph, upem: i32, pen: i64, base: i64, size: i64) -> Edges {
+    let mut ed = Edges::new();
+    let sc = size * 256;
+    let up = upem as i64;
+    let mut q = [(0i32, 0i32, false); MAX_PTS];
+    for i in 0..g.n {
+        let p = g.pts[i];
+        q[i] = ((pen + p.x as i64 * sc / up) as i32, (base - p.y as i64 * sc / up) as i32, p.on);
     }
-    advance(size, s)
+    let mut first = 0;
+    for c in 0..g.nc {
+        contour(&mut ed, &q[first..=g.ends[c]]);
+        first = g.ends[c] + 1;
+    }
+    ed
+}
+
+/// Un contorno chiuso: curve quadratiche TrueType (punti fuori curva fra due punti su curva).
+fn contour(ed: &mut Edges, p: &[(i32, i32, bool)]) {
+    let n = p.len();
+    if n < 2 {
+        return;
+    }
+    // Sequenza `l` che termina con un punto su curva (= inizio del contorno).
+    let mut l = [(0i32, 0i32, false); MAX_PTS + 1];
+    let m;
+    if p[0].2 {
+        for i in 0..n {
+            l[i] = p[(i + 1) % n];
+        }
+        m = n;
+    } else if p[n - 1].2 {
+        l[..n].copy_from_slice(p);
+        m = n;
+    } else {
+        l[..n].copy_from_slice(p);
+        l[n] = ((p[n - 1].0 + p[0].0) / 2, (p[n - 1].1 + p[0].1) / 2, true);
+        m = n + 1;
+    }
+    let mut prev = (l[m - 1].0, l[m - 1].1);
+    let mut i = 0;
+    while i < m {
+        let (x, y, on) = l[i];
+        if on {
+            ed.push(prev, (x, y));
+            prev = (x, y);
+            i += 1;
+        } else {
+            // l[m - 1] è su curva, quindi `i + 1` esiste sempre.
+            let (nx, ny, non) = l[i + 1];
+            if non {
+                ed.quad(prev, (x, y), (nx, ny));
+                prev = (nx, ny);
+                i += 2;
+            } else {
+                let mid = ((x + nx) / 2, (y + ny) / 2);
+                ed.quad(prev, (x, y), mid);
+                prev = mid;
+                i += 1;
+            }
+        }
+    }
+}
+
+fn clamp_size(size: i32) -> i64 {
+    size.clamp(1, MAX_SIZE) as i64
+}
+
+/// Avanzo totale di `s` in 1/256 px a `size` px per em (kerning escluso).
+fn run_width(f: &Font, size: i64, s: &str) -> i64 {
+    s.chars().map(|ch| f.advance(f.glyph_id(ch as u32)) as i64 * size * 256 / f.upem as i64).sum()
+}
+
+/// Larghezza in px di `s` a `size` px per em, con il font di sistema.
+pub fn advance(size: i32, s: &str) -> i32 {
+    match fonts::ui() {
+        Some(f) => ((run_width(&f, clamp_size(size), s) + 128) / 256) as i32,
+        None => 0,
+    }
+}
+
+/// Disegna `s` con origine `(x, y)` (alto del riquadro dell'em) e `size` px per em. Ritorna la larghezza.
+pub fn draw_text<C: Canvas>(c: &mut C, x: i32, y: i32, size: i32, s: &str, t: Tok) -> i32 {
+    let Some(f) = fonts::ui() else { return 0 };
+    let size = clamp_size(size);
+    let base = y as i64 * 256 + f.ascender as i64 * size * 256 / f.upem as i64;
+    let mut pen = x as i64 * 256;
+    for ch in s.chars() {
+        let gid = f.glyph_id(ch as u32);
+        if let Some(g) = f.glyph(gid) {
+            raster_edges(c, &glyph_edges(&g, f.upem, pen, base, size), t);
+        }
+        pen += f.advance(gid) as i64 * size * 256 / f.upem as i64;
+    }
+    ((run_width(&f, size, s) + 128) / 256) as i32
 }
 
 /// Ruolo di un testo di sistema: sceglie il font di default (vedi `fonts/README.md`).
@@ -222,8 +306,7 @@ pub enum Role {
     Reading,
 }
 
-/// Font di default per ruolo. Hook: il rendering usa ancora i glifi incorporati;
-/// il caricamento dei TTF da questi percorsi arriva con il parser del font manager.
+/// Font di default per ruolo, percorso di riferimento nel repo. I byte sono incorporati in `fonts.rs`.
 pub const fn default_font(r: Role) -> &'static str {
     match r {
         Role::Ui => "fonts/Inter/Inter-Variable.ttf",

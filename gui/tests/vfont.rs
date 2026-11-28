@@ -6,10 +6,11 @@ use haiku_gui::Tok;
 
 #[test]
 fn passo_dei_caratteri_e_esatto() {
-    assert_eq!(advance(64, "AB"), 96);
-    assert_eq!(advance(16, "ABC"), 36);
-    assert_eq!(advance(8, "A"), 6);
     assert_eq!(advance(13, ""), 0);
+    assert!(advance(64, "AB") > advance(64, "A"));
+    assert_eq!(advance(64, "HAIKU"), advance(64, "H") + advance(64, "AIKU"));
+    let (a, b) = (advance(32, "OS"), advance(64, "OS"));
+    assert!((2 * a - b).abs() <= 1);
 }
 
 #[test]
@@ -97,4 +98,17 @@ fn font_di_default_esistono() {
         let p = root.join(default_font(r));
         assert!(p.is_file(), "manca {}", p.display());
     }
+}
+
+#[test]
+fn inter_si_legge_e_disegna_contorni_reali() {
+    use haiku_gui::fonts_test::ui_font;
+    let f = ui_font().expect("Inter non parsa");
+    assert!(f.glyph_id('A' as u32) != 0);
+    let g = f.glyph(f.glyph_id('O' as u32)).expect("contorno di O");
+    assert!(g.nc >= 2, "la O ha due contorni (esterno e interno)");
+    let mut b = Buf::new(40, 40);
+    draw_text(&mut b, 2, 2, 32, "O", Tok::T1);
+    let inchiostro = b.alpha.iter().filter(|&&a| a > 128).count();
+    assert!(inchiostro > 100, "pochi pixel: {inchiostro}");
 }
