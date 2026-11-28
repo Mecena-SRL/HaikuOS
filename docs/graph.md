@@ -11,6 +11,9 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `setup/` | OS, `no_std` | - | logica primo avvio |
 | `sysapps/` | OS, `no_std` | - | browser ed editor di script |
 | `sim/` | host | - | simulatore monolite, agente, filtro messaggi |
+| `ps2/` | `no_std` lib, test host | - | decoder PS/2 puro, `ByteSource` + `pump`, replay host |
+| `trace/` | `no_std` lib | - | buffer circolare fisso per tracce |
+| `discovery/` | `no_std` lib | - | FDT compatible e RSDP ACPI, senza I/O |
 | `gba/` | OS, Game Boy Advance | - | ROM GBA |
 | `x86/` | OS, x86-64 | - | loader Multiboot2 (CPUID, framebuffer 15/16/24/32 bit), kernel `no_std`, test QEMU |
 | `arm64/uefi/` | OS, ARM64 UEFI | - | app UEFI (`BOOTAA64.EFI`), GOP, stampa su ConOut, test QEMU_EFI + ramfb |

@@ -129,6 +129,22 @@ fn ascii(sc: u8, shift: bool) -> u8 {
     }
 }
 
+/// Sorgente di byte PS/2. Adattatori: porta 0x60 nel kernel, slice registrato nei test host.
+pub trait ByteSource {
+    fn next_byte(&mut self) -> Option<u8>;
+}
+
+/// Porta la sorgente fino a esaurirla; ogni evento va al `sink`. Non alloca.
+/// `mouse` indica se i byte sono pacchetti mouse (3 byte) invece di tastiera.
+pub fn pump<S: ByteSource, F: FnMut(Ev)>(dec: &mut Decoder, src: &mut S, mouse: bool, mut sink: F) {
+    while let Some(b) = src.next_byte() {
+        let ev = if mouse { dec.mouse(b) } else { dec.key(b) };
+        if let Some(ev) = ev {
+            sink(ev);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
