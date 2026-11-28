@@ -29,7 +29,7 @@ pub struct Move {
 
 pub static SPECIES: [Species; 4] = [
     Species { name: "FLAMEL", kind: Kind::Fire, hp: 22, atk: 9, def: 6, spd: 8, moves: [0, 3] },
-    Species { name: "AQUO", kind: Kind::Water, hp: 24, atk: 8, def: 7, spd: 6, moves: [1, 3] },
+    Species { name: "AQUO", kind: Kind::Water, hp: 20, atk: 6, def: 7, spd: 6, moves: [1, 3] },
     Species { name: "LEAFO", kind: Kind::Grass, hp: 23, atk: 8, def: 7, spd: 7, moves: [2, 3] },
     Species { name: "RATTO", kind: Kind::Normal, hp: 14, atk: 6, def: 4, spd: 9, moves: [3, 3] },
 ];
@@ -157,7 +157,7 @@ pub fn damage(a: &Creature, mv: usize, d: &Creature) -> i32 {
 impl Battle {
     pub fn new(foe: Creature, trainer: bool) -> Self {
         let mut msg = Msg::new();
-        msg.push(if trainer { "IL TRAINER MANDA " } else { "UN SELVATICO " });
+        msg.push(if trainer { "IL ALLENATORE MANDA " } else { "UN SELVATICO " });
         msg.push(foe.s().name);
         msg.push("!");
         Self { foe, trainer, phase: Phase::Menu, cursor: 0, msg, outcome: None }
@@ -178,16 +178,16 @@ impl Battle {
     pub fn turn(&mut self, me: &mut Creature, a: Act, rng: &mut Rng) {
         self.msg.clear();
         match a {
-            Act::Run if self.trainer => return self.say("NON PUOI FUGGIRE DA UN TRAINER!"),
+            Act::Run if self.trainer => return self.say("NON PUOI FUGGIRE DA UN ALLENATORE!"),
             Act::Run => return self.finish(Outcome::Ran, "SEI FUGGITO!"),
-            Act::Catch if self.trainer => return self.say("NON RUBI LE CREATURE ALTRUI!"),
+            Act::Catch if self.trainer => return self.say("NON PUOI RUBARE LE CREATURE ALTRUI!"),
             Act::Catch => {
                 let max = self.foe.s().hp;
                 let rate = 30 + (max - self.foe.hp) * 60 / max;
                 if rng.below(100) < rate as u32 {
                     return self.finish(Outcome::Caught, "CATTURATO!");
                 }
-                self.msg.push("NON RIUSCITA!\n");
+                self.msg.push("CATTURA NON RIUSCITA!\n");
             }
             Act::Move(_) => {}
         }
@@ -231,7 +231,7 @@ impl Battle {
         *me = p;
         self.foe = f;
         if self.foe.hp <= 0 {
-            self.finish(Outcome::Win, "\nVITTORIA!");
+            self.finish(Outcome::Win, "VITTORIA!");
         } else {
             self.phase = Phase::Menu;
             self.cursor = 0;

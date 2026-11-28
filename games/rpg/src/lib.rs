@@ -150,8 +150,13 @@ impl Game {
     }
 
     fn interact(&mut self) {
-        let (tx, ty) = (self.x + DIRS[self.dir].0, self.y + DIRS[self.dir].1);
-        let Some(i) = world::npc_at(self.map, tx, ty) else { return };
+        // Prima la direzione in cui si guarda, poi le altre: si gira verso chi si trova accanto.
+        let order = [self.dir, 0, 1, 2, 3];
+        let found = order.iter().find_map(|&d| {
+            world::npc_at(self.map, self.x + DIRS[d].0, self.y + DIRS[d].1).map(|i| (d, i))
+        });
+        let Some((d, i)) = found else { return };
+        self.dir = d;
         let npc = NPCS[i];
         self.page = 0;
         self.mode = Mode::Talk;
@@ -205,6 +210,10 @@ impl Game {
 
     fn act(&mut self, a: Act) {
         if a == Act::Catch && !self.battle.trainer {
+            if self.n >= 3 {
+                self.battle.say("SQUADRA PIENA!");
+                return;
+            }
             if self.balls == 0 {
                 self.battle.say("NIENTE PALLE!");
                 return;
@@ -215,18 +224,14 @@ impl Game {
         self.battle.turn(&mut me, a, &mut self.rng);
         self.party[self.active] = me;
         if self.battle.outcome == Some(Outcome::Caught) {
-            if self.n < 3 {
-                self.party[self.n] = self.battle.foe;
-                self.n += 1;
-            } else {
-                self.battle.msg.push("\nPARTY PIENA!");
-            }
+            self.party[self.n] = self.battle.foe;
+            self.n += 1;
         }
         if self.battle.outcome.is_none() && me.hp <= 0 {
             match (0..self.n).find(|&i| self.party[i].hp > 0) {
                 Some(j) => {
                     self.active = j;
-                    self.battle.msg.push("\nVAI, ");
+                    self.battle.msg.push("VAI, ");
                     self.battle.msg.push(self.party[j].s().name);
                     self.battle.msg.push("!");
                     self.battle.phase = Phase::Menu;
@@ -235,7 +240,7 @@ impl Game {
                 None => {
                     self.battle.outcome = Some(Outcome::Lose);
                     self.battle.phase = Phase::Done;
-                    self.battle.msg.push("\nSEI SVENUTO!");
+                    self.battle.msg.push("SEI SVENUTO!");
                 }
             }
         }
@@ -250,6 +255,7 @@ impl Game {
                 self.active = 0;
                 (self.map, self.x, self.y) = (0, world::START.0, world::START.1);
                 self.text = "SEI SVENUTO. CREATURE GUARITE.";
+                self.fade = 16;
                 self.page = 0;
                 self.mode = Mode::Talk;
             }
@@ -357,6 +363,72 @@ mod tests {
         g.press(Button::Down);
         g.press(Button::A);
         assert_eq!(g.balls, 5);
+    }
+
+    #[test]
+    fn full_party_catch_is_refused_without_ball() {
+        let mut g = Game::new(3);
+        g.n = 3;
+        g.mode = Mode::Fight;
+        g.battle = Battle::new(Creature { sp: 3, hp: 1 }, false);
+        g.battle.cursor = 1;
+        g.press(Button::A);
+        assert_eq!((g.balls, g.n), (5, 3));
+        assert_eq!(g.battle.outcome, None);
+    }
+
+    #[test]
+    fn b_in_menu_does_nothing() {
+        let mut g = Game::new(3);
+        g.mode = Mode::Fight;
+        g.battle = Battle::new(Creature { sp: 3, hp: 14 }, false);
+        g.press(Button::B);
+        assert_eq!((g.battle.phase, g.battle.cursor, g.mode), (Phase::Menu, 0, Mode::Fight));
+    }
+
+    #[test]
+    fn warp_round_trip() {
+        let mut g = Game::new(3);
+        (g.map, g.x, g.y, g.dir) = (0, 14, 6, 3);
+        g.press(Button::Right);
+        assert_eq!((g.map, g.x, g.y), (1, 1, 6));
+        g.press(Button::Left);
+        assert_eq!((g.map, g.x, g.y), (0, 14, 6));
+    }
+
+    #[test]
+    fn map_borders_are_closed() {
+        for m in 0..2 {
+            let rows = world::map(m);
+            for x in 0..16 {
+                for y in [0usize, 11] {
+                    assert!("#TH<>".contains(rows[y].as_bytes()[x] as char), "map {m} edge {x},{y}");
+                }
+            }
+            for row in rows.iter() {
+                let b = row.as_bytes();
+                for &c in [b[0], b[15]].iter() {
+                    assert!("#TH<>".contains(c as char), "map {m} side in {row}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn battle_messages_fit_the_box() {
+        for seed in 1..200u32 {
+            let mut rng = Rng(seed);
+            let mut me = Creature::new(0);
+            let mut b = Battle::new(Creature::new(1), false);
+            for _ in 0..30 {
+                if b.outcome.is_some() {
+                    break;
+                }
+                b.turn(&mut me, Act::Move(0), &mut rng);
+                let lines = b.msg.as_str().matches('\n').count() + 1;
+                assert!(lines <= 6, "seed {seed}: {lines} lines");
+            }
+        }
     }
 
     #[test]

@@ -58,7 +58,7 @@ pub struct Npc {
 pub static NPCS: [Npc; 4] = [
     Npc { map: 0, x: 2, y: 2, kind: NpcKind::Nurse, text: "LE TUE CREATURE SONO GUARITE!" },
     Npc { map: 0, x: 11, y: 4, kind: NpcKind::Talk, text: "BENVENUTO A VERDEPOLI!|NELLE ERBE ALTE VIVONO CREATURE." },
-    Npc { map: 0, x: 12, y: 9, kind: NpcKind::Talk, text: "VAI A EST NELLE ERBE PER LOTTARE." },
+    Npc { map: 0, x: 12, y: 9, kind: NpcKind::Talk, text: "AD EST UN ALLENATORE TI ASPETTA!" },
     Npc { map: 1, x: 9, y: 5, kind: NpcKind::Trainer, text: "EHI! SEI UN ALLENATORE?|TI SFIDO A UNA LOTTA!" },
 ];
 

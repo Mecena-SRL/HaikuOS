@@ -4,6 +4,7 @@
 //!   rpg shot FILE.ppm W H KEYS   screenshot dopo aver premuto KEYS (es. "zz")
 
 use haiku_editor::gui::Canvas;
+use rpg::battle::{Phase, MOVES, SPECIES};
 use rpg::{draw, world, Button, Game, Mode};
 use std::{env, fs, io::{self, BufRead, Write}};
 
@@ -54,17 +55,35 @@ fn main() {
             if let Some(b) = key(c) {
                 g.press(b);
                 g.tick();
+                show(&g);
             }
         }
-        show(&g);
     }
 }
 
 fn show(g: &Game) {
     let mut out = io::stdout().lock();
     if g.mode == Mode::Fight {
-        let _ = writeln!(out, "\n{}", g.battle.msg.as_str());
-        let _ = writeln!(out, "[{:?}] w/s scegli, z conferma, x indietro", g.battle.phase);
+        let b = &g.battle;
+        let me = g.party[g.active];
+        let _ = writeln!(out, "\n{}  PS {}/{}", b.foe.s().name, b.foe.hp, b.foe.s().hp);
+        let _ = writeln!(out, "{}  PS {}/{}", me.s().name, me.hp, me.s().hp);
+        let _ = writeln!(out, "{}", b.msg.as_str());
+        let items: Vec<&str> = match b.phase {
+            Phase::Menu => vec!["LOTTA", "CATTURA", "FUGGI"],
+            Phase::Moves => SPECIES[me.sp].moves.iter().map(|&m| MOVES[m].name).collect(),
+            Phase::Done => vec![],
+        };
+        for (i, it) in items.iter().enumerate() {
+            let mark = if i == b.cursor { ">" } else { " " };
+            let _ = writeln!(out, "{mark} {it}");
+        }
+        let hint = match b.phase {
+            Phase::Menu => "w/s scegli, z conferma",
+            Phase::Moves => "w/s scegli, z usa, x indietro",
+            Phase::Done => "z continua",
+        };
+        let _ = writeln!(out, "[{hint}]");
         return;
     }
     for y in 0..world::H {

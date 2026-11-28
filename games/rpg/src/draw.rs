@@ -135,6 +135,7 @@ fn map_view<P: Pixel>(c: &mut Canvas<P>, g: &Game, ox: usize, oy: usize, ts: usi
     for n in NPCS.iter().filter(|n| n.map == g.map) {
         let col = match n.kind {
             NpcKind::Nurse => WHITE,
+            NpcKind::Trainer if g.beaten => 0xFF4A4A5A,
             NpcKind::Trainer => 0xFF805AD5,
             NpcKind::Talk => CURSOR,
         };
@@ -275,7 +276,7 @@ fn panel<P: Pixel>(c: &mut Canvas<P>, x: usize, y: usize, pw: usize, cr: &Creatu
     };
     c.rect(x + 2 * s, y + 8 * s, (cr.hp.max(0) * bw as i32 / max) as usize, 3 * s, col);
     let mut t = Msg::new();
-    t.push("HP ");
+    t.push("PS ");
     t.num(cr.hp);
     t.push("/");
     t.num(max);
