@@ -1,6 +1,6 @@
 //! Framebuffer lineare RGB (da GRUB/Multiboot2 o da stage2), salvato a 0x600.
-//! Formati: 15, 16, 24 e 32 bit con posizione e dimensione dei canali letti dal firmware.
-//! Il sistema grafico lavora a ~640 colonne logiche: ogni pixel logico diventa scale×scale (bibbia §9).
+//! Modi fino a 3840×2160 a 32 bit (scelti da stage2). Formati: 15, 16, 24 e 32 bit con canali letti dal firmware.
+//! Il sistema grafico lavora a 320×240 logici: ogni pixel logico diventa 2×2 (bibbia §9).
 use haiku_gui::layout::Rect;
 use haiku_gui::render::Canvas;
 use haiku_gui::icons;
@@ -24,7 +24,7 @@ pub const THEMES: [[u32; 4]; 3] = [
 
 /// Buffer di lavoro in RAM (32 bit per pixel): ogni quadro si disegna qui e poi si copia tutto insieme.
 const BACK: usize = 0x0400_0000;
-/// Copia massima del buffer di lavoro: 3840×2160×4 byte (4K, ~32 MB).
+/// Copia massima del buffer di lavoro: 3840×2160×4 byte (4K, circa 32 MB, da 0x0400_0000 a ~0x0610_0000).
 const BACK_MAX: usize = 3840 * 2160 * 4;
 
 pub struct Fb {

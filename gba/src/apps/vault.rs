@@ -4,6 +4,7 @@
 //! Nessun verificatore in chiaro: l'unico test della password è il tag.
 //! Il nonce non deve ripetersi con la stessa chiave: il chiamante passa un contatore a ogni salvataggio.
 //! KDF provvisoria: `ITER` giri di Ascon-AEAD (stretching). Costo su ARM7TDMI: da verificare.
+//! Host (x86, rustc -O): 0,54 ms per derivazione a 4096 giri, 0,07 ms a 512. Misura GBA non fatta.
 
 #![allow(dead_code)]
 
@@ -13,8 +14,8 @@ use crate::ascon;
 pub const MAGIC: &[u8; 4] = b"HPW1";
 pub const INTESTAZIONE: usize = 4 + 16 + 16;
 pub const TAG: usize = 16;
-/// Giri di stretching della password. Da misurare sul GBA.
-pub const ITER: usize = 512;
+/// Giri di stretching della password. Da misurare sul GBA. Cambiarlo rende illeggibili i file già salvati.
+pub const ITER: usize = 4096;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErroreVault {

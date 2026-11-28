@@ -1,13 +1,13 @@
 # Avvio di HaikuOS su x86-64 (QEMU)
 
-Stato: schermo 1920x1080 verificato in QEMU (stage 2 prova prima 1920x1080, poi ripiego 1280x800; screenshot in `render-x86-fb/`); 3840x2160 solo via GRUB/UEFI GOP: non verificato (QEMU VGA bochs arriva a 2560x1600); hardware reale: da verificare. Primo passo verificato in QEMU 8.2 (headless, seriale e VGA). Hardware reale e UEFI: **da verificare**.
+Stato: schermo 1280x800 verificato in QEMU (screenshot `x86/build/screen.png`, non versionato); hardware reale: da verificare. Primo passo verificato in QEMU 8.2 (headless, seriale e VGA). Hardware reale e UEFI: **da verificare**.
 
 ## Cosa parte (verificato)
 
 | Fase | Cosa fa | Verifica |
 |---|---|---|
 | MBR (`x86/boot/stage1.asm`) | Carica lo stage 2 da LBA 1 a 0x7E00 con BIOS int 13h | ok |
-| Stage 2 (`x86/boot/stage2.asm`) | Imposta 1920x1080x32 (ripiego 1280x800) via porte VGA Bochs/QEMU, verifica XRES (fallback VBE 640x480); attiva A20, legge il kernel a 0x10000, in modo protetto lo copia a 0x100000, attiva paging (identità 1 GB, pagine da 2 MB) e long mode, salta al kernel | ok |
+| Stage 2 (`x86/boot/stage2.asm`) | Imposta 1280x800x32 via porte VGA Bochs/QEMU (fallback VBE 640x480); attiva A20, legge il kernel a 0x10000, in modo protetto lo copia a 0x100000, attiva paging (identità 1 GB, pagine da 2 MB) e long mode, salta al kernel | ok |
 | Kernel (`kernel/`, Rust `no_std`) | Stack, azzeramento BSS, seriale COM1, VGA testo 80x25 | ok |
 | Disco ATA | Legge il settore 0 (PIO, LBA28, canale primario master) e verifica la firma 0x55AA | ok |
 | File system di prova `HAIKUFS1` | Legge il superblocco a LBA 2048, elenca i file, stampa `LEGGIMI.TXT` | ok |
@@ -27,7 +27,7 @@ Sistema fermo.
 ## Cosa NON c'è ancora
 
 - **Utente amministratore, password, prima configurazione:** da fare. Serve prima un driver tastiera (PS/2) e uno storage per l'hash della password.
-- **Interfaccia grafica:** framebuffer e desktop presenti (1080p verificato). Il 4K passa dal loader Multiboot2 (GRUB `gfxmode`): da verificare, GRUB in QEMU BIOS non imposta modi grafici e cade su 800x600.
+- **Interfaccia grafica:** da fare. Serve un framebuffer (VBE/GOP) invece del testo VGA.
 - **File system vero:** `HAIKUFS1` è un formato di prova a tabella fissa. Un FS reale (es. FAT) viene dopo.
 - **Memoria:** non c'è ancora la mappa di memoria BIOS (E820) né un allocatore. **Da verificare.**
 - **UEFI e hardware reale:** non provati. **Da verificare.**

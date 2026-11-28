@@ -57,3 +57,11 @@ Per aggiungere file: copiali in `x86/disk/`, poi `./x86/scripts/build.sh` e avvi
 - Il loader non chiede una risoluzione: GRUB imposta 1280x800x32 (`grub.cfg`) e passa il framebuffer nei tag Multiboot2. Il loader mappa la memoria 0..4 GB, così il framebuffer funziona anche a indirizzi come 0x80000000.
 - Limite: un framebuffer sopra 4 GB non è ancora mappato. Se manca il framebuffer, il kernel scrive sul seriale e si ferma.
 - Al boot il messaggio "HaikuOS: avvio in corso..." compare solo per un attimo, poi il desktop.
+
+## Prova di avvio su main (sessione del 28 nov)
+
+- Build: `x86/scripts/mkiso.sh` compila senza errori (Rust `x86_64-unknown-none`, grub-mkrescue, xorriso). ISO prodotta in `x86/build/haikuos.iso` (non in git).
+- QEMU BIOS, `-vga std`, 256 MB: GRUB ha scelto **800x600x24**, non 1280x800. Il desktop parte (`framebuffer VBE con desktop`). Screenshot: `design/screens/x86-boot-desktop-800x600.png`, log seriale: `design/screens/x86-boot-serial.log`.
+- Senza disco collegato il kernel usa i dati incorporati (ATA settore 0 non letto).
+- **Non verificato:** 1920x1080 e 3840x2160. Con `gfxmode` a 1920x1080 e 3840x2160 (ISO di test, non committata) GRUB resta a 800x600. Il desktop non cambia risoluzione: la richiesta da GRUB non arriva. Da indagare: VBE in QEMU con 64 MB di VRAM, e perché la prova precedente diceva 1280x800.
+- **Non provato:** app nuove (Monitor, Registri, Dischi, ecc.) e UEFI in questa sessione: gli screenshot mostrano solo il desktop.
