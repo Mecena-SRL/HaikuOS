@@ -110,10 +110,14 @@ impl Frame<'_> {
     }
 
     pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, c: u32) {
-        let x0 = x.max(0) as usize;
-        let y0 = y.max(0) as usize;
-        let x1 = ((x + w).max(0) as usize).min(self.w);
-        let y1 = ((y + h).max(0) as usize).min(self.h);
+        let (sw, sh) = (self.w as i32, self.h as i32);
+        let x0 = x.clamp(0, sw) as usize;
+        let y0 = y.clamp(0, sh) as usize;
+        let x1 = (x + w).clamp(0, sw) as usize;
+        let y1 = (y + h).clamp(0, sh) as usize;
+        if x1 <= x0 || y1 <= y0 {
+            return;
+        }
         for row in y0..y1 {
             self.px[row * self.w + x0..row * self.w + x1].fill(c);
         }
@@ -230,6 +234,17 @@ mod tests {
             state_hash(&bs)
         };
         assert_eq!(run(), run());
+    }
+
+    #[test]
+    fn fill_rect_outside_right_and_bottom_does_not_panic() {
+        let mut buf = [0u32; 4 * 4];
+        let mut f = Frame { w: 4, h: 4, px: &mut buf };
+        f.fill_rect(10, 1, 2, 2, 0xFF00_0001); // tutto a destra
+        f.fill_rect(1, 9, 2, 2, 0xFF00_0002); // tutto sotto
+        f.fill_rect(3, 3, 100, 100, 0xFF00_0003); // taglio in basso a destra
+        assert_eq!(buf.iter().filter(|&&c| c == 0xFF00_0003).count(), 1);
+        assert_eq!(buf.iter().filter(|&&c| c == 0xFF00_0001 || c == 0xFF00_0002).count(), 0);
     }
 
     #[test]

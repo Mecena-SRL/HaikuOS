@@ -62,38 +62,58 @@ impl<const N: usize> Recorder<N> {
     }
 }
 
-/// Esegue `bodies` sugli input registrati e ritorna il primo tick con hash diverso, o None.
+/// Errori di registrazione e replay: nessuno viene ignorato in silenzio.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReplayError {
+    /// Il replay diverge dalla registrazione al tick indicato.
+    Diverged(usize),
+    /// Più corpi di `MAX_BODIES`.
+    TooManyBodies,
+    /// Il registro è troppo piccolo per tutti gli input.
+    Truncated,
+}
+
+/// Numero massimo di corpi in una sessione registrata.
+pub const MAX_BODIES: usize = 8;
+
+/// Esegue `start` sugli input registrati e ritorna Err(Diverged(t)) al primo tick con hash diverso.
 /// Lo stato di partenza deve essere lo stesso usato durante la registrazione.
-pub fn replay<const N: usize>(rec: &Recorder<N>, start: &[Body], m: &Map) -> Option<usize> {
-    let mut bodies = [Body::default(); 8];
-    let n = start.len().min(bodies.len());
-    bodies[..n].copy_from_slice(&start[..n]);
+pub fn replay<const N: usize>(rec: &Recorder<N>, start: &[Body], m: &Map) -> Result<(), ReplayError> {
+    if start.len() > MAX_BODIES {
+        return Err(ReplayError::TooManyBodies);
+    }
+    let mut bodies = [Body::default(); MAX_BODIES];
+    let n = start.len();
+    bodies[..n].copy_from_slice(start);
     for t in 0..rec.len {
         for b in bodies[..n].iter_mut() {
             tick(b, m, rec.inputs[t]);
         }
         if state_hash(&bodies[..n]) != rec.hashes[t] {
-            return Some(t);
+            return Err(ReplayError::Diverged(t));
         }
     }
-    None
+    Ok(())
 }
 
 /// Registra una sessione: applica `inputs` a `start`, salva hash per tick.
-pub fn record<const N: usize>(start: &[Body], m: &Map, inputs: &[Input]) -> Recorder<N> {
+pub fn record<const N: usize>(start: &[Body], m: &Map, inputs: &[Input]) -> Result<Recorder<N>, ReplayError> {
+    if start.len() > MAX_BODIES {
+        return Err(ReplayError::TooManyBodies);
+    }
     let mut rec = Recorder::new();
-    let mut bodies = [Body::default(); 8];
-    let n = start.len().min(bodies.len());
-    bodies[..n].copy_from_slice(&start[..n]);
+    let mut bodies = [Body::default(); MAX_BODIES];
+    let n = start.len();
+    bodies[..n].copy_from_slice(start);
     for &inp in inputs {
         for b in bodies[..n].iter_mut() {
             tick(b, m, inp);
         }
         if !rec.push(inp, state_hash(&bodies[..n])) {
-            break;
+            return Err(ReplayError::Truncated);
         }
     }
-    rec
+    Ok(rec)
 }
 
 #[cfg(test)]
@@ -135,19 +155,28 @@ mod tests {
     fn replay_matches_recording() {
         let cells = level();
         let m = Map { w: W, h: H, tile: 16, cells: &cells };
-        let rec: Recorder<240> = record(&start(), &m, &inputs());
+        let rec: Recorder<240> = record(&start(), &m, &inputs()).unwrap();
         assert_eq!(rec.len(), 240);
-        assert_eq!(replay(&rec, &start(), &m), None);
+        assert_eq!(replay(&rec, &start(), &m), Ok(()));
     }
 
     #[test]
     fn detects_first_divergent_tick() {
         let cells = level();
         let m = Map { w: W, h: H, tile: 16, cells: &cells };
-        let mut rec: Recorder<240> = record(&start(), &m, &inputs());
+        let mut rec: Recorder<240> = record(&start(), &m, &inputs()).unwrap();
         // corrompe l'hash al tick 100: il primo divergente deve essere 100
         rec.hashes[100] ^= 1;
-        assert_eq!(replay(&rec, &start(), &m), Some(100));
+        assert_eq!(replay(&rec, &start(), &m), Err(ReplayError::Diverged(100)));
+    }
+
+    #[test]
+    fn rejects_truncated_and_too_many_bodies() {
+        let cells = level();
+        let m = Map { w: W, h: H, tile: 16, cells: &cells };
+        assert_eq!(record::<4>(&start(), &m, &inputs()).err(), Some(ReplayError::Truncated));
+        let nine = [Body::default(); 9];
+        assert_eq!(record::<240>(&nine, &m, &inputs()).err(), Some(ReplayError::TooManyBodies));
     }
 
     #[test]
