@@ -14,8 +14,8 @@ const FIELD_B: u32 = 0xFF151A3A;
 const ROW: [u32; ROWS] = [0xFFE63946, 0xFFF4A261, 0xFFE9C46A, 0xFF2A9D8F, 0xFF457B9D, 0xFF9B5DE5];
 const STEEL_T: u32 = 0xFFD5DEEA;
 const STEEL_B: u32 = 0xFF6B7789;
-const CRACK_T: u32 = 0xFF5E687B;
-const CRACK_B: u32 = 0xFF232A38;
+const CRACK_T: u32 = 0xFF7A8496;
+const CRACK_B: u32 = 0xFF3E4658;
 const CRACK_LINE: u32 = 0xFF1C2230;
 const PAD_T: u32 = 0xFFF4F7FF;
 const PAD_B: u32 = 0xFF5B6BF0;
@@ -78,6 +78,7 @@ fn glyph(c: u8) -> [u8; 5] {
     match c {
         b'A'..=b'Z' => FONT[(c - b'A') as usize],
         b'0'..=b'9' => DIG[(c - b'0') as usize],
+        b':' => [0b000, 0b010, 0b000, 0b010, 0b000],
         _ => [0; 5],
     }
 }
@@ -399,6 +400,12 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     for i in 0..g.lives as usize {
         let x = pw - 6.0 - i as f32 * 6.0;
         c.disc(x, 6.0, 1.5, BALL);
+    }
+
+    // Nei livelli con esplosivi: avviso alla partenza del livello.
+    if g.level > 0 && g.phase == Phase::Ready && g.cells.iter().any(|r| r.contains(&BOMB)) {
+        c.rr_a(-3.0, 104.0, pw + 3.0, 116.0, 0.5, 0xFF000000, 0xFF000000, 0.4);
+        c.text_c(b"ESPLOSIVO: ROMPE I VICINI", 108.0, 1.0, TXT);
     }
 
     // Tutorial al primo livello: un suggerimento ogni 120 tick, sopra la racchetta.
