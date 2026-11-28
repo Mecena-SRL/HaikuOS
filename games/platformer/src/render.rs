@@ -87,8 +87,9 @@ pub struct Fb<'a> {
     sc: i64,
     ox: i32,
     oy: i32,
-    /// Copertura della riga corrente (riusata, si azzera a fine riga).
-    cov: [u16; MAXW],
+    /// Copertura di bordo e differenza interna della riga corrente (si azzerano a fine riga).
+    cov: [u16; MAXW + 2],
+    diff: [i32; MAXW + 2],
 }
 
 impl<'a> Fb<'a> {
@@ -98,7 +99,7 @@ impl<'a> Fb<'a> {
         let sc = (wi * 65536 / VIEW_W as i64).min(hi * 65536 / VIEW_H as i64);
         let ox = (wi - VIEW_W as i64 * sc / 65536) / 2;
         let oy = (hi - VIEW_H as i64 * sc / 65536) / 2;
-        Fb { buf, w: w as i32, h: h as i32, sc, ox: ox as i32, oy: oy as i32, cov: [0; MAXW] }
+        Fb { buf, w: w as i32, h: h as i32, sc, ox: ox as i32, oy: oy as i32, cov: [0; MAXW + 2], diff: [0; MAXW + 2] }
     }
 
     pub fn clear(&mut self, c: u32) {
@@ -183,7 +184,7 @@ impl<'a> Fb<'a> {
         }
         let ymin = v.iter().map(|q| q.1).min().unwrap_or(0);
         let ymax = v.iter().map(|q| q.1).max().unwrap_or(0);
-        let (w16, wd) = (self.w * 16, self.w);
+        let wd = self.w;
         for row in (ymin >> 4).max(0)..((ymax + 15) >> 4).min(self.h) {
             let (mut lo, mut hi) = (wd, -1);
             for k in 0..4 {
@@ -202,21 +203,35 @@ impl<'a> Fb<'a> {
                 }
                 xs[..m].sort_unstable();
                 for j in (0..m & !1).step_by(2) {
-                    let (xl, xr) = (xs[j].max(0), xs[j + 1].min(w16));
+                    let (xl, xr) = (xs[j].max(0), xs[j + 1].min(wd * 16));
                     if xr <= xl {
                         continue;
                     }
-                    for px in (xl >> 4)..=((xr - 1) >> 4) {
-                        let ov = xr.min(px * 16 + 16) - xl.max(px * 16);
-                        self.cov[px as usize] += (ov * 4) as u16;
-                        lo = lo.min(px);
-                        hi = hi.max(px);
+                    // Copertura in quarti di pixel per sottoriga: pixel parziali agli estremi,
+                    // pieni nel mezzo (differenza prefissa, O(1) per span).
+                    let (pl, pr) = (xl >> 4, xr >> 4);
+                    let (fl, fr) = (xl & 15, xr & 15);
+                    lo = lo.min(pl);
+                    hi = hi.max(pr);
+                    if pl == pr {
+                        self.cov[pl as usize] += ((fr - fl) * 4) as u16;
+                    } else {
+                        self.cov[pl as usize] += ((16 - fl) * 4) as u16;
+                        self.diff[pl as usize + 1] += 64;
+                        self.diff[pr as usize] -= 64;
+                        if fr > 0 {
+                            self.cov[pr as usize] += (fr * 4) as u16;
+                        }
                     }
                 }
             }
+            let mut run = 0i32;
             for px in lo..=hi {
-                let a = self.cov[px as usize].min(255) as u32;
-                self.cov[px as usize] = 0;
+                let i = px as usize;
+                run += self.diff[i];
+                self.diff[i] = 0;
+                let a = (self.cov[i] as i32 + run).min(255) as u32;
+                self.cov[i] = 0;
                 self.px(px, row, a, c);
             }
         }
@@ -331,9 +346,11 @@ impl Canvas for Fb<'_> {
 /// Disegna lo stato corrente di `g` nel buffer `w`×`h` (ARGB).
 pub fn draw(g: &Game, buf: &mut [u32], w: usize, h: usize) {
     let mut c = Fb::new(buf, w, h);
-    c.clear(0xFF000000);
     if g.state == State::Map {
-        return draw_map(g, &mut c);
+        c.clear(0xFF000000);
+        draw_map(g, &mut c);
+        c.bars();
+        return;
     }
     world(g, &mut c);
     c.bars();
