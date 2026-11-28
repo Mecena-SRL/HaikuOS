@@ -93,24 +93,51 @@ fn terrain(f: &mut Frame, s: &Sprite, t: Terrain, d: i32) {
         }
         Terrain::Mountain => {
             s.poly(f, &TILE, shade(MOUNTAIN, d));
-            s.poly(f, &[(-34.0, 6.0), (0.0, -30.0), (34.0, 6.0)], [150, 150, 160]);
+            s.poly(
+                f,
+                &[(-34.0, 6.0), (0.0, -30.0), (34.0, 6.0)],
+                [150, 150, 160],
+            );
             s.poly(f, &[(0.0, -30.0), (34.0, 6.0), (0.0, 8.0)], [100, 100, 110]);
-            s.poly(f, &[(-9.0, -14.0), (0.0, -30.0), (9.0, -14.0), (4.0, -12.0), (0.0, -17.0), (-4.0, -12.0)], [245, 245, 250]);
+            s.poly(
+                f,
+                &[
+                    (-9.0, -14.0),
+                    (0.0, -30.0),
+                    (9.0, -14.0),
+                    (4.0, -12.0),
+                    (0.0, -17.0),
+                    (-4.0, -12.0),
+                ],
+                [245, 245, 250],
+            );
         }
     }
 }
 
 fn tree(f: &mut Frame, s: &Sprite, x: f32, y: f32) {
     s.rect(f, x - 2.0, y - 4.0, x + 2.0, y, [100, 64, 30]);
-    s.poly(f, &[(x - 9.0, y - 4.0), (x + 9.0, y - 4.0), (x, y - 22.0)], [30, 120, 50]);
-    s.poly(f, &[(x - 7.0, y - 12.0), (x + 7.0, y - 12.0), (x, y - 28.0)], [44, 140, 60]);
+    s.poly(
+        f,
+        &[(x - 9.0, y - 4.0), (x + 9.0, y - 4.0), (x, y - 22.0)],
+        [30, 120, 50],
+    );
+    s.poly(
+        f,
+        &[(x - 7.0, y - 12.0), (x + 7.0, y - 12.0), (x, y - 28.0)],
+        [44, 140, 60],
+    );
 }
 
 fn building(f: &mut Frame, s: &Sprite, b: Building) {
     match b {
         Building::House => {
             s.rect(f, -18.0, -22.0, 18.0, 0.0, [214, 170, 120]);
-            s.poly(f, &[(-24.0, -21.0), (24.0, -21.0), (0.0, -44.0)], [170, 60, 50]);
+            s.poly(
+                f,
+                &[(-24.0, -21.0), (24.0, -21.0), (0.0, -44.0)],
+                [170, 60, 50],
+            );
             s.rect(f, -5.0, -12.0, 5.0, 0.0, [90, 50, 30]);
             s.rect(f, 8.0, -16.0, 14.0, -10.0, [255, 230, 120]);
         }
@@ -118,27 +145,60 @@ fn building(f: &mut Frame, s: &Sprite, b: Building) {
             s.rect(f, -28.0, 2.0, 28.0, 4.0, WHEAT);
             s.rect(f, -20.0, 8.0, 20.0, 10.0, WHEAT);
             s.rect(f, -16.0, -22.0, 14.0, -2.0, [170, 56, 44]);
-            s.poly(f, &[(-20.0, -20.0), (18.0, -20.0), (-1.0, -38.0)], [240, 236, 226]);
+            s.poly(
+                f,
+                &[(-20.0, -20.0), (18.0, -20.0), (-1.0, -38.0)],
+                [240, 236, 226],
+            );
             s.rect(f, -6.0, -12.0, 4.0, -2.0, [90, 40, 30]);
         }
         Building::Lumber => {
             s.rect(f, -18.0, -20.0, 16.0, -2.0, [138, 92, 48]);
-            s.poly(f, &[(-22.0, -18.0), (20.0, -18.0), (-1.0, -34.0)], [96, 60, 30]);
+            s.poly(
+                f,
+                &[(-22.0, -18.0), (20.0, -18.0), (-1.0, -34.0)],
+                [96, 60, 30],
+            );
             for (x, y) in [(22.0, -5.0), (30.0, -5.0), (26.0, -11.0)] {
                 s.circle(f, x, y, 4.0, [196, 150, 90]);
             }
         }
         Building::Quarry => {
-            s.poly(f, &[(-38.0, 0.0), (0.0, -10.0), (38.0, 0.0), (0.0, 10.0)], [70, 70, 78]);
-            s.poly(f, &[(-22.0, -2.0), (-12.0, -20.0), (4.0, -22.0), (14.0, -4.0)], [150, 150, 160]);
-            s.poly(f, &[(-4.0, -4.0), (6.0, -24.0), (22.0, -18.0), (26.0, -2.0)], [118, 118, 128]);
+            s.poly(
+                f,
+                &[(-38.0, 0.0), (0.0, -10.0), (38.0, 0.0), (0.0, 10.0)],
+                [70, 70, 78],
+            );
+            s.poly(
+                f,
+                &[(-22.0, -2.0), (-12.0, -20.0), (4.0, -22.0), (14.0, -4.0)],
+                [150, 150, 160],
+            );
+            s.poly(
+                f,
+                &[(-4.0, -4.0), (6.0, -24.0), (22.0, -18.0), (26.0, -2.0)],
+                [118, 118, 128],
+            );
         }
         Building::Market => {
             s.rect(f, -20.0, -18.0, 20.0, -2.0, [236, 206, 140]);
             for i in 0..5 {
                 let x0 = -24.0 + i as f32 * 9.6;
-                let c = if i % 2 == 0 { [236, 110, 190] } else { [250, 250, 250] };
-                s.poly(f, &[(x0, -26.0), (x0 + 9.6, -26.0), (x0 + 9.6, -20.0), (x0, -20.0)], c);
+                let c = if i % 2 == 0 {
+                    [236, 110, 190]
+                } else {
+                    [250, 250, 250]
+                };
+                s.poly(
+                    f,
+                    &[
+                        (x0, -26.0),
+                        (x0 + 9.6, -26.0),
+                        (x0 + 9.6, -20.0),
+                        (x0, -20.0),
+                    ],
+                    c,
+                );
             }
             s.rect(f, -20.0, -8.0, 20.0, -2.0, [150, 100, 60]);
         }
@@ -148,7 +208,11 @@ fn building(f: &mut Frame, s: &Sprite, b: Building) {
                 let x = -16.0 + i as f32 * 10.6;
                 s.rect(f, x, -26.0, x + 5.0, -4.0, [226, 226, 234]);
             }
-            s.poly(f, &[(-24.0, -26.0), (24.0, -26.0), (0.0, -40.0)], [200, 190, 230]);
+            s.poly(
+                f,
+                &[(-24.0, -26.0), (24.0, -26.0), (0.0, -40.0)],
+                [200, 190, 230],
+            );
             s.rect(f, -24.0, -26.0, 24.0, -23.0, [120, 90, 220]);
         }
     }
@@ -156,15 +220,32 @@ fn building(f: &mut Frame, s: &Sprite, b: Building) {
 
 /// Ombra morbida a due strati, spostata verso destra in basso (luce da sinistra-alto).
 fn shadow(f: &mut Frame, s: &Sprite) {
-    s.poly_a(f, &[(-36.0, 8.0), (-6.0, -6.0), (38.0, 4.0), (6.0, 20.0)], SHADOW, 0.12);
-    s.poly_a(f, &[(-26.0, 6.0), (-4.0, -2.0), (30.0, 4.0), (8.0, 14.0)], SHADOW, 0.22);
+    s.poly_a(
+        f,
+        &[(-36.0, 8.0), (-6.0, -6.0), (38.0, 4.0), (6.0, 20.0)],
+        SHADOW,
+        0.12,
+    );
+    s.poly_a(
+        f,
+        &[(-26.0, 6.0), (-4.0, -2.0), (30.0, 4.0), (8.0, 14.0)],
+        SHADOW,
+        0.22,
+    );
 }
 
 /// Pennacchio di fumo: sfere grigie che salgono e si schiariscono.
 fn smoke(f: &mut Frame, s: &Sprite, x: f32, y: f32) {
     for i in 0..4 {
         let fi = i as f32;
-        s.disc(f, x + fi * 3.0, y - fi * 11.0, 3.0 + fi * 2.5, SMOKE, 0.42 - fi * 0.09);
+        s.disc(
+            f,
+            x + fi * 3.0,
+            y - fi * 11.0,
+            3.0 + fi * 2.5,
+            SMOKE,
+            0.42 - fi * 0.09,
+        );
     }
 }
 
@@ -180,7 +261,12 @@ fn icon(f: &mut Frame, kind: usize, cx: f32, cy: f32, r: f32) {
             f.circle(cx - r, cy + r * 0.25, r * 0.4, [200, 150, 90]);
         }
         2 => f.poly(
-            &[(cx - r, cy + r * 0.6), (cx - r * 0.6, cy - r * 0.6), (cx + r * 0.4, cy - r), (cx + r, cy + r * 0.4)],
+            &[
+                (cx - r, cy + r * 0.6),
+                (cx - r * 0.6, cy - r * 0.6),
+                (cx + r * 0.4, cy - r),
+                (cx + r, cy + r * 0.4),
+            ],
             [170, 170, 180],
         ),
         3 => {
@@ -189,7 +275,14 @@ fn icon(f: &mut Frame, kind: usize, cx: f32, cy: f32, r: f32) {
         }
         _ => {
             f.circle(cx, cy - r * 0.5, r * 0.35, [245, 245, 250]);
-            f.poly(&[(cx - r * 0.7, cy + r), (cx + r * 0.7, cy + r), (cx, cy - r * 0.1)], [245, 245, 250]);
+            f.poly(
+                &[
+                    (cx - r * 0.7, cy + r),
+                    (cx + r * 0.7, cy + r),
+                    (cx, cy - r * 0.1),
+                ],
+                [245, 245, 250],
+            );
         }
     }
 }
@@ -223,24 +316,49 @@ pub fn render(g: &Game, w: usize, h: usize) -> Frame {
             let (cx, cy) = centre(x, y);
             let d = ((x * 7 + y * 13) % 9) as i32 - 4;
             let t = g.map.terrain(i).unwrap_or(Terrain::Grass);
-            terrain(&mut f, &Sprite { cx, cy, k, tint: None }, t, d);
+            terrain(
+                &mut f,
+                &Sprite {
+                    cx,
+                    cy,
+                    k,
+                    tint: None,
+                },
+                t,
+                d,
+            );
         }
     }
-    let mut order: Vec<(usize, usize)> = (0..g.map.h).flat_map(|y| (0..g.map.w).map(move |x| (x, y))).collect();
+    let mut order: Vec<(usize, usize)> = (0..g.map.h)
+        .flat_map(|y| (0..g.map.w).map(move |x| (x, y)))
+        .collect();
     order.sort_by_key(|&(x, y)| x + y);
     // Prima tutte le ombre (sul terreno), poi edifici in ordine di profondità, poi il fumo.
     for &(x, y) in &order {
         let i = g.map.idx(x, y);
         if g.player.building_at(i).is_some() || g.rival.building_at(i).is_some() {
             let (cx, cy) = centre(x, y);
-            shadow(&mut f, &Sprite { cx, cy, k, tint: None });
+            shadow(
+                &mut f,
+                &Sprite {
+                    cx,
+                    cy,
+                    k,
+                    tint: None,
+                },
+            );
         }
     }
     let mut chimneys: Vec<(Sprite, f32, f32)> = Vec::new();
     for &(x, y) in &order {
         let i = g.map.idx(x, y);
         let (cx, cy) = centre(x, y);
-        let s = Sprite { cx, cy, k, tint: None };
+        let s = Sprite {
+            cx,
+            cy,
+            k,
+            tint: None,
+        };
         let (b, tint) = match (g.player.building_at(i), g.rival.building_at(i)) {
             (Some(b), _) => (b, None),
             (None, Some(b)) => (b, Some(RIVAL)),
@@ -268,7 +386,10 @@ pub fn render(g: &Game, w: usize, h: usize) -> Frame {
 fn hud_bar(f: &mut Frame, g: &Game, top: i32, hud: f32) {
     let w = f.w as i32;
     f.fill(Rect::new(0, top, w, hud as i32 + 1), Tok::T0);
-    f.fill(Rect::new(0, top, w, (hud * 0.02).max(2.0) as i32), Tok::A(1));
+    f.fill(
+        Rect::new(0, top, w, (hud * 0.02).max(2.0) as i32),
+        Tok::A(1),
+    );
     let s = g.player.stock;
     let cell = w / 5;
     let label_px = (hud * 0.17).max(10.0) as i32;
@@ -287,12 +408,33 @@ fn hud_bar(f: &mut Frame, g: &Game, top: i32, hud: f32) {
         icon(f, n, x0 as f32 + r, cy, r);
         let tx = x0 + (r * 2.0) as i32 + (hud * 0.2) as i32;
         vfont::draw_text(f, tx, top + (hud * 0.12) as i32, label_px, label, Tok::T2);
-        let value = if n == 4 { format!("{}/{WIN_POP}", v) } else { v.to_string() };
-        vfont::draw_text(f, tx, top + (hud * 0.12) as i32 + label_px + 2, value_px, &value, Tok::T1);
+        let value = if n == 4 {
+            format!("{}/{WIN_POP}", v)
+        } else {
+            v.to_string()
+        };
+        vfont::draw_text(
+            f,
+            tx,
+            top + (hud * 0.12) as i32 + label_px + 2,
+            value_px,
+            &value,
+            Tok::T1,
+        );
         // Barra sotto la cella: pop rispetto all'obiettivo, risorse su scala fissa.
-        let frac = if n == 4 { *v as f32 / WIN_POP as f32 } else { *v as f32 / 100.0 };
+        let frac = if n == 4 {
+            *v as f32 / WIN_POP as f32
+        } else {
+            *v as f32 / 100.0
+        };
         let bar_w = cell as f32 * 0.7 * frac.clamp(0.0, 1.0);
-        f.quad(x0 as f32, top as f32 + hud - hud * 0.14, bar_w, hud * 0.06, *c);
+        f.quad(
+            x0 as f32,
+            top as f32 + hud - hud * 0.14,
+            bar_w,
+            hud * 0.06,
+            *c,
+        );
     }
     let info = format!("TURNO {}   IA {}", g.turns, g.rival.citizens);
     let size = label_px;
@@ -305,20 +447,30 @@ pub fn overlay(f: &mut Frame, screen: Screen) {
     if screen == Screen::Play {
         return;
     }
-    f.dim();
+    let scene = (f.h as f32 - (f.h as f32 * 0.15).round()) as usize;
+    f.dim_rows(0, scene);
     let (title, rows): (&str, &[&str]) = match screen {
         Screen::Title => ("CITTA IMPERO", &["INIZIA", "ESCI"]),
         _ => ("PAUSA", &["RIPRENDI", "ESCI"]),
     };
     let fs = ((f.h as f32 * 0.06).max(12.0)) as i32;
     let row_h = fs * 2;
-    let p = Rect::new(f.w as i32 / 4, f.h as i32 / 4, f.w as i32 / 2, fs * 3 + row_h * rows.len() as i32);
+    let p = Rect::new(
+        f.w as i32 / 4,
+        f.h as i32 / 4,
+        f.w as i32 / 2,
+        fs * 3 + row_h * rows.len() as i32,
+    );
     f.fill(p, Tok::T0);
     f.fill(Rect::new(p.x, p.y, p.w, (fs / 4).max(2)), Tok::A(1));
     vfont::draw_text(f, p.x + fs / 2, p.y + fs / 2, fs, title, Tok::A(1));
     for (i, label) in rows.iter().enumerate() {
         let y = p.y + fs * 2 + i as i32 * row_h;
-        let (bg, fg) = if i == 0 { (Tok::T2, Tok::T0) } else { (Tok::T0, Tok::T2) };
+        let (bg, fg) = if i == 0 {
+            (Tok::T2, Tok::T0)
+        } else {
+            (Tok::T0, Tok::T2)
+        };
         f.fill(Rect::new(p.x + fs / 4, y, p.w - fs / 2, row_h - fs / 4), bg);
         vfont::draw_text(f, p.x + fs, y + fs / 4, fs, label, fg);
     }
@@ -334,7 +486,8 @@ mod tests {
         let f = render(&g, 800, 480);
         let fondo = rgb(Tok::T0);
         assert!(f.px.iter().any(|&p| p != fondo));
-        assert!(f.px.contains(&GRASS) || f.px.iter().any(|p| p[1] as i32 > p[0] as i32 + 40));
+        // Striscia d'accento sopra l'HUD: prova che l'HUD è stato disegnato.
+        assert!(f.px.contains(&rgb(Tok::A(1))));
     }
 
     /// Costo di un fotogramma: `cargo test --release -- --ignored --nocapture bench`.
@@ -348,6 +501,9 @@ mod tests {
             overlay(&mut f, Screen::Play);
             std::hint::black_box(&f);
         }
-        println!("BENCH citybuilder {:.1} ms/frame 1920x1080", t.elapsed().as_secs_f64() * 1e3 / 20.0);
+        println!(
+            "BENCH citybuilder {:.1} ms/frame 1920x1080",
+            t.elapsed().as_secs_f64() * 1e3 / 20.0
+        );
     }
 }

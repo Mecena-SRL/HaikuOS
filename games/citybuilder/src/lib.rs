@@ -51,7 +51,7 @@ impl Stock {
 
     /// Paga `c` solo se le risorse bastano: mai uno stato parziale.
     pub fn pay(&mut self, c: &Stock) -> bool {
-        if !self.covers(c) {
+        if c.food < 0 || c.wood < 0 || c.stone < 0 || c.gold < 0 || !self.covers(c) {
             return false;
         }
         self.food -= c.food;
@@ -69,13 +69,14 @@ impl Building {
             Building::Farm | Building::Lumber => Stock::new(0, 5, 0, 0),
             Building::Quarry => Stock::new(0, 8, 0, 0),
             Building::Market => Stock::new(0, 15, 5, 0),
-            Building::Library => Stock::new(0, 10, 10, 0),
+            Building::Library => Stock::new(0, 10, 10, 5),
         }
     }
 
     /// Terreno obbligatorio; `None` vuol dire qualsiasi terreno non acquatico.
     pub fn terrain(self) -> Option<Terrain> {
         match self {
+            Building::House => Some(Terrain::Grass),
             Building::Farm => Some(Terrain::Grass),
             Building::Lumber => Some(Terrain::Forest),
             Building::Quarry => Some(Terrain::Mountain),
@@ -102,7 +103,12 @@ pub struct Map {
 impl Map {
     /// Generatore deterministico (xorshift64): stesso seme, stessa mappa.
     pub fn generate(w: usize, h: usize, seed: u64) -> Self {
-        let mut s = seed | 1;
+        // splitmix64 sul seme: seed adiacenti danno mappe diverse.
+        let mut s = seed.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        s = (s ^ (s >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        s = (s ^ (s >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        s ^= s >> 31;
+        s |= 1;
         let terrain = (0..w * h)
             .map(|_| {
                 s ^= s << 13;
@@ -155,6 +161,18 @@ pub enum BuildError {
     NoResources,
 }
 
+impl std::fmt::Display for BuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BuildError::OutOfBounds => write!(f, "fuori dalla mappa"),
+            BuildError::Occupied => write!(f, "casella già occupata"),
+            BuildError::Unbuildable => write!(f, "l'acqua non si costruisce"),
+            BuildError::WrongTerrain => write!(f, "terreno sbagliato per questo edificio"),
+            BuildError::NoResources => write!(f, "risorse insufficienti"),
+        }
+    }
+}
+
 /// Un impero: risorse, popolazione e le sue costruzioni sulla mappa condivisa.
 #[derive(Clone, Debug)]
 pub struct Empire {
@@ -190,6 +208,9 @@ impl Empire {
 
     pub fn build(&mut self, map: &Map, i: usize, b: Building) -> Result<(), BuildError> {
         let t = map.terrain(i).ok_or(BuildError::OutOfBounds)?;
+        if i >= self.grid.len() {
+            return Err(BuildError::OutOfBounds);
+        }
         if self.grid[i].is_some() {
             return Err(BuildError::Occupied);
         }

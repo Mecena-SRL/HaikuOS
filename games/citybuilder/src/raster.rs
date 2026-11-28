@@ -22,7 +22,11 @@ pub struct Frame {
 
 impl Frame {
     pub fn new(w: usize, h: usize) -> Self {
-        Frame { w, h, px: vec![[0, 0, 0]; w * h] }
+        Frame {
+            w,
+            h,
+            px: vec![[0, 0, 0]; w * h],
+        }
     }
 
     /// Mescola `c` sul pixel con copertura `a` (0..=1).
@@ -35,7 +39,11 @@ impl Frame {
 
     /// Frame riempito col colore di sfondo, senza passate in più.
     pub fn with_fill(w: usize, h: usize, c: Rgb) -> Self {
-        Frame { w, h, px: vec![c; w * h] }
+        Frame {
+            w,
+            h,
+            px: vec![c; w * h],
+        }
     }
 
     /// Sfumatura verticale tra `top` (riga `y0`) e `bottom` (riga `y1`, esclusa).
@@ -43,7 +51,9 @@ impl Frame {
         let span = (y1.saturating_sub(y0)).max(1) as f32;
         for y in y0..y1.min(self.h) {
             let t = (y - y0) as f32 / span;
-            let c: Rgb = core::array::from_fn(|k| (top[k] as f32 + (bottom[k] as f32 - top[k] as f32) * t) as u8);
+            let c: Rgb = core::array::from_fn(|k| {
+                (top[k] as f32 + (bottom[k] as f32 - top[k] as f32) * t) as u8
+            });
             self.px[y * self.w..(y + 1) * self.w].fill(c);
         }
     }
@@ -51,7 +61,9 @@ impl Frame {
     /// Velo di colore su tutto il frame, con opacità `a`.
     pub fn tint(&mut self, c: Rgb, a: f32) {
         for p in &mut self.px {
-            *p = core::array::from_fn(|k| (p[k] as f32 + (c[k] as f32 - p[k] as f32) * a + 0.5) as u8);
+            *p = core::array::from_fn(|k| {
+                (p[k] as f32 + (c[k] as f32 - p[k] as f32) * a + 0.5) as u8
+            });
         }
     }
 
@@ -150,9 +162,9 @@ impl Frame {
         );
     }
 
-    /// Scurisce tutto il fotogramma (sfondo dei menu).
-    pub fn dim(&mut self) {
-        for p in &mut self.px {
+    /// Scurisce le righe `y0..y1` (sfondo dei menu, senza toccare l'HUD).
+    pub fn dim_rows(&mut self, y0: usize, y1: usize) {
+        for p in &mut self.px[y0 * self.w..y1.min(self.h) * self.w] {
             *p = p.map(|c| c / 3);
         }
     }

@@ -62,7 +62,7 @@ fn main() {
                     (Some(b), Ok(x), Ok(y)) if x < g.map.w && y < g.map.h => {
                         let i = g.map.idx(x, y);
                         if let Err(e) = g.player.build(&g.map, i, b) {
-                            println!("impossibile: {e:?}");
+                            println!("impossibile: {e}");
                         }
                     }
                     _ => println!("coordinate o edificio non validi"),
@@ -70,7 +70,7 @@ fn main() {
             }
             ["q"] => break,
             _ => println!(
-                "comandi: t | b <casa|fattoria|legno|cava|mercato|biblioteca> <x> <y> | r | q"
+                "comandi: t fine turno | b <casa|fattoria|legno|cava|mercato|biblioteca> <x> <y> | r ricerca | p pausa | q esci"
             ),
         }
         draw(&g);
@@ -172,7 +172,8 @@ fn shot(g: &mut Game, path: &str, screen: Screen, w: usize, h: usize) {
     }
     let mut frame = citybuilder::view::render(g, w, h);
     citybuilder::view::overlay(&mut frame, screen);
-    let mut out = std::fs::File::create(path).expect("impossibile creare il file");
+    let out = std::fs::File::create(path).expect("impossibile creare il file");
+    let mut out = std::io::BufWriter::new(out);
     frame.write_ppm(&mut out).expect("scrittura fallita");
     println!("fotogramma {}x{} scritto in {path}", frame.w, frame.h);
 }
