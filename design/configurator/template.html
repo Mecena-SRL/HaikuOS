@@ -155,6 +155,21 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage[data-ctlhover=red] .tb .bt b:first-child:hover{background:#c0392b}
 .stage[data-acc=navy] .btn,.stage[data-acc=navy] .tb{background:var(--T0);color:var(--T1)}
 .stage[data-acc=gold] .btn{background:var(--T3);color:var(--T0)}
+.stage .wfm{left:52%;top:30%;width:40%;height:56%;z-index:3}
+.stage .wfm.hide{display:none}
+.stage .wfm .fl div{padding:calc(var(--u)*.6) calc(var(--u)*1.2);border-radius:var(--rad);cursor:pointer;font-size:calc(var(--u)*1.6)}
+.stage .wfm .fl div:hover{background:var(--T3)}
+/* stato premuto e passaggio per tutti i componenti interattivi */
+.stage .sw:active{filter:brightness(.85)}
+.stage .sl:active i{filter:brightness(.8)}
+.stage .field:focus-within,.stage .field:active{box-shadow:0 0 0 calc(var(--u)*.5) var(--T2)}
+.stage .ic:active,.stage .dock span:active,.stage .tb .bt b:active,.stage .wfm .fl div:active,.stage .wtabs span:active,.stage .wmenu div:active,.stage .wlist div:active,.stage .wdlg span:active{filter:brightness(.7);transform:scale(.96)}
+.stage .btn:hover{filter:brightness(1.08)}
+.stage .wc i:active,.stage .wr i:active{transform:scale(.9)}
+.stage .win .tb .bt b:hover{filter:brightness(.8)}
+/* legenda componenti testabili */
+#legend-tests{font-size:12px;padding:8px 12px;border-bottom:1px solid var(--line);line-height:1.5}
+#legend-tests b{display:block;margin-top:4px}
 /* defaults, overridden by data-* set from answers */
 .stage[data-bar=bottom] .bar{top:auto;bottom:0}
 .stage[data-bar=none] .bar{display:none}
@@ -220,7 +235,15 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
  <button class="btnpri" id="exp">Esporta risposte (JSON)</button>
 </header>
 <div class="app">
- <nav id="nav"><div id="chips"></div><div id="navlist"></div></nav>
+ <nav id="nav"><div id="legend-tests"><b>Cosa provare nell'anteprima</b>
+ Pulsanti finestra: passa sopra (gruppo si scurisce), clicca chiudi o riduci.<br>
+ Dock: passa sopra (si solleva). Icona 2 riapre la calcolatrice, icona 3 il file manager.<br>
+ Pulsanti: passa sopra (schiariscono), clicca (si schiacciano).<br>
+ Interruttore: clic per accenderlo o spegnerlo.<br>
+ Campo di testo: clic per evidenziarlo.<br>
+ Icone: clic per schiacciarle.<br>
+ Finestra chiusa: ripristinala dal dock o dal pulsante in alto.
+</div><div id="chips"></div><div id="navlist"></div></nav>
  <div class="sp" data-s="1"></div>
  <aside>
   <div class="ctl">
@@ -336,6 +359,7 @@ function buildStage(){
  <div class="wdlg"><b>Confermare?</b><div><span>Annulla</span><span>OK</span></div></div>
  <div class="wtoast">Operazione completata</div>
  <div class="wstart">Avvio</div>
+ <div class="win wfm" id="wfm"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">File</div></div><div class="body"><div class="fl"><div>Documenti</div><div>Immagini</div><div>Scaricati</div><div>Musica</div></div></div></div>
  <div class="wgrip"></div><div class="wghost"></div>
  <div class="wwin2"><div class="tb"><div class="t">Note</div></div><div class="body"><div class="field">Secondo documento</div></div></div>
  <div class="wovw"><span></span><span></span><span></span></div>
@@ -345,11 +369,11 @@ function buildStage(){
  <div class="wwidget"><b>Meteo</b> 18°</div>`;
  $('stage').addEventListener('click',e=>{
   const t=e.target;
-  if(t.dataset.x==='close'){$('win').classList.add('hide')}
-  if(t.dataset.x==='min'){$('win').classList.toggle('hide')}
+  if(t.dataset.x==='close'){t.closest('.win').classList.add('hide')}
+  if(t.dataset.x==='min'){t.closest('.win').classList.toggle('hide')}
   if(t.classList.contains('ic')){$('win').classList.remove('hide')}
   if(t.classList.contains('sw'))t.classList.toggle('on');
-  if(t.closest('.dock span')){document.querySelectorAll('.dock span').forEach(x=>x.classList.toggle('act',x===t));if(t.dataset.app==='2')$('win').classList.remove('hide')}
+  if(t.closest('.dock span')){document.querySelectorAll('.dock span').forEach(x=>x.classList.toggle('act',x===t));if(t.dataset.app==='2')$('win').classList.remove('hide');if(t.dataset.app==='3')$('wfm').classList.remove('hide')}
  });
  $('stage').addEventListener('mouseover',e=>{
   const t=e.target.closest('[data-tip]');const tip=$('tip');
@@ -392,7 +416,7 @@ function updateSummary(){
  const parts=Object.entries(TREE).map(([cat])=>{const qs=DATA.filter(q=>q.category===cat);return `<div><span>${cat}</span><span>${qs.filter(q=>S.ans[q.id]).length}/${qs.length}</span></div>`});
  $('sumbox').innerHTML=parts.join('');
 }
-$('reopen').addEventListener('click',()=>{$('win').classList.remove('hide')});
+$('reopen').addEventListener('click',()=>{$('win').classList.remove('hide');$('wfm').classList.remove('hide')});
 $('exp').addEventListener('click',()=>{
  const out={answers:S.ans,customizable:Object.keys(S.cust).filter(k=>S.cust[k]),device:S.dev,orientation:S.ori,scale:S.pct};
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:'application/json'}));a.download='haikuos-identita.json';a.click();
