@@ -87,7 +87,11 @@ fn main() {
                     (Some(b), Ok(x), Ok(y)) if x < g.map.w && y < g.map.h => {
                         let i = g.map.idx(x, y);
                         if let Err(e) = g.player.build(&g.map, i, b) {
-                            println!("impossibile: {e}");
+                            if e == citybuilder::BuildError::NoResources {
+                                println!("impossibile: {}", g.player.missing(b));
+                            } else {
+                                println!("impossibile: {e}");
+                            }
                         }
                     }
                     _ => println!("coordinate o edificio non validi"),
@@ -112,7 +116,11 @@ fn main() {
                     let (x, y) = g.cursor;
                     let i = g.map.idx(x, y);
                     if let Err(e) = g.player.build(&g.map, i, b) {
-                        println!("impossibile: {e}");
+                        if e == citybuilder::BuildError::NoResources {
+                            println!("impossibile: {}", g.player.missing(b));
+                        } else {
+                            println!("impossibile: {e}");
+                        }
                     }
                 }
                 None => println!("edificio sconosciuto"),

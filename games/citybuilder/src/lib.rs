@@ -276,6 +276,27 @@ impl Empire {
         Ok(())
     }
 
+    /// Cosa manca per pagare `b`, in parole (per il messaggio al giocatore).
+    pub fn missing(&self, b: Building) -> String {
+        let c = self.price(b);
+        let mut parts = Vec::new();
+        for (name, need, have) in [
+            ("cibo", c.food, self.stock.food),
+            ("legno", c.wood, self.stock.wood),
+            ("pietra", c.stone, self.stock.stone),
+            ("oro", c.gold, self.stock.gold),
+        ] {
+            if need > have {
+                parts.push(format!("{} {}", need - have, name));
+            }
+        }
+        if parts.is_empty() {
+            "nessuna mancanza".to_string()
+        } else {
+            format!("mancano {}", parts.join(", "))
+        }
+    }
+
     /// Scambio: 5 oro diventano 6 cibo. Non consuma il turno di costruzione.
     pub fn trade_gold(&mut self) -> Result<(), BuildError> {
         if self.stock.gold < 5 {
@@ -327,14 +348,30 @@ impl Empire {
                 true
             }
         });
-        for b in self.grid.iter().flatten() {
+        // Lavoro nei campi: fattorie, legnaie e cave rendono a pieno solo con un cittadino;
+        // gli altri a metà. I cittadini si assegnano da soli, nell'ordine della griglia.
+        let buildings: Vec<Building> = self.grid.iter().flatten().copied().collect();
+        let mut workers = self.citizens;
+        for b in buildings {
+            let full = match b {
+                Building::Farm | Building::Lumber | Building::Quarry => {
+                    if workers > 0 {
+                        workers -= 1;
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => true,
+            };
+            let part = |n: i32| if full { n } else { n / 2 };
             match b {
                 Building::Farm => {
-                    let yield_ = if self.irrigation { 6 } else { 4 };
+                    let yield_ = part(if self.irrigation { 6 } else { 4 });
                     self.stock.food = (self.stock.food + yield_).min(FOOD_CAP);
                 }
-                Building::Lumber => self.stock.wood += 3,
-                Building::Quarry => self.stock.stone += 2,
+                Building::Lumber => self.stock.wood += part(3),
+                Building::Quarry => self.stock.stone += part(2),
                 Building::Market => self.stock.gold += 3,
                 Building::Library => self.knowledge += 2,
                 Building::House => {}
@@ -878,11 +915,12 @@ mod tests {
     fn farm_produces_food() {
         let map = grass(4, 4);
         let mut e = Empire::new(&map, Stock::new(0, 5, 0, 0));
-        e.citizens = 0;
+        e.citizens = 1;
         e.build(&map, 0, Building::Farm).unwrap();
         e.tick();
         e.tick();
-        assert_eq!(e.stock.food, 4);
+        // Quattro di resa, meno un cibo di consumo per il cittadino.
+        assert_eq!(e.stock.food, 3);
     }
 
     #[test]
@@ -995,6 +1033,23 @@ mod tests {
         assert_eq!(g.status(), Status::Won);
         g.rival.citizens = 7;
         assert_eq!(g.status(), Status::Draw);
+    }
+
+    #[test]
+    fn senza_lavoratori_la_fattoria_rende_meta() {
+        let map = grass(4, 4);
+        let mut e = Empire::new(&map, Stock::new(0, 0, 0, 0));
+        e.citizens = 0;
+        e.grid[0] = Some(Building::Farm);
+        e.tick();
+        assert_eq!(e.stock.food, 2);
+    }
+
+    #[test]
+    fn mancanze_nominate() {
+        let map = grass(4, 4);
+        let e = Empire::new(&map, Stock::new(2, 3, 0, 0));
+        assert_eq!(e.missing(Building::House), "mancano 7 legno");
     }
 
     #[test]
