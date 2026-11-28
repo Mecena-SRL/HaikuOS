@@ -116,6 +116,46 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage[data-w_disabled] .btn{opacity:.4;pointer-events:none}
 .stage[data-w_badge] .ic::after{content:"3";position:absolute;right:-.3em;top:-.3em;background:#c0392b;color:#fff;border-radius:999px;font-size:calc(var(--u)*1.2);padding:0 .35em}
 .stage .ic{position:absolute}
+/* round 2: chiavi nuove, ognuna disegna qualcosa (numeri = moltiplicatori di u) */
+.stage .clk{margin-left:auto;font-weight:400}
+.stage[data-clk=time] .clk::after{content:"12:00"}
+.stage[data-clk=sec] .clk::after{content:"12:00:37"}
+.stage[data-clk=dow] .clk::after{content:"Sab 12:00"}
+.stage[data-clk=full] .clk::after{content:"Sab 28 nov 12:00"}
+.stage[data-clk=none] .clk{display:none}
+.stage .clk::after{content:"12:00"}
+.stage .ic{width:calc(var(--u)*var(--icn,7));height:calc(var(--u)*var(--icn,7))}
+.stage .body{line-height:var(--lh,1.45)}
+.stage[data-grid=rows] .ic:nth-of-type(2){top:calc(var(--u)*20)}
+.stage[data-grid=cols] .ic:nth-of-type(2){left:calc(var(--u)*14)}
+.stage[data-grid=cols] .ic{}
+.stage[data-dock=top] .dock{top:calc(var(--u)*1.5);bottom:auto;left:50%;transform:translateX(-50%)}
+.stage[data-dot=on] .ic::before{content:"";position:absolute;bottom:calc(var(--u)*-1.2);left:50%;transform:translateX(-50%);width:calc(var(--u)*.8);height:calc(var(--u)*.8);border-radius:50%;background:var(--T0)}
+.stage .wstart{display:none;position:absolute;left:calc(var(--u)*2);bottom:calc(var(--u)*1.5);background:var(--T2);color:var(--T1);padding:calc(var(--u)*.8) calc(var(--u)*2);border-radius:var(--rad);font-size:calc(var(--u)*1.6)}
+.stage[data-start=corner] .wstart{display:block;left:0;bottom:0;border-radius:0}
+.stage[data-start=center] .wstart{display:block;left:50%;transform:translateX(-50%)}
+.stage[data-start=left] .wstart{display:block}
+.stage .wcur{display:none;position:absolute;right:calc(var(--u)*6);bottom:calc(var(--u)*6);width:calc(var(--u)*2);height:calc(var(--u)*3);background:var(--T0);clip-path:polygon(0 0,100% 50%,55% 55%,80% 100%,60% 100%,40% 60%,0 80%)}
+.stage[data-cur=large] .wcur{display:block;transform:scale(1.8);transform-origin:bottom right}
+.stage[data-cur=cross] .wcur{display:block;width:calc(var(--u)*3);height:calc(var(--u)*3);background:none;clip-path:none;border:var(--sw) solid var(--T0);border-radius:50%}
+.stage[data-cur=hand] .wcur{display:block;border-radius:calc(var(--u)*1.5);background:var(--T0)}
+.stage .wgrip,.stage .wghost,.stage .wwin2,.stage .wovw,.stage .wnotif,.stage .wlock,.stage .wwidget{display:none}
+.stage[data-grip=on] .wgrip{display:block;position:absolute;right:0;bottom:0;width:calc(var(--u)*2);height:calc(var(--u)*2);border-right:var(--sw) solid var(--T0);border-bottom:var(--sw) solid var(--T0)}
+.stage[data-ghost=on] .wghost{display:block;position:absolute;left:30%;top:24%;width:44%;height:50%;border:var(--sw) dashed var(--T0);border-radius:var(--rad)}
+.stage[data-split=on] .win{width:40%}
+.stage[data-split=on] .wwin2{display:block;position:absolute;left:54%;top:18%;width:40%;height:56%;background:var(--T1);border-radius:var(--rad);overflow:hidden;box-shadow:0 0 0 var(--bw,var(--hair)) rgba(0,0,0,.15)}
+.stage[data-ovw=on] .wovw{display:flex;position:absolute;inset:calc(var(--u)*8) calc(var(--u)*6);gap:calc(var(--u)*2);justify-content:center;align-items:center;background:rgba(16,33,57,.55);border-radius:var(--rad)}
+.stage .wovw span{width:22%;height:45%;background:var(--T1);border-radius:var(--rad)}
+.stage[data-notif=on] .wnotif{display:block;position:absolute;right:0;top:calc(var(--u)*3);bottom:0;width:calc(var(--u)*24);background:var(--T1);color:var(--T0);padding:calc(var(--u)*2);font-size:calc(var(--u)*1.6);box-shadow:-1px 0 0 var(--T0)}
+.stage .wnotif div{background:#fff;border-radius:var(--rad);padding:calc(var(--u)*1);margin-top:calc(var(--u)*1)}
+.stage[data-lock=on] .wlock{display:flex;position:absolute;inset:0;background:var(--T0);color:var(--T1);flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*2);z-index:5}
+.stage[data-lock=on] .lk-t{font-size:calc(var(--u)*6)}
+.stage[data-lock=on] .lk-f{background:#fff;color:var(--T0);padding:calc(var(--u)*1) calc(var(--u)*3);border-radius:var(--rad);font-size:calc(var(--u)*1.6)}
+.stage[data-lock=on] .lk-g{display:none}
+.stage[data-widget=on] .wwidget{display:block;position:absolute;right:calc(var(--u)*3);bottom:calc(var(--u)*6);background:var(--T1);border-radius:var(--rad);padding:calc(var(--u)*1.5);font-size:calc(var(--u)*1.8);box-shadow:0 calc(var(--u)*1) calc(var(--u)*2) rgba(0,0,0,.25)}
+.stage[data-ctlhover=red] .tb .bt b:first-child:hover{background:#c0392b}
+.stage[data-acc=navy] .btn,.stage[data-acc=navy] .tb{background:var(--T0);color:var(--T1)}
+.stage[data-acc=gold] .btn{background:var(--T3);color:var(--T0)}
 /* defaults, overridden by data-* set from answers */
 .stage[data-bar=bottom] .bar{top:auto;bottom:0}
 .stage[data-bar=none] .bar{display:none}
@@ -278,7 +318,7 @@ function updateStrokes(){const u=uPx(),st=$('stage').style;
  st.setProperty('--sw',Math.max(1,Math.round(u/4))+'px');
  st.setProperty('--sw2',Math.max(2,Math.round(u/2))+'px');}
 function buildStage(){
- $('stage').innerHTML=`<div class="bar"><i></i><b>Fine</b><b>Modifica</b><b>Vista</b><span class="clock">12:00</span></div>
+ $('stage').innerHTML=`<div class="bar"><i></i><b>Fine</b><b>Modifica</b><b>Vista</b><span class="clk"></span></div>
  <div class="win" id="win"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">Documenti</div></div>
   <div class="sbar"></div><div class="body"><div class="wx"><div class="wc"><i></i>Opzione</div><div class="wr"><i></i>Scelta</div><div class="wsl"><b></b></div><div class="wpg"><b></b></div></div><div class="btn" data-tip="Pulsante primario">Continua</div>
   <div class="field">Scrivi qui…</div>
@@ -291,7 +331,15 @@ function buildStage(){
  <div class="wtabs"><span>Generali</span><span>Schermo</span></div>
  <div class="wdlg"><b>Confermare?</b><div><span>Annulla</span><span>OK</span></div></div>
  <div class="wtoast">Operazione completata</div>
- <div class="wside"><div>Preferiti</div><div>Cartelle</div></div>`;
+ <div class="wside"><div>Preferiti</div><div>Cartelle</div></div>
+ <div class="wstart">Avvio</div>
+ <div class="wgrip"></div><div class="wghost"></div>
+ <div class="wwin2"><div class="tb"><div class="t">Note</div></div><div class="body"><div class="field">Secondo documento</div></div></div>
+ <div class="wovw"><span></span><span></span><span></span></div>
+ <div class="wnotif"><b>Centro notifiche</b><div>Aggiornamento disponibile</div><div>Batteria al 40%</div></div>
+ <div class="wlock"><div class="lk-t">12:00</div><div class="lk-f">Password</div><div class="lk-g"></div></div>
+ <div class="wcur"></div>
+ <div class="wwidget"><b>Meteo</b> 18°</div>`;
  $('stage').addEventListener('click',e=>{
   const t=e.target;
   if(t.dataset.x==='close'){$('win').classList.add('hide')}

@@ -1,0 +1,382 @@
+{
+ "q080-scala-adwaita-titoli": {
+  "fs": 2,
+  "_f": "corpo = 2u; titoli = 1.25 x corpo"
+ },
+ "q081-peso-regular-semibold": {
+  "font": "bold",
+  "_f": "testo 400; titoli 600"
+ },
+ "q081-peso-medium-etichette": {
+  "font": "sans",
+  "_f": "etichette 500 (medium); testo 400"
+ },
+ "q081-interlinea-stretta": {
+  "lh": 1.2,
+  "_f": "interlinea = 1.2 x corpo"
+ },
+ "q081-interlinea-ampia": {
+  "lh": 1.8,
+  "_f": "interlinea ampia"
+ },
+ "q081-peso-variabile": {
+  "font": "bold",
+  "_f": "peso variabile in base alla dimensione"
+ },
+ "q083-modo-automatico-sistema": {
+  "theme": "light",
+  "_f": "tema chiaro o scuro automatico da sistema e orario; T0 e T2 si invertono"
+ },
+ "q083-modo-scelta-manuale": {
+  "theme": "light",
+  "_f": "tema chiaro o scuro, scelta manuale"
+ },
+ "q083-modo-preferenza-globale": {
+  "theme": "light",
+  "_f": "tema da preferenza globale; T0 e T2 si invertono"
+ },
+ "q083-modo-tema-globale-pacchetto": {
+  "theme": "light",
+  "_f": "tema globale da pacchetto con colori"
+ },
+ "q083-modo-barra-separata": {
+  "theme": "dark",
+  "tb": "neutral",
+  "_f": "modo app e modo barra separati"
+ },
+ "q084-accento-otto-preimpostati": {
+  "acc": "navy",
+  "_f": "A(1) = accento utente (8 preimpostati); A(2) = A(1) scurito 15%"
+ },
+ "q084-accento-da-sfondo": {
+  "acc": "gold",
+  "_f": "A(1) ricavato dallo sfondo"
+ },
+ "q084-accento-blu-fisso": {
+  "acc": "navy",
+  "_f": "A(1) blu di sistema fisso"
+ },
+ "q084-accento-selettore-libero": {
+  "acc": "gold",
+  "_f": "A(1) colore libero con selettore"
+ },
+ "q084-accento-per-tipo-controllo": {
+  "acc": "gold",
+  "_f": "A(1) assegnato per tipo di controllo"
+ },
+ "q085-icone-duotono-accento": {
+  "icons": "filled",
+  "_f": "griglia 6u; tratto 0.4u; angoli 1u; duotono con accento"
+ },
+ "q086-icone-piccole-corpo": {
+  "dockicon": 3,
+  "_f": "icone barra 2u; elenco 1.5u; cella griglia 3u"
+ },
+ "q086-icone-medie-corpo": {
+  "dockicon": 4.4,
+  "_f": "icone barra 2u; elenco 1.5u; cella griglia 3u"
+ },
+ "q086-icone-grandi-tocco": {
+  "dockicon": 8,
+  "_f": "icone grandi per tocco"
+ },
+ "q086-icone-scalate-percentuale": {
+  "dockicon": 4.4,
+  "_f": "icone scalate con la percentuale utente"
+ },
+ "q086-icone-con-etichetta": {
+  "dockicon": 6,
+  "_f": "icona con etichetta sotto"
+ },
+ "q087-margine-contenuto-bordo": {
+  "pad": 1,
+  "_f": "margine = 1u; padding controllo = 0.5u"
+ },
+ "q087-margine-proporzionale": {
+  "pad": 2,
+  "_f": "margine proporzionale alla larghezza"
+ },
+ "q087-griglia-dodici-colonne": {
+  "pad": 2,
+  "_f": "griglia 12 colonne, canale 1u"
+ },
+ "q088-densita-normale": {
+  "pad": 2,
+  "_f": "altezza riga = 2.5u"
+ },
+ "q088-densita-compatta": {
+  "pad": 1,
+  "_f": "altezza riga = 2u"
+ },
+ "q088-densita-larga-tocco": {
+  "pad": 3,
+  "_f": "altezza riga = 3u"
+ },
+ "q088-densita-adattiva-input": {
+  "pad": 2,
+  "_f": "altezza riga 2u o 3u in base a puntatore o tocco"
+ },
+ "q088-densita-tre-livelli": {
+  "pad": 2,
+  "_f": "altezza riga 2u / 2.5u / 3u, scelta utente"
+ },
+ "q089-durata-breve-150": {
+  "_nv": true
+ },
+ "q089-durata-media-200": {
+  "_nv": true
+ },
+ "q089-durata-lunga-300": {
+  "_nv": true
+ },
+ "q089-durata-variabile-distanza": {
+  "_nv": true
+ },
+ "q089-durata-disattivata": {
+  "_nv": true
+ },
+ "q090-curva-decelerazione": {
+  "_nv": true
+ },
+ "q090-curva-molla-smorzata": {
+  "_nv": true
+ },
+ "q090-curva-lineare": {
+  "_nv": true
+ },
+ "q090-curva-simmetrica": {
+  "_nv": true
+ },
+ "q090-curva-dal-tema": {
+  "_nv": true
+ },
+ "q091-animazioni-tutto": {
+  "_nv": true
+ },
+ "q091-animazioni-solo-finestre": {
+  "_nv": true
+ },
+ "q091-animazioni-scorrimento-inerzia": {
+  "_nv": true
+ },
+ "q091-animazioni-solo-a-fuoco": {
+  "_nv": true
+ },
+ "q091-animazioni-solo-stato": {
+  "_nv": true
+ },
+ "q092-cursore-forme-standard": {
+  "cur": "arrow",
+  "_f": "cursore 1u; freccia, I-beam, mano, attesa"
+ },
+ "q092-cursore-contorno-contrasto": {
+  "cur": "arrow",
+  "_f": "freccia con contorno per il contrasto"
+ },
+ "q092-cursore-ingrandito": {
+  "cur": "large",
+  "_f": "puntatore ingrandito"
+ },
+ "q092-cursore-attesa-cerchio": {
+  "cur": "arrow",
+  "_f": "freccia; cerchio o clessidra in attesa"
+ },
+ "q092-cursore-invertito-scuro": {
+  "cur": "arrow",
+  "_f": "freccia invertita su sfondi scuri"
+ },
+ "q093-puntatore-lineare": {
+  "_nv": true
+ },
+ "q093-puntatore-accelerazione-leggera": {
+  "_nv": true
+ },
+ "q093-puntatore-sei-livelli": {
+  "_nv": true
+ },
+ "q093-puntatore-curva-due-tratti": {
+  "_nv": true
+ },
+ "q093-puntatore-flat-velocita": {
+  "_nv": true
+ },
+ "q094-focus-anello-accento": {
+  "border": "thin",
+  "_f": "anello focus = 0.5u; colore A(1); offset = 0.5u"
+ },
+ "q094-focus-contorno-doppio": {
+  "border": "heavy",
+  "_f": "anello focus = 0.5u; contorno doppio bianco e scuro"
+ },
+ "q094-focus-sottolineatura-fondo": {
+  "field": "underline",
+  "_f": "focus = sottolineatura o sfondo evidenziato"
+ },
+ "q094-focus-solo-tastiera": {
+  "border": "thin",
+  "_f": "anello focus = 0.5u; visibile solo da tastiera"
+ },
+ "q095-stato-ombra-sollevata": {
+  "shadow": "soft",
+  "hover": "lighten",
+  "_f": "hover = T1 +4%; pressed = T1 -8%; 80 ms"
+ },
+ "q095-stato-riduzione-scala": {
+  "hover": "lighten",
+  "_f": "hover = T1 +4%; pressed = riduzione di scala; 80 ms"
+ },
+ "q095-stato-bordo-accento": {
+  "border": "thin",
+  "_f": "hover = bordo colorato; pressed = T1 -8%; 80 ms"
+ },
+ "q096-disabilitato-grigio-opaco": {
+  "w_disabled": "on",
+  "_f": "disabilitato = T3 al 40%"
+ },
+ "q096-disabilitato-testo-attenuato": {
+  "w_disabled": "on",
+  "_f": "disabilitato = testo T3, senza sfondo"
+ },
+ "q096-errore-bordo-messaggio": {
+  "w_error": "on",
+  "_f": "errore = A(err) su bordo e testo; messaggio sotto il campo"
+ },
+ "q096-errore-icona-avviso": {
+  "w_error": "on",
+  "_f": "errore = A(err) su bordo e testo; icona di avviso"
+ },
+ "q096-errore-banner-alto": {
+  "w_error": "on",
+  "_f": "errore = A(err) su bordo e testo; banner in alto"
+ },
+ "q097-scala-tre-valori": {
+  "fs": 2,
+  "_f": "pct = 100 | 125 | 150; u scala con pct"
+ },
+ "q097-scala-cursore-continuo": {
+  "fs": 2,
+  "_f": "pct = 100-200 continuo; u scala con pct"
+ },
+ "q097-scala-solo-testo": {
+  "fs": 2,
+  "_f": "pct scala solo testo; icone invariate"
+ },
+ "q097-scala-per-app": {
+  "fs": 2,
+  "_f": "pct impostata per singola app"
+ },
+ "q098-movimento-dissolvenza": {
+  "_nv": true
+ },
+ "q098-movimento-azzera": {
+  "_nv": true
+ },
+ "q098-movimento-solo-stato": {
+  "_nv": true
+ },
+ "q098-movimento-no-parallasse": {
+  "_nv": true
+ },
+ "q098-movimento-meta-durata": {
+  "_nv": true
+ },
+ "q099-contrasto-interruttore": {
+  "border": "heavy",
+  "_f": "contrasto = 7:1; bordi = 1u; focus = 2u"
+ },
+ "q099-contrasto-segue-sistema": {
+  "border": "heavy",
+  "_f": "contrasto = 7:1; bordi = 1u; focus = 2u"
+ },
+ "q099-contrasto-filtro-schermo": {
+  "border": "heavy",
+  "_f": "contrasto = 7:1; bordi = 1u; focus = 2u"
+ },
+ "q100-splash-nessuno": {
+  "_nv": true
+ },
+ "q100-splash-logo-barra": {
+  "w_progress": "on",
+  "_f": "logo = 4u; barra = 0.25u; durata massima 3 s"
+ },
+ "q100-splash-logo-punti": {
+  "dot": "on",
+  "_f": "logo = 4u; indicatore a punti; durata massima 3 s"
+ },
+ "q100-splash-solo-logo": {
+  "_nv": true
+ },
+ "q100-splash-dissolvenza-desktop": {
+  "_nv": true
+ },
+ "q101-blocco-orologio-notifiche": {
+  "lock": "on",
+  "_f": "sfondo T0 sfumato; orologio = 3u; avvisi = 1.5u"
+ },
+ "q101-blocco-solo-orologio": {
+  "lock": "on",
+  "_f": "sfondo T0 sfumato; orologio = 3u"
+ },
+ "q101-blocco-immagine-sfondo": {
+  "lock": "on",
+  "_f": "sfondo immagine a tutto schermo"
+ },
+ "q101-blocco-senza-notifiche": {
+  "lock": "on",
+  "_f": "sfondo T0 sfumato; orologio = 3u; nessun avviso"
+ },
+ "q101-blocco-solo-accesso": {
+  "lock": "on",
+  "_f": "sfondo T0 sfumato; solo campo di accesso"
+ },
+ "q102-login-campo-password": {
+  "lock": "on",
+  "field": "outline",
+  "_f": "campo = 10u; pulsante = 2u; blocco dopo 300 s"
+ },
+ "q102-login-pin-predefinito": {
+  "lock": "on",
+  "_f": "PIN come metodo predefinito; campo = 10u"
+ },
+ "q102-login-biometria-riserva": {
+  "lock": "on",
+  "_f": "biometria con password di riserva; campo = 10u"
+ },
+ "q102-login-selezione-utente": {
+  "lock": "on",
+  "_f": "selezione utente prima del campo"
+ },
+ "q102-login-automatico": {
+  "_nv": true
+ },
+ "q103-suoni-pochi-errori": {
+  "_nv": true
+ },
+ "q103-suoni-ogni-evento": {
+  "_nv": true
+ },
+ "q103-suoni-nessuno": {
+  "_nv": true
+ },
+ "q103-suoni-tema-sostituibile": {
+  "_nv": true
+ },
+ "q103-suoni-solo-critici": {
+  "_nv": true
+ },
+ "q104-aptico-trackpad-allineamenti": {
+  "_nv": true
+ },
+ "q104-aptico-nessuno": {
+  "_nv": true
+ },
+ "q104-aptico-conferme-brevi": {
+  "_nv": true
+ },
+ "q104-aptico-solo-errori": {
+  "_nv": true
+ },
+ "q104-aptico-pressione-forte": {
+  "_nv": true
+ }
+}
