@@ -42,6 +42,15 @@ Priorità: **P1** serve alla prima versione; **P2** serve dopo; **P3** serve per
 | 24 | Discovery | ACPI e device tree | Linux, FreeBSD, NetBSD | Scopre cosa c'è sulla scheda | x86-64 usa ACPI, ARM64 usa device tree | Parser minimo, solo per i dispositivi usati | P3 |
 | 25 | Osservabilità | Tracce a buffer circolare | illumos DTrace (concetto), Linux ftrace | Registra eventi a costo basso | Debug senza strumenti pesanti | Buffer fisso con etichette numeriche | P4 |
 
+### Stato P1 memoria (PR memcore)
+
+- Righe 12, 13, 14 implementate come crate `memcore/` (no_std, senza heap, test su host con `cargo test`):
+  - 12 `buddy.rs`: buddy su bitmap fissa, `alloc`/`free`/`release`, fusione dei compagni.
+  - 13 `pool.rs`: pool a N slot decisi a compilazione.
+  - 14 `prot.rs`: `Prot::new` rifiuta W+X; il tipo non ha variante W+X.
+- Non ancora collegate al boot x86 (`x86/kernel/src/mem.rs` legge ancora solo la mappa E820).
+- Scheduling: nessuna idea P1 in tabella. La riga 16 (quote) è P2 e non è stata fatta.
+
 ## 3. Cosa scartiamo
 
 - **Compatibilità con driver altrui (LinuxKPI, drm-kmod).** Porta molto codice Linux dentro il kernel. Contrario alla leggerezza e alla licenza.

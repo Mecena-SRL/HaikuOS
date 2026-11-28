@@ -15,6 +15,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `arm64/uefi/` | OS, ARM64 UEFI | - | app UEFI (`BOOTAA64.EFI`), GOP, stampa su ConOut, test QEMU_EFI + ramfb |
 | `arm64/` | OS, ARM64 | - | kernel `no_std` su QEMU virt: EL1, seriale PL011, timer generico (polling), MMU identità (2 GB, blocchi da 1 GB) |
 | `gui/` | host | - | desktop e window manager |
+| `memcore/` | host, no_std | - | buddy su bitmap, pool a slot fissi, W^X (kernel-study righe 12-14), test inline |
 | `office/src/ods.rs` | host, no_std | formats | ODS in sola lettura, test inline |
 | `sim/` (formati) | - | - | rimossi: duplicavano `office/` |
 | `office/src/snappy.rs` | host, no_std | - | Snappy a blocchi, test inline |
