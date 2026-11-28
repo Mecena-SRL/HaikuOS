@@ -42,6 +42,13 @@ Priorità: **P1** serve alla prima versione; **P2** serve dopo; **P3** serve per
 | 24 | Discovery | ACPI e device tree | Linux, FreeBSD, NetBSD | Scopre cosa c'è sulla scheda | x86-64 usa ACPI, ARM64 usa device tree | Parser minimo, solo per i dispositivi usati | P3 |
 | 25 | Osservabilità | Tracce a buffer circolare | illumos DTrace (concetto), Linux ftrace | Registra eventi a costo basso | Debug senza strumenti pesanti | Buffer fisso con etichette numeriche | P4 |
 
+## 2b. Stato driver e input
+
+- **Riga 8 (coda eventi):** già presente in `sim/src/input.rs` (coda fissa, conta gli scarti). Manca ancora il timestamp.
+- **Riga 9 (PS/2):** decodifica spostata in `ps2/` (crate `no_std`, senza I/O), usata dal kernel x86 in `x86/kernel/src/input.rs`. Test host in `ps2/src/lib.rs`.
+- **Correzione:** il pacchetto mouse sottraeva 256 ai valori negativi (dx=-2 diventava -258). Ora il byte è già con segno.
+- Righe 10, 11, 20, 21, 18 (P2/P3): non toccate.
+
 ## 3. Cosa scartiamo
 
 - **Compatibilità con driver altrui (LinuxKPI, drm-kmod).** Porta molto codice Linux dentro il kernel. Contrario alla leggerezza e alla licenza.
