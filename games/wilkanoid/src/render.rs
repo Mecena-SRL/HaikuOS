@@ -14,8 +14,8 @@ const FIELD_B: u32 = 0xFF151A3A;
 const ROW: [u32; ROWS] = [0xFFE63946, 0xFFF4A261, 0xFFE9C46A, 0xFF2A9D8F, 0xFF457B9D, 0xFF9B5DE5];
 const STEEL_T: u32 = 0xFFD5DEEA;
 const STEEL_B: u32 = 0xFF6B7789;
-const CRACK_T: u32 = 0xFF8C97A8;
-const CRACK_B: u32 = 0xFF3A4454;
+const CRACK_T: u32 = 0xFF5E687B;
+const CRACK_B: u32 = 0xFF232A38;
 const CRACK_LINE: u32 = 0xFF1C2230;
 const PAD_T: u32 = 0xFFF4F7FF;
 const PAD_B: u32 = 0xFF5B6BF0;
@@ -344,6 +344,8 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             if k == CRACKED {
                 c.rr(x + 6.0, y + 1.0, x + 8.0, y + 4.0, 0.5, CRACK_LINE, CRACK_LINE);
                 c.rr(x + 14.0, y + 3.0, x + 17.0, y + 6.0, 0.5, CRACK_LINE, CRACK_LINE);
+                c.rr(x + 9.0, y + 3.0, x + 12.0, y + 4.5, 0.5, CRACK_LINE, CRACK_LINE);
+                c.rr(x + 3.0, y + 5.0, x + 5.0, y + 7.0, 0.5, CRACK_LINE, CRACK_LINE);
             }
         }
     }
@@ -400,7 +402,10 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
     }
 
     // Tutorial al primo livello: un suggerimento ogni 120 tick, sopra la racchetta.
-    if g.level == 0 && g.tut < TUT_TICKS && matches!(g.phase, Phase::Ready | Phase::Play) {
+    let has_bomb = g.cells.iter().any(|r| r.contains(&BOMB));
+    if g.level == 0 && g.tut < TUT_TICKS && matches!(g.phase, Phase::Ready | Phase::Play)
+        && (((g.tut / 120) as usize) != 3 || has_bomb)
+    {
         let lines: [&[u8]; 5] = [b"A D MUOVI LA RACCHETTA", b"SPAZIO LANCIA LA PALLA", b"ACCIAIO: DUE COLPI", b"ESPLOSIVO: ROMPE I VICINI", b"P PAUSA"];
         let line = lines[((g.tut / 120) as usize).min(lines.len() - 1)];
         c.rr_a(-3.0, 104.0, pw + 3.0, 116.0, 0.5, 0xFF000000, 0xFF000000, 0.4);
@@ -430,7 +435,7 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         }
         Phase::Over | Phase::Won => {
             c.rr_a(-1.0, -1.0, pw + 1.0, ph + 1.0, 0.5, 0xFF000000, 0xFF000000, 0.5);
-            c.panel(50.0, 40.0, 190.0, 98.0);
+            c.panel(50.0, 40.0, 190.0, 112.0);
             let title: &[u8] = if g.phase == Phase::Over { b"GAME OVER" } else { b"VITTORIA" };
             c.text_c(title, 52.0, 2.0, TXT);
             c.text_c(b"PUNTI", 78.0, 1.0, TXT);
