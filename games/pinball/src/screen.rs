@@ -237,6 +237,16 @@ fn table(g: &Pinball, out: &mut Vec<Prim>) {
         let y = -50.0 + (k * 53 % 340) as f32;
         out.push(Prim { s: Shape::Circ((x, y), 0.6 + (k % 3) as f32 * 0.3), col: [0.85, 0.9, 1.0], a: 0.5 });
     }
+    // faro e onde del porto, fuori dal tavolo
+    out.push(Prim { s: Shape::Tri([(-30.0, 230.0), (-18.0, 230.0), (-22.0, 120.0)]), col: [0.8, 0.9, 0.6], a: 0.10 });
+    out.push(p(Shape::Tri([(-27.0, 150.0), (-17.0, 150.0), (-19.0, 128.0)]), [0.25, 0.28, 0.38]));
+    out.push(p(Shape::Rect((-22.0, 170.0), (4.0, 46.0), 1.0), [0.25, 0.28, 0.38]));
+    out.push(Prim { s: Shape::Circ((-22.0, 124.0), 4.0), col: [1.0, 0.9, 0.5], a: 0.25 });
+    out.push(p(Shape::Circ((-22.0, 124.0), 2.2), [1.0, 0.92, 0.6]));
+    for k in 0..3u32 {
+        let y = 222.0 + k as f32 * 6.0;
+        out.push(Prim { s: Shape::Rect((80.0, y), (140.0, 1.2), 1.0), col: [0.20, 0.55, 0.65], a: 0.18 });
+    }
     out.push(p(Shape::Rect((80.0, 120.0), (80.0, 120.0), 4.0), DARK));
     for w in WALLS {
         out.push(p(Shape::Seg((w[0] as f32, w[1] as f32), (w[2] as f32, w[3] as f32), 0.9), WALL));
@@ -308,7 +318,14 @@ fn overlay(g: &Pinball, s: Screen, out: &mut Vec<Prim>) {
     out.push(p(Shape::Rect(c, (62.0, 48.0), 5.0), [0.9, 0.55, 0.2]));
     out.push(p(Shape::Rect(c, (60.0, 46.0), 4.0), [0.04, 0.05, 0.12]));
     match s {
-        Screen::Title => out.push(p(tri([(70.0, 88.0), (70.0, 112.0), (92.0, 100.0)]), FLIP_UP)),
+        Screen::Title => {
+            out.push(p(tri([(68.0, 88.0), (68.0, 112.0), (88.0, 100.0)]), FLIP_UP));
+            // la guardiana Mabel: cappello, testa e corpo
+            out.push(p(Shape::Rect((121.0, 113.0), (7.0, 8.0), 2.0), [0.2, 0.25, 0.4]));
+            out.push(p(Shape::Circ((121.0, 100.0), 4.5), [0.95, 0.8, 0.65]));
+            out.push(p(tri([(111.0, 96.0), (131.0, 96.0), (121.0, 86.0)]), [0.7, 0.2, 0.25]));
+            out.push(Prim { s: Shape::Circ((121.0, 100.0), 9.0), col: [1.0, 0.85, 0.5], a: 0.10 });
+        }
         Screen::Pause => {
             out.push(p(Shape::Rect((74.0, 110.0), (3.0, 11.0), 1.0), FLIP_UP));
             out.push(p(Shape::Rect((86.0, 110.0), (3.0, 11.0), 1.0), FLIP_UP));
