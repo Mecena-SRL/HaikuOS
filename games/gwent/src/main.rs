@@ -3,6 +3,8 @@
 //! `gwent --shot <file.ppm> <W> <H> [mosse]` scrive un fotogramma dopo `mosse` turni automatici.
 
 mod view;
+#[cfg(feature = "window")]
+mod window;
 
 use gwent::ai;
 use gwent::{Act, Event, Game};
@@ -45,6 +47,12 @@ impl Ui {
         }
         let n = self.g.side[0].hand.n as usize;
         self.cur = self.cur.min(n.saturating_sub(1));
+    }
+
+    /// Gioca la carta selezionata, o passa se la mano è vuota.
+    fn play_cur(&mut self) -> bool {
+        let n = self.g.side[0].hand.n as usize;
+        if n == 0 { self.human(Act::Pass) } else { self.human(Act::Play(self.cur)) }
     }
 
     /// Mossa tua: `Play(cur)` o `Pass`.
@@ -124,7 +132,19 @@ fn main() {
         shot(&path, num(2, 1920), num(3, 1080), num(4, 0));
         return;
     }
-    let seed = args.first().and_then(|v| v.parse().ok()).unwrap_or(1);
+    let seed = args.iter().find_map(|v| v.parse().ok()).unwrap_or(1);
+    if args.iter().any(|a| a == "--window") {
+        #[cfg(feature = "window")]
+        {
+            window::run(Ui::new(seed));
+            return;
+        }
+        #[cfg(not(feature = "window"))]
+        {
+            eprintln!("compilare con --features window per la finestra");
+            return;
+        }
+    }
     let mut ui = Ui::new(seed);
     ui.print();
     for line in io::stdin().lock().lines().map_while(Result::ok) {

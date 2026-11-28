@@ -49,24 +49,23 @@ pub fn hit(x: i32, y: i32, hand_len: usize) -> Option<Hit> {
     (0..hand_len).rev().find(|&i| inside(hand_rect(i, hand_len), x, y)).map(Hit::Card)
 }
 
-/// Fotogramma RGB, `w`×`h` pixel.
+/// Fotogramma `w`×`h` pixel, formato 0x00RRGGBB (lo stesso di minifb).
 pub struct Img {
     pub w: usize,
     pub h: usize,
-    pub px: Vec<[u8; 3]>,
+    pub px: Vec<u32>,
 }
 
-fn rgb(t: Tok) -> [u8; 3] {
-    let c = t.rgb();
-    [(c >> 16) as u8, (c >> 8) as u8, c as u8]
+fn rgb(t: Tok) -> u32 {
+    t.rgb()
 }
 
 impl Img {
     /// PPM P6 a dimensioni native.
     pub fn write_ppm(&self, out: &mut impl std::io::Write) -> std::io::Result<()> {
         write!(out, "P6\n{} {}\n255\n", self.w, self.h)?;
-        for p in &self.px {
-            out.write_all(p)?;
+        for &p in &self.px {
+            out.write_all(&[(p >> 16) as u8, (p >> 8) as u8, p as u8])?;
         }
         Ok(())
     }
@@ -105,11 +104,14 @@ impl Canvas for Img {
         if x < 0 || y < 0 || x as usize >= self.w || y as usize >= self.h {
             return;
         }
-        let c = rgb(t);
-        let p = &mut self.px[y as usize * self.w + x as usize];
-        for k in 0..3 {
-            p[k] = ((p[k] as u32 * (255 - a as u32) + c[k] as u32 * a as u32) / 255) as u8;
-        }
+        let d = rgb(t);
+        let i = y as usize * self.w + x as usize;
+        let s = self.px[i];
+        let mix = |sh: u32| {
+            let (s0, d0, a) = ((s >> sh) & 255, (d >> sh) & 255, a as u32);
+            ((s0 * (255 - a) + d0 * a) / 255) << sh
+        };
+        self.px[i] = mix(16) | mix(8) | mix(0);
     }
 }
 
@@ -126,7 +128,12 @@ impl Pane {
         let k = (w as f32 / DW as f32).min(h as f32 / DH as f32);
         let ox = ((w as f32 - DW as f32 * k) / 2.0) as i32;
         let oy = ((h as f32 - DH as f32 * k) / 2.0) as i32;
-        Pane { im: Img { w, h, px: vec![[0; 3]; w * h] }, k, ox, oy }
+        Pane { im: Img { w, h, px: vec![0; w * h] }, k, ox, oy }
+    }
+
+    /// Pixel dello schermo → coordinate di progetto (per il mouse).
+    pub fn to_design(&self, px: i32, py: i32) -> (i32, i32) {
+        (((px - self.ox) as f32 / self.k) as i32, ((py - self.oy) as f32 / self.k) as i32)
     }
 
     fn d(&self, r: Rect) -> Rect {
@@ -194,9 +201,9 @@ fn card(p: &mut Pane, r: Rect, id: usize, owner: usize, power: i32, sel: bool) {
     p.txt(r.x + 12, r.y + r.h - 32, 14, tag(id), Tok::T2);
 }
 
-/// Tabellone e pannelli. `cur` è la carta selezionata in mano, `msg` la riga di stato.
-pub fn frame(g: &Game, cur: usize, msg: &str, w: usize, h: usize) -> Pane {
-    let mut p = Pane::new(w, h);
+/// Tabellone e pannelli in `p` (riusato tra i fotogrammi). `cur` è la carta selezionata, `msg` la riga di stato.
+pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
+    p.im.px.fill(rgb(Tok::T0));
     p.fill(Rect::new(0, 0, DW, DH), Tok::T0);
 
     // Intestazione: avversario a sinistra, tu a destra, round al centro.
@@ -226,7 +233,7 @@ pub fn frame(g: &Game, cur: usize, msg: &str, w: usize, h: usize) -> Pane {
                 let id = (slot & 0x7f) as usize;
                 let power = g.slot_power(board, row, i);
                 let cr = Rect::new(rr.x + 4 + i as i32 * pitch, rr.y + 15, 120, 130);
-                card(&mut p, cr, id, owner, power, false);
+                card(p, cr, id, owner, power, false);
             }
         }
     }
@@ -250,7 +257,7 @@ pub fn frame(g: &Game, cur: usize, msg: &str, w: usize, h: usize) -> Pane {
             r.y -= 20;
         }
         let power = DEFS[id].power as i32;
-        card(&mut p, r, id, 0, power, sel);
+        card(p, r, id, 0, power, sel);
     }
 
     // Pannello di destra: stato, meteo, pulsante.
@@ -268,5 +275,37 @@ pub fn frame(g: &Game, cur: usize, msg: &str, w: usize, h: usize) -> Pane {
         let t = if w == 0 { "HAI VINTO" } else { "HAI PERSO" };
         p.txt_c(Rect::new(0, 0, DW, 0), 440, 64, t, Tok::T3);
     }
+}
+
+/// Fotogramma nuovo di `w`×`h` (per le immagini PPM).
+pub fn frame(g: &Game, cur: usize, msg: &str, w: usize, h: usize) -> Pane {
+    let mut p = Pane::new(w, h);
+    frame_into(&mut p, g, cur, msg);
     p
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mouse_torna_in_coordinate_di_progetto() {
+        for (w, h) in [(1280usize, 720usize), (800, 480), (1920, 1080)] {
+            let p = Pane::new(w, h);
+            let (cx, cy) = (1560 + 150, 510); // centro del pulsante PASSA
+            let k = (w as f32 / DW as f32).min(h as f32 / DH as f32);
+            let px = (p.ox as f32 + cx as f32 * k) as i32;
+            let py = (p.oy as f32 + cy as f32 * k) as i32;
+            let (dx, dy) = p.to_design(px, py);
+            assert!((dx - cx).abs() <= 2 && (dy - cy).abs() <= 2, "{w}x{h}: {dx},{dy}");
+            assert_eq!(hit(dx, dy, 3), Some(Hit::Pass));
+        }
+    }
+
+    #[test]
+    fn carta_in_mano_e_selezionabile() {
+        let r = hand_rect(2, 5);
+        assert_eq!(hit(r.x + 5, r.y + 5, 5), Some(Hit::Card(2)));
+        assert_eq!(hit(5, 5, 5), None);
+    }
 }

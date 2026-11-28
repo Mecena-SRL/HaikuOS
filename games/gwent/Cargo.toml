@@ -3,7 +3,12 @@ name = "gwent"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Finestra reale con minifb (solo host Linux/Windows/macOS). Senza questa feature il binario è solo terminale.
+window = ["dep:minifb"]
+
 [dependencies]
 haiku-gui = { path = "../../gui" }
+minifb = { version = "0.27", optional = true }
 
 [workspace]
