@@ -1,0 +1,9 @@
+[package]
+name = "kstudy-deferred"
+version = "0.1.0"
+edition = "2021"
+
+# Crate separato: no_std, nessuna dipendenza, testabile su host (come memcore/).
+[dependencies]
+
+[workspace]
