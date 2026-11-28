@@ -1,6 +1,7 @@
 //! Rendering grafico su framebuffer RGB. Legge soltanto lo stato di `Game`.
 //! Nessuna dipendenza esterna: l'output è un PPM, leggibile da qualsiasi visualizzatore.
 
+use crate::menu::Screen;
 use crate::{Building, Game, Terrain, WIN_POP};
 use std::io::{self, Write};
 
@@ -30,6 +31,13 @@ impl Frame {
             for xx in x..(x + w).min(self.w) {
                 self.px[yy * self.w + xx] = c;
             }
+        }
+    }
+
+    /// Scurisce tutto il fotogramma (sfondo del menu).
+    pub fn dim(&mut self) {
+        for p in &mut self.px {
+            *p = p.map(|c| c / 3);
         }
     }
 
@@ -95,4 +103,30 @@ pub fn render(g: &Game) -> Frame {
     let pop = (g.player.citizens as usize * (mw - 8)) / WIN_POP as usize;
     f.rect(4, mh + 6 + 4 * 12 + 4, pop.min(mw - 8), 6, [90, 200, 255]);
     f
+}
+
+/// Sovrappone il menu di avvio o di pausa: fondo scuro, pannello e pulsanti (senza font nel framebuffer).
+pub fn overlay(f: &mut Frame, screen: Screen) {
+    if screen == Screen::Play {
+        return;
+    }
+    f.dim();
+    let (w, h) = (f.w, f.h);
+    let (px, py, pw, ph) = (w / 4, h / 4, w / 2, h / 2);
+    f.rect(px, py, pw, ph, [24, 28, 40]);
+    f.rect(px, py, pw, 4, [240, 200, 60]);
+    // Pulsanti: verde per avvia/riprendi, rosso per esci.
+    let by = py + ph * 2 / 3;
+    if screen == Screen::Title {
+        f.rect(px + pw / 4, by, pw / 2, ph / 8, [80, 200, 110]);
+    } else {
+        f.rect(px + pw / 8, by, pw * 3 / 8, ph / 8, [80, 200, 110]);
+        f.rect(
+            px + pw * 9 / 16,
+            by,
+            pw * 3 / 8 - pw / 16,
+            ph / 8,
+            [220, 70, 70],
+        );
+    }
 }

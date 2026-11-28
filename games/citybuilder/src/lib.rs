@@ -1,6 +1,7 @@
 //! Città-impero: logica di gioco pura. Nessun I/O e nessun rendering;
 //! il rendering vive in main.rs e legge solo lo stato pubblico.
 
+pub mod menu;
 pub mod view;
 
 pub const WIN_POP: u32 = 50;
