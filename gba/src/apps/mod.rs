@@ -11,6 +11,7 @@ pub mod camera;
 pub mod dictionary;
 pub mod maps;
 pub mod memo;
+pub mod monitor;
 pub mod messages;
 pub mod music;
 pub mod passwords;
