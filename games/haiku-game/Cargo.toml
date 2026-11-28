@@ -1,0 +1,11 @@
+[package]
+name = "haiku-game"
+version = "0.1.0"
+edition = "2021"
+
+# Core condiviso dei giochi: no_std, senza allocazione, a punto fisso.
+# Feature `host` (solo PC): aggiunge il PPM.
+[features]
+host = []
+
+[workspace]
