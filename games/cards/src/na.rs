@@ -816,3 +816,29 @@ impl Game for SetteMezzo {
         ui.button(p, 660, 880, 360, 90, act(3, 0, 0), "NUOVA MANO", self.fine && self.fiches >= PUNTATA);
     }
 }
+
+#[cfg(test)]
+mod test_presa {
+    use super::*;
+
+    #[test]
+    fn sei_batte_cinque_stesso_seme() {
+        let mut t = Trick::tressette(1);
+        t.lead_p = true;
+        t.tp = Some(Card { r: 6, s: 1 });
+        t.tc = Some(Card { r: 5, s: 1 });
+        t.risolvi();
+        assert_eq!(t.gp.n, 2, "il giocatore deve prendere con il 6");
+        assert_eq!(t.gc.n, 0);
+    }
+
+    #[test]
+    fn banco_guida_e_giocatore_risponde() {
+        let mut t = Trick::tressette(1);
+        t.lead_p = false;
+        t.tc = Some(Card { r: 5, s: 1 });
+        t.tp = Some(Card { r: 6, s: 1 });
+        t.risolvi();
+        assert_eq!(t.gp.n, 2, "6 batte 5 anche se guida il banco");
+    }
+}
