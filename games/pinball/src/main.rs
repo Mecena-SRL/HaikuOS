@@ -1,5 +1,5 @@
-//! Host: senza argomenti gioca a terminale (titolo, gioco, pausa); con `N` misura N frame (bot);
-//! con `--shot-title|--shot-play|--shot-pause <file.ppm>` scrive un fotogramma.
+//! Host: senza argomenti misura 600000 frame (bot); con `N` ne misura N; con `--play` gioca a terminale
+//! (titolo, gioco, pausa); con `--shot-title|--shot-play|--shot-pause <file.ppm>` scrive un fotogramma.
 //! Il rendering sta qui (std); il core `pinball` è `no_std`.
 
 mod screen;
@@ -150,7 +150,8 @@ fn bench(frames: u32) {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.as_slice() {
-        [_] => interactive(),
+        [_] => bench(600_000),
+        [_, flag] if flag == "--play" => interactive(),
         [_, flag, path] if flag.starts_with("--shot-") => match flag.as_str() {
             "--shot-title" => shot(path, Screen::Title),
             "--shot-play" => shot(path, Screen::Play),
