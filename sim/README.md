@@ -52,3 +52,9 @@ cargo test
 
 - Registro, attivazione (max 4), font di sistema non disattivabile, collezioni (max 8, 8 membri ciascuna), anteprima.
 - Solo host, nessun parser TTF/OTF. Design e limiti: `docs/font-manager.md`. **Da verificare** su GBA.
+
+## Storage e GPU (righe 20-23 di docs/kernel-study.md)
+
+- `src/geom.rs` (`tests/geom_strati.rs`): trait `Block`, strati `Offset` (partizione) e `ReadOnly`.
+- `src/virtio_blk.rs` (`tests/virtio_blk.rs`): richieste IN/OUT da 512 byte su coda fissa, errori per richiesta.
+- `src/gpu_ring.rs` e `src/fence.rs` (`tests/gpu_ring_fence.rs`): anello a dimensione fissa con campanello; fence a contatore monotono. Solo prototipo: la GPU reale è rinviata.
