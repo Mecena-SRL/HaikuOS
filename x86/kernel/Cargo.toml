@@ -9,6 +9,7 @@ edition = "2021"
 haiku-gui = { path = "../../gui", features = ["wide-font"] }
 haiku-office = { path = "../../office" }
 haiku-memcore = { path = "../../memcore" }
+haiku-ps2 = { path = "../../ps2" }
 
 [profile.dev]
 panic = "abort"

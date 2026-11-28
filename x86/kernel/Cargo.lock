@@ -16,6 +16,7 @@ dependencies = [
  "haiku-gui",
  "haiku-memcore",
  "haiku-office",
+ "haiku-ps2",
 ]
 
 [[package]]
@@ -24,6 +25,10 @@ version = "0.1.0"
 
 [[package]]
 name = "haiku-office"
+version = "0.1.0"
+
+[[package]]
+name = "haiku-ps2"
 version = "0.1.0"
 
 [[package]]

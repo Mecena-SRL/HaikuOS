@@ -48,8 +48,19 @@ Priorità: **P1** serve alla prima versione; **P2** serve dopo; **P3** serve per
   - 12 `buddy.rs`: buddy su bitmap fissa, `alloc`/`free`/`release`, fusione dei compagni.
   - 13 `pool.rs`: pool a N slot decisi a compilazione.
   - 14 `prot.rs`: `Prot::new` rifiuta W+X; il tipo non ha variante W+X.
-- Non ancora collegate al boot x86 (`x86/kernel/src/mem.rs` legge ancora solo la mappa E820).
+- Collegate al boot x86: `x86/kernel/src/mem.rs` riempie il buddy dalla mappa E820 (fino a 256 MB), `init_phys` in `kmain`. Verifica QEMU non ancora fatta.
 - Scheduling: nessuna idea P1 in tabella. La riga 16 (quote) è P2 e non è stata fatta.
+
+## 2b. Stato driver e input
+
+- **Riga 8 (coda eventi):** già presente in `sim/src/input.rs` (coda fissa, conta gli scarti). Manca ancora il timestamp.
+- **Riga 9 (PS/2):** decodifica spostata in `ps2/` (crate `no_std`, senza I/O), usata dal kernel x86 in `x86/kernel/src/input.rs`. Test host in `ps2/src/lib.rs`.
+- **Correzione:** il pacchetto mouse sottraeva 256 ai valori negativi (dx=-2 diventava -258). Ora il byte è già con segno.
+- **Riga 8 (coda eventi):** crate `evq/` (`haiku-evq`), coda generica a N slot con timestamp, scarti contati. Test host.
+- **Riga 10 (HID):** crate `hid/` (`haiku-hid`), parser puro del report descriptor in array fisso. Test con la tastiera boot.
+- **Riga 11 (xHCI):** crate `xhci/` (`haiku-xhci`), TRB a 16 byte, anello comandi con Link e bit di ciclo, lettura eventi. Nessun MMIO ancora.
+- Riga 9: già coperta da #287 (`ps2/`), nessuna modifica.
+- Righe 18, 20, 21 (P2/P3): non toccate.
 
 ## 3. Cosa scartiamo
 
@@ -97,3 +108,11 @@ Priorità: **P1** serve alla prima versione; **P2** serve dopo; **P3** serve per
 - [memory-security](memory-security.md): regole di memoria e sicurezza.
 - [x86-boot](x86-boot.md): avvio su x86.
 - [feasibility-gba](feasibility-gba.md): fattibilità GBA.
+
+## 8. Stato della grafica P1 (righe 4, 5, 6)
+
+- `gui/src/gfx.rs`: ritaglio, intersezione, `fill` e `copy` per riga (slice, niente ciclo per pixel), lista fissa `Dirty<N>` che si fonde da sola (niente allocazione).
+- Benchmark `desktop_vector` (media su 30 frame, host x86, rumorosa): 1920×1080 da ~4,1 ms a ~3,2 ms; 3840×2160 da ~15 ms a ~13 ms (target 16,7 ms rispettato sul disegno).
+- Angoli: il percorso a righe piene salta il test per pixel fuori dagli angoli (immagine identica al byte, verificata).
+- `present` copia le zone sporche nel front buffer. Con l'intera schermata sporca costa ~6–7 ms a 4K: il vantaggio vero arriva quando si ridisegna solo una zona (da collegare nel compositore).
+- Da fare: disegno limitato alla zona sporca dal compositore reale; misura su GBA con DMA3 (riga 5).

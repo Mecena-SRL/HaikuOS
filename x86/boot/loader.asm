@@ -11,9 +11,9 @@ mb2_start:
     dd mb2_end - mb2_start
     dd -(0xE85250D6 + 0 + (mb2_end - mb2_start))
     align 8
-    dw 5, 1                                        ; framebuffer (opzionale): 0,0,0 = modo scelto da gfxpayload
+    dw 5, 1                                        ; framebuffer (opzionale): richiesta 1920x1080x32 (GRUB 2.12 ignora gfxpayload con 0,0,0)
     dd 20
-    dd 0, 0, 0
+    dd 1920, 1080, 32
     align 8
     dw 0, 0                                        ; fine tag
     dd 8
