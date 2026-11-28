@@ -1,6 +1,6 @@
 [workspace]
 members = ["sysapps", "setup", "kernel", "devtools"]
-exclude = ["sim", "gba"]
+exclude = ["sim", "gba", "office"]
 resolver = "2"
 
 [profile.release]
