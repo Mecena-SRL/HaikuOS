@@ -35,6 +35,10 @@ const KART_HL: Fx = int(10);
 const KART_HW: Fx = int(6);
 const KART_H: Fx = int(8);
 const KERB_W: i32 = 4;
+const SLOPE_W: i32 = 6;
+const CURB_H: Fx = int(3);
+const RISER: [u32; 2] = [0xFF8E1B1B, 0xFF9E9E9E];
+const SLOPE: u32 = 0xFF38772C;
 const SUBS: i32 = 8;
 const N_TRACK: usize = 640;
 /// Distanza (16.16) oltre la quale la nebbia è al massimo.
@@ -254,19 +258,30 @@ fn track_quads(cam: &Cam, tr: &Track, list: &mut [Quad], len: &mut usize) {
         for s in 0..SUBS {
             let (ax, ay) = tr.point(seg, s * ONE / SUBS);
             let (bx, by) = tr.point(seg, (s + 1) * ONE / SUBS);
-            let g = |x: Fx, y: Fx, ox: Fx, oy: Fx| V3 { x: x + ox, y: y + oy, z: 0 };
-            let l0 = g(ax, ay, nx, ny);
-            let r0 = g(ax, ay, -nx, -ny);
-            let l1 = g(bx, by, nx, ny);
-            let r1 = g(bx, by, -nx, -ny);
-            let kl0 = g(ax, ay, kx, ky);
-            let kl1 = g(bx, by, kx, ky);
-            let kr0 = g(ax, ay, -kx, -ky);
-            let kr1 = g(bx, by, -kx, -ky);
+            let g = |x: Fx, y: Fx, ox: Fx, oy: Fx, z: Fx| V3 { x: x + ox, y: y + oy, z };
+            let (sx, sy) = perp(hw + KERB_W + SLOPE_W);
             let t = ((seg as i32 * SUBS + s) & 1) as usize;
+            // Strada, poi cordolo alto CURB_H, gradino (alzata) e scarpata sul lato esterno.
+            for side in [1, -1] {
+                let (ox, oy, kxx, kyy, sxx, syy) = (nx * side, ny * side, kx * side, ky * side, sx * side, sy * side);
+                let r0 = g(ax, ay, ox, oy, 0);
+                let r1 = g(bx, by, ox, oy, 0);
+                let k0 = g(ax, ay, kxx, kyy, CURB_H);
+                let k1 = g(bx, by, kxx, kyy, CURB_H);
+                let s0 = g(ax, ay, sxx, syy, 0);
+                let s1 = g(bx, by, sxx, syy, 0);
+                let rise0 = g(ax, ay, ox, oy, CURB_H);
+                let rise1 = g(bx, by, ox, oy, CURB_H);
+                let kcol = if side > 0 { KERB[t] } else { KERB[1 - t] };
+                cam.add(&[r0, r1, rise1, rise0], RISER[t], list, len);
+                cam.add(&[rise0, k0, k1, rise1], kcol, list, len);
+                cam.add(&[k0, s0, s1, k1], SLOPE, list, len);
+            }
+            let l0 = g(ax, ay, nx, ny, 0);
+            let r0 = g(ax, ay, -nx, -ny, 0);
+            let l1 = g(bx, by, nx, ny, 0);
+            let r1 = g(bx, by, -nx, -ny, 0);
             cam.add(&[r0, l0, l1, r1], ROAD[t], list, len);
-            cam.add(&[kl0, l0, l1, kl1], KERB[t], list, len);
-            cam.add(&[kr0, r0, r1, kr1], KERB[1 - t], list, len);
         }
     }
 }
