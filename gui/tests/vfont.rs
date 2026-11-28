@@ -88,3 +88,13 @@ fn ops_malformati_non_bloccano() {
     raster(&mut b, &[9, 9, 9], 0, 0, 16, Tok::T1);
     assert!(b.alpha.iter().all(|&a| a == 0));
 }
+
+#[test]
+fn font_di_default_esistono() {
+    use haiku_gui::vfont::{default_font, Role};
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    for r in [Role::Ui, Role::Mono, Role::Reading] {
+        let p = root.join(default_font(r));
+        assert!(p.is_file(), "manca {}", p.display());
+    }
+}

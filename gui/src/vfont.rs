@@ -213,3 +213,21 @@ pub fn draw_text<C: Canvas>(c: &mut C, x: i32, y: i32, size: i32, s: &str, t: To
     }
     advance(size, s)
 }
+
+/// Ruolo di un testo di sistema: sceglie il font di default (vedi `fonts/README.md`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Role {
+    Ui,
+    Mono,
+    Reading,
+}
+
+/// Font di default per ruolo. Hook: il rendering usa ancora i glifi incorporati;
+/// il caricamento dei TTF da questi percorsi arriva con il parser del font manager.
+pub const fn default_font(r: Role) -> &'static str {
+    match r {
+        Role::Ui => "fonts/Inter/Inter-Variable.ttf",
+        Role::Mono => "fonts/JetBrainsMono/JetBrainsMono-Regular.ttf",
+        Role::Reading => "fonts/NotoSerif/NotoSerif-Regular.ttf",
+    }
+}
