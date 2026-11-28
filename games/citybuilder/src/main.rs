@@ -4,13 +4,20 @@
 use citybuilder::{Building, Game, Status, Terrain, WIN_POP};
 use std::io::{self, BufRead};
 
+#[path = "../../hd_shot.rs"]
+mod hd_shot;
+
 fn main() {
     let mut g = Game::new(24, 12, 0x4841494B55);
     // `--shot <file.ppm>`: partita scriptata e un fotogramma grafico, senza terminale.
     let args: Vec<String> = std::env::args().collect();
-    if let [_, flag, path] = args.as_slice() {
+    if let [_, flag, path, rest @ ..] = args.as_slice() {
         if flag == "--shot" {
-            shot(&mut g, path);
+            let hd = match rest {
+                [w, h] => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
+                _ => None,
+            };
+            shot(&mut g, path, hd);
             return;
         }
     }
@@ -105,7 +112,7 @@ fn draw(g: &Game) {
 }
 
 /// Gioca alcuni turni con poche costruzioni valide e scrive un PPM.
-fn shot(g: &mut Game, path: &str) {
+fn shot(g: &mut Game, path: &str, hd: Option<(usize, usize)>) {
     for _ in 0..6 {
         g.end_turn();
     }
@@ -130,6 +137,9 @@ fn shot(g: &mut Game, path: &str) {
     }
     let frame = citybuilder::view::render(g);
     let mut out = std::fs::File::create(path).expect("impossibile creare il file");
-    frame.write_ppm(&mut out).expect("scrittura fallita");
+    match hd {
+        Some((ow, oh)) => hd_shot::write_fit(&mut out, frame.w, frame.h, &frame.px, ow, oh).expect("scrittura fallita"),
+        None => frame.write_ppm(&mut out).expect("scrittura fallita"),
+    }
     println!("fotogramma {}x{} scritto in {path}", frame.w, frame.h);
 }

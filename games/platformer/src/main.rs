@@ -4,14 +4,20 @@
 use platformer::{bot::Bot, levels::LEVELS, render, Game, State, VIEW_H, VIEW_W};
 use std::{
     fs::File,
-    io::Write,
     time::{Duration, Instant},
 };
 
+#[path = "../../hd_shot.rs"]
+mod hd_shot;
+
 fn main() {
-    let out = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "platformer.ppm".into());
+    // `[out.ppm] [W H]`: con W H lo screenshot è ingrandito a quella risoluzione.
+    let args: Vec<String> = std::env::args().collect();
+    let out = args.get(1).cloned().unwrap_or_else(|| "platformer.ppm".into());
+    let hd = match args.get(2..4) {
+        Some([w, h]) => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
+        _ => None,
+    };
     let mut fb = vec![0u32; (VIEW_W * VIEW_H) as usize];
     let (mut frames, mut spent) = (0u32, Duration::ZERO);
     for (k, src) in LEVELS.iter().enumerate() {
@@ -26,7 +32,7 @@ fn main() {
             spent += t.elapsed();
             n += 1;
             if k == 0 && n == 300 {
-                write_ppm(&out, &fb);
+                write_ppm(&out, &fb, hd);
             }
         }
         frames += n;
@@ -47,12 +53,10 @@ fn main() {
     );
 }
 
-fn write_ppm(path: &str, fb: &[u32]) {
+fn write_ppm(path: &str, fb: &[u32], hd: Option<(usize, usize)>) {
     let mut f = File::create(path).expect("creazione file");
-    write!(f, "P6\n{} {}\n255\n", VIEW_W, VIEW_H).unwrap();
-    let bytes: Vec<u8> = fb
-        .iter()
-        .flat_map(|&c| [(c >> 16) as u8, (c >> 8) as u8, c as u8])
-        .collect();
-    f.write_all(&bytes).unwrap();
+    let px: Vec<[u8; 3]> = fb.iter().map(|&c| [(c >> 16) as u8, (c >> 8) as u8, c as u8]).collect();
+    let (w, h) = (VIEW_W as usize, VIEW_H as usize);
+    let (ow, oh) = hd.unwrap_or((w, h));
+    hd_shot::write_fit(&mut f, w, h, &px, ow, oh).unwrap();
 }
