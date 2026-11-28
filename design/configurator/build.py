@@ -71,6 +71,9 @@ html = open(os.path.join(HERE, "template.html"), encoding="utf-8").read()
 html = html.replace("/*DATA*/null", json.dumps(qs, ensure_ascii=False))
 html = html.replace("/*MAP*/null", json.dumps(pmap, ensure_ascii=False))
 html = html.replace("/*VOCAB*/null", json.dumps(VOCAB, ensure_ascii=False))
+dp = os.path.join(HERE, "defaults.json")
+defaults = json.load(open(dp, encoding="utf-8")) if os.path.exists(dp) else {}
+html = html.replace("/*DEFAULTS*/null", json.dumps(defaults, ensure_ascii=False))
 open(os.path.join(HERE, "configurator.html"), "w", encoding="utf-8").write(html)
 
 opts = sum(len(q["options"]) for q in qs)
