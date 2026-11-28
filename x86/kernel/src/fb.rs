@@ -1,5 +1,5 @@
 //! Framebuffer lineare RGB (da GRUB/Multiboot2 o da stage2), salvato a 0x600.
-//! Formati: 15, 16, 24 e 32 bit con posizione e dimensione dei canali letti dal firmware.
+//! Modi fino a 3840×2160 a 32 bit (scelti da stage2). Formati: 15, 16, 24 e 32 bit con canali letti dal firmware.
 //! Il sistema grafico lavora a 320×240 logici: ogni pixel logico diventa 2×2 (bibbia §9).
 use haiku_gui::layout::Rect;
 use haiku_gui::render::Canvas;
@@ -24,8 +24,8 @@ pub const THEMES: [[u32; 4]; 3] = [
 
 /// Buffer di lavoro in RAM (32 bit per pixel): ogni quadro si disegna qui e poi si copia tutto insieme.
 const BACK: usize = 0x0400_0000;
-/// Copia massima del buffer di lavoro: 1920×1080×4 byte.
-const BACK_MAX: usize = 1920 * 1080 * 4;
+/// Copia massima del buffer di lavoro: 3840×2160×4 byte (4K, circa 32 MB, da 0x0400_0000 a ~0x0610_0000).
+const BACK_MAX: usize = 3840 * 2160 * 4;
 
 pub struct Fb {
     base: usize,
@@ -106,6 +106,20 @@ impl Fb {
         unsafe { core::ptr::write_volatile(p as *mut u32, c) }
     }
 
+    /// Riempie un rettangolo fisico (ritagliato) nel buffer di lavoro, riga per riga.
+    fn span(&self, x: i32, y: i32, w: i32, h: i32, c: u32) {
+        let x0 = x.max(0);
+        let x1 = (x + w).min(self.w);
+        if x0 >= x1 {
+            return;
+        }
+        for py in y.max(0)..(y + h).min(self.h) {
+            let p = (self.back + (py as usize * self.w as usize + x0 as usize) * 4) as *mut u32;
+            // Buffer di lavoro in RAM (non MMIO): scrittura normale, LLVM la vettorizza.
+            unsafe { core::slice::from_raw_parts_mut(p, (x1 - x0) as usize).fill(c) }
+        }
+    }
+
     /// Copia il buffer di lavoro sulla scheda video in un solo passo (niente sfarfallio).
     pub fn flush(&self) {
         let (w, h) = (self.w as usize, self.h as usize);
@@ -166,13 +180,6 @@ impl<'a> Scaled<'a> {
         }
     }
 
-    fn rect_px(&self, x0: i32, y0: i32, x1: i32, y1: i32, c: u32) {
-        for y in y0..y1 {
-            for x in x0..x1 {
-                self.fb.put(x, y, c);
-            }
-        }
-    }
 }
 
 impl<'a> Canvas for Scaled<'a> {
@@ -201,16 +208,20 @@ impl<'a> Canvas for Scaled<'a> {
         for &(x, y, w, h, t) in icons::art(label) {
             let (x0, x1) = (x * k / 32, ((x + w) * k / 32).max(x * k / 32 + 1));
             let (y0, y1) = (y * k / 32, ((y + h) * k / 32).max(y * k / 32 + 1));
-            self.rect_px(ox + x0, oy + y0, ox + x1, oy + y1, col(self.pal, t));
+            self.fb.span(ox + x0, oy + y0, x1 - x0, y1 - y0, col(self.pal, t));
         }
     }
 
+    /// Riempimento a span: ogni riga logica è una sola scrittura contigua nel buffer (vettorizzata da LLVM).
     fn fill(&mut self, r: Rect, t: Tok) {
         let c = col(self.pal, t);
+        let s = self.fb.scale;
+        let (x0, x1) = (r.x.max(0), (r.x + r.w).min(self.lw));
+        if x0 >= x1 {
+            return;
+        }
         for y in r.y.max(0)..(r.y + r.h).min(self.lh) {
-            for x in r.x.max(0)..(r.x + r.w).min(self.lw) {
-                self.block(x, y, c);
-            }
+            self.fb.span(x0 * s, y * s, (x1 - x0) * s, s, c);
         }
     }
 

@@ -4,6 +4,7 @@
 //! Nessun verificatore in chiaro: l'unico test della password è il tag.
 //! Il nonce non deve ripetersi con la stessa chiave: il chiamante passa un contatore a ogni salvataggio.
 //! KDF provvisoria: `ITER` giri di Ascon-AEAD (stretching). Costo su ARM7TDMI: da verificare.
+//! Host (x86, rustc -O): 0,54 ms per derivazione a 4096 giri, 0,07 ms a 512. Misura GBA non fatta.
 
 #![allow(dead_code)]
 
@@ -13,8 +14,8 @@ use crate::ascon;
 pub const MAGIC: &[u8; 4] = b"HPW1";
 pub const INTESTAZIONE: usize = 4 + 16 + 16;
 pub const TAG: usize = 16;
-/// Giri di stretching della password. Da misurare sul GBA.
-pub const ITER: usize = 512;
+/// Giri di stretching della password. Da misurare sul GBA. Cambiarlo rende illeggibili i file già salvati.
+pub const ITER: usize = 4096;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErroreVault {
@@ -206,6 +207,16 @@ pub struct Modifica {
     pub indice: Option<usize>,
 }
 
+impl Modifica {
+    /// Azzera i campi in chiaro (servizio, utente, segreto) prima di scartare la voce.
+    pub fn azzera(&mut self) {
+        for c in self.campi.iter_mut() {
+            c.dati.fill(0);
+            c.len = 0;
+        }
+    }
+}
+
 /// Stato della cassaforte nella finestra password.
 pub struct Cassa {
     pub aperta: bool,
@@ -262,6 +273,7 @@ impl Cassa {
                     self.aperta = true;
                     self.esito = b"";
                 } else {
+                    self.master.azzera();
                     self.esito = b"ERRORE CREAZIONE";
                 }
             }
@@ -300,6 +312,7 @@ impl Cassa {
 
     /// Avvia la composizione di una voce nuova (`None`) o da sostituire (`Some(indice)`).
     pub fn inizia(&mut self, indice: Option<usize>) {
+        self.scarta_modifica();
         self.modifica = Some(Modifica { campi: [CAMPO_VUOTO; 3], campo: 0, indice });
         self.ingresso.azzera();
         self.esito = b"";
@@ -316,8 +329,16 @@ impl Cassa {
 
     /// Annulla la composizione in corso.
     pub fn annulla(&mut self) {
-        self.modifica = None;
+        self.scarta_modifica();
         self.ingresso.azzera();
+    }
+
+    /// Azzera e scarta la voce in composizione (i campi restano altrimenti in SRAM).
+    fn scarta_modifica(&mut self) {
+        if let Some(m) = self.modifica.as_mut() {
+            m.azzera();
+        }
+        self.modifica = None;
     }
 
     /// Conferma il campo corrente. Dopo l'ultimo campo inserisce o sostituisce la voce e salva.
@@ -339,7 +360,8 @@ impl Cassa {
             None => self.archivio.aggiungi(s.bytes(), u.bytes(), p.bytes()).map(|_| ()),
             Some(i) => self.archivio.sostituisci(i, s.bytes(), u.bytes(), p.bytes()),
         };
-        self.modifica = None;
+        m.azzera();
+        self.scarta_modifica();
         self.esito = match r {
             Ok(()) => {
                 if self.salva() {
@@ -360,7 +382,7 @@ impl Cassa {
         self.archivio = Archivio::new();
         self.ingresso.azzera();
         self.master.azzera();
-        self.modifica = None;
+        self.scarta_modifica();
         self.esito = b"";
     }
 }
@@ -575,5 +597,22 @@ mod tests {
         assert!(c.aperta);
         assert_eq!(c.archivio.len(), 0);
         assert!(c.ingresso.password().is_empty());
+    }
+
+    #[test]
+    fn modifica_scartata_azzera_i_campi() {
+        let mut m = Modifica { campi: [Campo { dati: [7; PW_MAX], len: 3 }; 3], campo: 2, indice: None };
+        m.azzera();
+        assert!(m.campi.iter().all(|c| c.len == 0 && c.dati.iter().all(|&b| b == 0)));
+        let mut c = Cassa::new();
+        c.seme = 9;
+        digita(&mut c, b"K1");
+        c.sblocca(None);
+        c.inizia(None);
+        digita(&mut c, b"Mail");
+        c.avanti();
+        c.annulla();
+        assert!(c.modifica.is_none());
+        assert!(c.archivio.is_empty());
     }
 }

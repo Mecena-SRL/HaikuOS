@@ -22,6 +22,67 @@ pub trait Canvas {
     }
     /// Icona vera nella cella `cell` (16×16 logici = 32×32 fisici; 8×8 nei titoli). False se non disponibile.
     fn icon(&mut self, _cell: Rect, _label: &str, _app: u8) {}
+    /// Rettangolo con angoli di raggio `radius`. Di base è pieno: i backend con angoli lo ridefiniscono.
+    fn rect_rounded(&mut self, r: Rect, _radius: i32, t: Tok) {
+        self.fill(r, t);
+    }
+    /// Icona vettoriale: rettangoli `(x, y, w, h)` su una griglia 16×16, scalati nella cella `cell`.
+    fn icon_vec(&mut self, cell: Rect, rects: &[(i32, i32, i32, i32)], t: Tok) {
+        for &(x, y, w, h) in rects {
+            let px = cell.x + x * cell.w / 16;
+            let py = cell.y + y * cell.h / 16;
+            self.fill(Rect::new(px, py, (w * cell.w / 16).max(1), (h * cell.h / 16).max(1)), t);
+        }
+    }
+    /// Menu a righe nel rettangolo `r`: la riga `sel` è evidenziata. Ogni riga è alta `MENU_ROW`.
+    fn menu(&mut self, r: Rect, rows: &[&str], sel: usize) {
+        self.fill(r, T0);
+        for (i, label) in rows.iter().enumerate() {
+            let y = r.y + i as i32 * MENU_ROW;
+            if y + MENU_ROW > r.y + r.h {
+                break;
+            }
+            let (bg, fg) = if i == sel { (T2, T0) } else { (T0, T2) };
+            self.fill(Rect::new(r.x, y, r.w, MENU_ROW), bg);
+            self.text(r.x + 2, y + MENU_ROW - 2, label, fg);
+        }
+    }
+    /// Pixel con copertura `a` (0..=255) del token `t`, per l'antialiasing. Di base: soglia a metà (pixel pieno).
+    /// Il backend a 32 bit può ridefinirlo per mescolare col fondo.
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        if a >= 128 {
+            self.fill(Rect::new(x, y, 1, 1), t);
+        }
+    }
+    /// Testo vettoriale con antialiasing (`vfont`): `size` px per em. Ritorna la larghezza in px.
+    fn vtext(&mut self, x: i32, y: i32, size: i32, s: &str, t: Tok) -> i32
+    where
+        Self: Sized,
+    {
+        crate::vfont::draw_text(self, x, y, size, s, t)
+    }
+    /// Segmento di spessore `w` (px, minimo 1), da `(x1, y1)` a `(x2, y2)`. Di base: quadrati pieni lungo Bresenham.
+    fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, w: i32, t: Tok) {
+        let w = w.max(1);
+        let (dx, dy) = ((x2 - x1).abs(), -(y2 - y1).abs());
+        let (sx, sy) = (if x1 < x2 { 1 } else { -1 }, if y1 < y2 { 1 } else { -1 });
+        let (mut x, mut y, mut err) = (x1, y1, dx + dy);
+        loop {
+            self.fill(Rect::new(x - w / 2, y - w / 2, w, w), t);
+            if x == x2 && y == y2 {
+                break;
+            }
+            let e2 = 2 * err;
+            if e2 >= dy {
+                err += dy;
+                x += sx;
+            }
+            if e2 <= dx {
+                err += dx;
+                y += sy;
+            }
+        }
+    }
 }
 
 /// Smussa i quattro angoli della finestra `f` con il fondo T0 (raggio 4 px logici).

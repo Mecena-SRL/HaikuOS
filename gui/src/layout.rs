@@ -28,7 +28,7 @@ pub const TASK_X: i32 = 38;
 pub const TASK_W: i32 = 40;
 pub const TASK_PITCH: i32 = 42;
 /// Orologio "HH:MM": 5 caratteri da 4 px meno lo spazio finale.
-pub const CLOCK_W: i32 = 19;
+pub const CLOCK_W: i32 = 5 * (FONT_W + 1) - 1;
 /// Menu applicazioni: riga di 10 px (ricerca e voci), larghezza 100 px.
 pub const MENU_ROW: i32 = 10;
 pub const MENU_LIST_W: i32 = 100;
