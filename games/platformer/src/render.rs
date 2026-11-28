@@ -14,8 +14,14 @@ const MAXW: usize = 1920;
 const COS: [i32; 16] = [256, 236, 181, 98, 0, -98, -181, -236, -256, -236, -181, -98, 0, 98, 181, 236];
 const SIN: [i32; 16] = [0, 98, 181, 236, 256, 236, 181, 98, 0, -98, -181, -236, -256, -236, -181, -98];
 
-const SKY_TOP: u32 = 0xFF5FB4F0;
-const SKY_BOT: u32 = 0xFFD0F0FF;
+const SKY_TOP: u32 = 0xFF3C7FD0;
+const SKY_BOT: u32 = 0xFFD8F4FF;
+const SUN: u32 = 0xFFFFE070;
+const SUN_HALO: u32 = 0xFFFFF4B8;
+const MOUNT_FAR: u32 = 0xFF7FA6C9;
+const CLOUD_FAR: u32 = 0xFFB8D4EA;
+const BUSH: u32 = 0xFF2F7A2C;
+const DUST: u32 = 0xFFE8E0D0;
 const HILL: u32 = 0xFF4E9F3D;
 const HILL_FAR: u32 = 0xFF3F8A32;
 const CLOUD: u32 = 0xFFF8FCFF;
@@ -346,14 +352,31 @@ fn lerp(a: u32, b: u32, t: u32) -> u32 {
 }
 
 fn sky(c: &mut Fb) {
-    for i in 0..6 {
-        c.rect(0, i * 40, VIEW_W, 40, lerp(SKY_TOP, SKY_BOT, i as u32 * 51));
+    for i in 0..48 {
+        c.rect(0, i * 5, VIEW_W, 5, lerp(SKY_TOP, SKY_BOT, i as u32 * 255 / 47));
     }
 }
 
-/// Sfondo: cielo, colline e nuvole in parallasse rispetto alla camera.
+/// Nuvola a tre sfere su base ellittica.
+fn cloud(c: &mut Fb, x: i32, y: i32, col: u32) {
+    c.ell(p(x), p(y + 2), p(20), p(5), col);
+    c.disc(p(x + 9), p(y - 3), p(9), col);
+    c.disc(p(x + 22), p(y), p(7), col);
+}
+
+/// Sfondo a 5 piani di parallasse: cielo a gradiente, sole, montagne, colline, cespugli, nuvole.
 fn backdrop(c: &mut Fb, cam: i32) {
     sky(c);
+    c.disc(p(206), p(40), p(30), SUN_HALO);
+    c.disc(p(206), p(40), p(18), SUN);
+    for k in -1..5 {
+        let x = k * 140 + 70 - (cam / 6).rem_euclid(140);
+        c.ell(p(x), p(190), p(90), p(60), MOUNT_FAR);
+    }
+    for k in 0..6 {
+        let x = (k * 75 - cam / 5).rem_euclid(VIEW_W + 140) - 70;
+        cloud(c, x, 18 + (k % 2) * 14, CLOUD_FAR);
+    }
     for k in -1..6 {
         let x = k * 120 + 60 - (cam / 2).rem_euclid(120);
         c.ell(p(x), p(200), p(70), p(48), HILL_FAR);
@@ -362,12 +385,13 @@ fn backdrop(c: &mut Fb, cam: i32) {
         let x = k * 100 + 30 - (cam / 3).rem_euclid(100);
         c.ell(p(x), p(206), p(50), p(36), HILL);
     }
+    for k in -1..10 {
+        let x = k * 56 + 20 - (cam * 4 / 5).rem_euclid(56);
+        c.ell(p(x), p(218), p(18), p(12), BUSH);
+    }
     for k in 0..5 {
         let x = (k * 90 - cam * 3 / 10).rem_euclid(VIEW_W + 120) - 60;
-        let y = 28 + (k % 3) * 18;
-        c.ell(p(x), p(y + 2), p(20), p(5), CLOUD);
-        c.disc(p(x + 9), p(y - 3), p(9), CLOUD);
-        c.disc(p(x + 22), p(y), p(7), CLOUD);
+        cloud(c, x, 28 + (k % 3) * 18, CLOUD);
     }
 }
 
@@ -442,6 +466,7 @@ fn coin(c: &mut Fb, cx: i32, cy: i32, frame: u32) {
     c.ell(cx, cy, rx, p(5), COIN);
     if rx > p(2) {
         c.ell(cx, cy, rx - p(2) / 2, p(3), COIN_IN);
+        c.disc(cx - rx / 2, cy - p(2), p(1) / 2 + 4, WHITE);
     }
 }
 
@@ -501,6 +526,13 @@ fn player(g: &Game, c: &mut Fb) {
         (CAP, SHIRT, OVERALL)
     };
     let f = pl.facing;
+    if moving && pl.on_ground {
+        for i in 0..3 {
+            let age = ((g.frame + i * 4) % 12) as i32;
+            let r = p(1) / 2 + age * p(1) / 24;
+            c.disc(p(bx) + p(6) - f * (age * 3), p(by) + p(bh) - p(1), r, DUST);
+        }
+    }
     // v: unità 1/16 nella sagoma base alta 14 px; la verticale scala con bh (14 o 24).
     let x = |v: i32| p(bx) + v;
     let y = |v: i32| p(by) + v * bh / 14;
