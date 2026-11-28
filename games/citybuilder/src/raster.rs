@@ -33,8 +33,35 @@ impl Frame {
         }
     }
 
+    /// Frame riempito col colore di sfondo, senza passate in più.
+    pub fn with_fill(w: usize, h: usize, c: Rgb) -> Self {
+        Frame { w, h, px: vec![c; w * h] }
+    }
+
+    /// Sfumatura verticale tra `top` (riga `y0`) e `bottom` (riga `y1`, esclusa).
+    pub fn vgrad(&mut self, y0: usize, y1: usize, top: Rgb, bottom: Rgb) {
+        let span = (y1.saturating_sub(y0)).max(1) as f32;
+        for y in y0..y1.min(self.h) {
+            let t = (y - y0) as f32 / span;
+            let c: Rgb = core::array::from_fn(|k| (top[k] as f32 + (bottom[k] as f32 - top[k] as f32) * t) as u8);
+            self.px[y * self.w..(y + 1) * self.w].fill(c);
+        }
+    }
+
+    /// Velo di colore su tutto il frame, con opacità `a`.
+    pub fn tint(&mut self, c: Rgb, a: f32) {
+        for p in &mut self.px {
+            *p = core::array::from_fn(|k| (p[k] as f32 + (c[k] as f32 - p[k] as f32) * a + 0.5) as u8);
+        }
+    }
+
     /// Poligono pieno (regola pari), vertici in ordine, con antialiasing.
     pub fn poly(&mut self, pts: &[(f32, f32)], c: Rgb) {
+        self.poly_a(pts, c, 1.0);
+    }
+
+    /// Come `poly`, con opacità `a` (0..=1).
+    pub fn poly_a(&mut self, pts: &[(f32, f32)], c: Rgb, a: f32) {
         if pts.len() < 3 {
             return;
         }
@@ -82,7 +109,7 @@ impl Frame {
             }
             for (i, &cv) in cov.iter().enumerate() {
                 if cv > 0.0 {
-                    self.mix(xa + i, y, c, cv.min(1.0));
+                    self.mix(xa + i, y, c, (cv * a).min(1.0));
                 }
             }
         }
@@ -94,13 +121,17 @@ impl Frame {
     }
 
     pub fn circle(&mut self, cx: f32, cy: f32, r: f32, c: Rgb) {
+        self.disc(cx, cy, r, c, 1.0);
+    }
+
+    pub fn disc(&mut self, cx: f32, cy: f32, r: f32, c: Rgb, a: f32) {
         let pts: Vec<(f32, f32)> = (0..32)
             .map(|i| {
                 let a = i as f32 * std::f32::consts::TAU / 32.0;
                 (cx + r * a.cos(), cy + r * a.sin())
             })
             .collect();
-        self.poly(&pts, c);
+        self.poly_a(&pts, c, a);
     }
 
     /// Segmento di spessore `w`, come rettangolo ruotato.

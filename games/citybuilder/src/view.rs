@@ -15,6 +15,11 @@ const FOREST: Rgb = [34, 100, 46];
 const MOUNTAIN: Rgb = [124, 124, 132];
 const WATER: Rgb = [52, 98, 196];
 const WHEAT: Rgb = [232, 200, 80];
+const SKY_TOP: Rgb = [16, 22, 58];
+const SKY_LOW: Rgb = [236, 128, 84];
+const EVENING: Rgb = [255, 150, 80];
+const SHADOW: Rgb = [0, 0, 0];
+const SMOKE: Rgb = [206, 206, 216];
 
 /// Losanga di una tessera, in unità locali: 100 di larghezza, 50 di altezza, centro in (0, 0).
 const TILE: [(f32, f32); 4] = [(0.0, -25.0), (50.0, 0.0), (0.0, 25.0), (-50.0, 0.0)];
@@ -41,8 +46,17 @@ impl Sprite {
     }
 
     fn poly(&self, f: &mut Frame, pts: &[(f32, f32)], c: Rgb) {
+        self.poly_a(f, pts, c, 1.0);
+    }
+
+    fn poly_a(&self, f: &mut Frame, pts: &[(f32, f32)], c: Rgb, a: f32) {
         let v: Vec<(f32, f32)> = pts.iter().map(|&(x, y)| self.pt(x, y)).collect();
-        f.poly(&v, self.col(c));
+        f.poly_a(&v, self.col(c), a);
+    }
+
+    fn disc(&self, f: &mut Frame, x: f32, y: f32, r: f32, c: Rgb, a: f32) {
+        let (px, py) = self.pt(x, y);
+        f.disc(px, py, r * self.k, c, a);
     }
 
     fn rect(&self, f: &mut Frame, x0: f32, y0: f32, x1: f32, y1: f32, c: Rgb) {
@@ -140,6 +154,20 @@ fn building(f: &mut Frame, s: &Sprite, b: Building) {
     }
 }
 
+/// Ombra morbida a due strati, spostata verso destra in basso (luce da sinistra-alto).
+fn shadow(f: &mut Frame, s: &Sprite) {
+    s.poly_a(f, &[(-36.0, 8.0), (-6.0, -6.0), (38.0, 4.0), (6.0, 20.0)], SHADOW, 0.12);
+    s.poly_a(f, &[(-26.0, 6.0), (-4.0, -2.0), (30.0, 4.0), (8.0, 14.0)], SHADOW, 0.22);
+}
+
+/// Pennacchio di fumo: sfere grigie che salgono e si schiariscono.
+fn smoke(f: &mut Frame, s: &Sprite, x: f32, y: f32) {
+    for i in 0..4 {
+        let fi = i as f32;
+        s.disc(f, x + fi * 3.0, y - fi * 11.0, 3.0 + fi * 2.5, SMOKE, 0.42 - fi * 0.09);
+    }
+}
+
 /// Icona vettoriale di una risorsa: 0 cibo, 1 legno, 2 pietra, 3 oro, 4 popolazione.
 fn icon(f: &mut Frame, kind: usize, cx: f32, cy: f32, r: f32) {
     match kind {
@@ -169,17 +197,18 @@ fn icon(f: &mut Frame, kind: usize, cx: f32, cy: f32, r: f32) {
 /// Disegna la città (terreno, poi edifici in ordine di profondità) e l'HUD in basso.
 /// `w`×`h` è la risoluzione reale: la mappa si adatta alla parte sopra l'HUD.
 pub fn render(g: &Game, w: usize, h: usize) -> Frame {
-    let mut f = Frame::new(w, h);
-    f.fill(Rect::new(0, 0, w as i32, h as i32), Tok::T0);
     let (wf, hf) = (w as f32, h as f32);
     let hud = (hf * 0.15).round();
     let scene = hf - hud;
+    let mut f = Frame::with_fill(w, h, rgb(Tok::T0));
+    f.vgrad(0, scene as usize, SKY_TOP, SKY_LOW);
     let (mw, mh) = (g.map.w as f32, g.map.h as f32);
-    let tw = (2.0 * wf / (mw + mh)).min(4.0 * scene / (mw + mh)) * 0.96;
+    // Altezza della mappa: (mw+mh)·tw/4; margine sopra per edifici alti 0.45·tw.
+    let tw = (2.0 * wf / (mw + mh)).min(scene / ((mw + mh) / 4.0 + 0.6)) * 0.96;
     let th = tw / 2.0;
     let k = tw / 100.0;
     let ox = (wf - (mw + mh) * tw / 2.0) / 2.0 + mh * tw / 2.0;
-    let oy = (scene - (mw + mh) * th / 2.0) / 2.0 + tw * 0.5;
+    let oy = (scene - (mw + mh) * tw / 4.0) / 2.0 + tw * 0.45;
     // Centro della tessera (x, y): vertice alto della losanga più mezza altezza.
     let centre = |x: usize, y: usize| {
         (
@@ -199,16 +228,38 @@ pub fn render(g: &Game, w: usize, h: usize) -> Frame {
     }
     let mut order: Vec<(usize, usize)> = (0..g.map.h).flat_map(|y| (0..g.map.w).map(move |x| (x, y))).collect();
     order.sort_by_key(|&(x, y)| x + y);
-    for (x, y) in order {
+    // Prima tutte le ombre (sul terreno), poi edifici in ordine di profondità, poi il fumo.
+    for &(x, y) in &order {
+        let i = g.map.idx(x, y);
+        if g.player.building_at(i).is_some() || g.rival.building_at(i).is_some() {
+            let (cx, cy) = centre(x, y);
+            shadow(&mut f, &Sprite { cx, cy, k, tint: None });
+        }
+    }
+    let mut chimneys: Vec<(Sprite, f32, f32)> = Vec::new();
+    for &(x, y) in &order {
         let i = g.map.idx(x, y);
         let (cx, cy) = centre(x, y);
         let s = Sprite { cx, cy, k, tint: None };
-        if let Some(b) = g.player.building_at(i) {
-            building(&mut f, &s, b);
-        } else if let Some(b) = g.rival.building_at(i) {
-            building(&mut f, &Sprite { tint: Some(RIVAL), ..s }, b);
+        let (b, tint) = match (g.player.building_at(i), g.rival.building_at(i)) {
+            (Some(b), _) => (b, None),
+            (None, Some(b)) => (b, Some(RIVAL)),
+            _ => continue,
+        };
+        let s = Sprite { tint, ..s };
+        building(&mut f, &s, b);
+        match b {
+            Building::House => chimneys.push((s, 10.0, -44.0)),
+            Building::Lumber => chimneys.push((s, 0.0, -36.0)),
+            Building::Quarry => chimneys.push((s, 10.0, -22.0)),
+            _ => {}
         }
     }
+    for (s, dx, dy) in &chimneys {
+        smoke(&mut f, &Sprite { tint: None, ..*s }, *dx, *dy);
+    }
+    // Luce della sera: velo caldo su tutta la scena (l'HUD viene disegnato dopo).
+    f.tint(EVENING, 0.10);
 
     hud_bar(&mut f, g, scene as i32, hud);
     f
@@ -283,7 +334,7 @@ mod tests {
         let f = render(&g, 800, 480);
         let fondo = rgb(Tok::T0);
         assert!(f.px.iter().any(|&p| p != fondo));
-        assert!(f.px.contains(&GRASS) || f.px.iter().any(|p| p[1] > p[0] + 40));
+        assert!(f.px.contains(&GRASS) || f.px.iter().any(|p| p[1] as i32 > p[0] as i32 + 40));
     }
 
     /// Costo di un fotogramma: `cargo test --release -- --ignored --nocapture bench`.
