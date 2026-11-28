@@ -64,7 +64,14 @@ stage2:
     ; ---- VBE: framebuffer lineare 640x480. Prima 32 bit (0x142), poi 24 bit (0x112).
     ; esito a 0x0600: magic(4) base(4) w(4) h(4) pitch(4) bpp(4); magic 0 = niente grafica
     mov dword [0x0600], 0
-    call dispi_try              ; 1280x800x32 (VGA std QEMU/Bochs), se presente
+    mov bx, 1920                ; 1920x1080x32 (VGA std QEMU/Bochs, 8 MB di VRAM)
+    mov cx, 1080
+    call dispi_try
+    cmp dword [0x0600], 0x56424531
+    je .vbe_done
+    mov bx, 1280                ; ripiego: 1280x800x32
+    mov cx, 800
+    call dispi_try
     cmp dword [0x0600], 0x56424531
     je .vbe_done
     mov cx, 0x0142
@@ -106,8 +113,11 @@ stage2:
     jmp dword 0x08:pm32
 
 
-; ---- dispi_try: VGA Bochs/QEMU (porte 0x1CE/0x1CF), 1280x800x32, LFB da PCI 00:02.0 BAR0.
+; ---- dispi_try: VGA Bochs/QEMU (porte 0x1CE/0x1CF), BX×CX×32, LFB da PCI 00:02.0 BAR0.
+; Ingresso: bx = larghezza, cx = altezza. Il modo è accettato solo se il registro XRES legge lo stesso valore.
 dispi_try:
+    movzx ebx, bx
+    movzx ecx, cx
     mov eax, 0x80001010
     mov dx, 0x0CF8
     out dx, eax
@@ -133,13 +143,13 @@ dispi_try:
     mov ax, 1
     out dx, ax
     mov dx, 0x01CF
-    mov ax, 1280
+    mov ax, bx
     out dx, ax
     mov dx, 0x01CE
     mov ax, 2
     out dx, ax
     mov dx, 0x01CF
-    mov ax, 800
+    mov ax, cx
     out dx, ax
     mov dx, 0x01CE
     mov ax, 3
@@ -153,10 +163,19 @@ dispi_try:
     mov dx, 0x01CF
     mov ax, 0x41                ; ENABLE | LFB
     out dx, ax
+    mov dx, 0x01CE              ; rilegge XRES: se il VGA ha rifiutato il modo, niente grafica
+    mov ax, 1
+    out dx, ax
+    mov dx, 0x01CF
+    in ax, dx
+    cmp ax, bx
+    jne .fail
     mov dword [0x0600], 0x56424531
-    mov dword [0x060C], 1280
-    mov dword [0x0610], 800
-    mov dword [0x0614], 5120
+    mov [0x060C], ebx
+    mov [0x0610], ecx
+    mov eax, ebx
+    shl eax, 2                  ; riga = w × 4 byte
+    mov [0x0614], eax
     mov dword [0x0618], 32
     mov byte [0x061C], 16       ; canali BGRX a 32 bit: rpos, rsize, gpos, gsize, bpos, bsize
     mov byte [0x061D], 8
