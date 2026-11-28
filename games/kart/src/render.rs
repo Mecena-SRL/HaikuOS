@@ -352,7 +352,7 @@ fn rect(buf: &mut [u32], w: usize, h: usize, x: i32, y: i32, rw: i32, rh: i32, c
 /// Glifo 3x5: ogni riga è una maschera a 3 bit (bit 2 = colonna sinistra).
 fn glyph(c: u8) -> [u8; 5] {
     match c {
-        b'0' => [7, 5, 5, 5, 7],
+        b'0' => [2, 5, 5, 5, 2],
         b'1' => [2, 6, 2, 2, 7],
         b'2' => [7, 1, 7, 4, 7],
         b'3' => [7, 1, 7, 1, 7],
@@ -366,7 +366,7 @@ fn glyph(c: u8) -> [u8; 5] {
         b'A' => [2, 5, 7, 5, 5],
         b'P' => [6, 5, 6, 4, 4],
         b'O' => [7, 5, 5, 5, 7],
-        b'S' => [7, 4, 7, 1, 7],
+        b'S' => [6, 4, 2, 1, 6],
         b'/' => [1, 1, 2, 4, 4],
         _ => [0; 5],
     }
@@ -389,7 +389,7 @@ fn text(buf: &mut [u32], w: usize, h: usize, x0: i32, y0: i32, s: i32, t: &[u8],
 fn hud(race: &Race, buf: &mut [u32], w: usize, h: usize, cam: usize) {
     let s = (h / 120).max(1) as i32;
     let laps = race.track.laps;
-    let lap = (race.karts[cam].count + 1).min(laps);
+    let lap = race.karts[cam].count.saturating_add(1).min(laps);
     let pos = race.order[..race.n].iter().position(|&i| i as usize == cam).unwrap_or(0) + 1;
     let a = [b'L', b'A', b'P', b' ', b'0' + lap, b'/', b'0' + laps];
     let b = [b'P', b'O', b'S', b' ', b'0' + pos as u8, b'/', b'0' + race.n as u8];

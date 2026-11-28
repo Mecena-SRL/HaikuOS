@@ -66,7 +66,7 @@ impl Kart {
         let mut inp = inp;
         if self.spin > 0 {
             self.spin -= 1;
-            self.h += 8 * ONE;
+            self.h += FULL / SPIN_TICKS as Fx;
             inp = Input::default();
         }
         let fast = self.boost > 0 || self.star > 0;
@@ -89,7 +89,8 @@ impl Kart {
         // Lo sterzo è pieno solo a velocità piena: da fermo non ruota.
         // Sotto metà velocità il raggio si stringe: curve strette a bassa velocità.
         let ratio = div((self.v * 2).min(MAX_V), MAX_V);
-        self.h = (self.h + mul(TURN * inp.steer as Fx / STEER_FULL as Fx, ratio)).rem_euclid(FULL);
+        let steer = inp.steer.clamp(-STEER_FULL, STEER_FULL);
+        self.h = (self.h + mul(TURN * steer as Fx / STEER_FULL as Fx, ratio)).rem_euclid(FULL);
         let (dx, dy) = dir(self.h);
         self.x += mul(dx, self.v);
         self.y += mul(dy, self.v);
