@@ -295,6 +295,8 @@ DATA.forEach(q=>{(TREE[q.category]??={})[q.subcategory]??=[];TREE[q.category][q.
 DATA.forEach(q=>q.options.forEach(o=>{const k=q.id+'|'+o.id;if(!(k in S.cust))S.cust[k]=!!o.customizable}));
 Object.assign(S.ans,DEFAULTS.answers||{});
 for(const k in S.cust)S.cust[k]=(DEFAULTS.customizable||[]).includes(k);
+// ordine di applicazione: l'ultima scelta fatta vince sulle chiavi condivise tra domande
+S.order=DATA.filter(q=>S.ans[q.id]).map(q=>q.id);
 S.cat=Object.keys(TREE)[0];S.sub=Object.keys(TREE[S.cat])[0];
 
 function renderNav(){
@@ -339,6 +341,7 @@ $('main').addEventListener('click',e=>{
  const o=e.target.closest('.opt');if(!o)return;
  const q=o.dataset.q;
  S.ans[q]=o.dataset.o;
+ S.order=S.order.filter(x=>x!==q).concat(q);
  o.parentElement.querySelectorAll('.opt').forEach(x=>x.classList.toggle('on',x===o));
  updatePreview();updateSummary();
 });
@@ -439,7 +442,7 @@ function updatePreview(){
  const st=$('stage');
  st.dataset.ready=1;updateStrokes();
  const attrs={};
- for(const q of DATA){const a=S.ans[q.id];if(a&&MAP[a])Object.assign(attrs,MAP[a])}
+ for(const qid of S.order){const a=S.ans[qid];if(a&&MAP[a])Object.assign(attrs,MAP[a])}
  for(const k in VOCAB){
   if(typeof VOCAB[k][0]==='number'){if(attrs[k]!==undefined)st.style.setProperty('--'+k,attrs[k]);else st.style.removeProperty('--'+k)}
   else{if(attrs[k]!==undefined)st.dataset[k]=attrs[k];else delete st.dataset[k]}
