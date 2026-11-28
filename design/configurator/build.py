@@ -30,12 +30,37 @@ json.dump(qs, open(os.path.join(HERE, "questions.json"), "w", encoding="utf-8"),
           ensure_ascii=False, indent=1)
 
 mp = os.path.join(HERE, "preview-map.json")
-pmap = json.load(open(mp, encoding="utf-8")) if os.path.exists(mp) else {}
+VOCAB = {
+ "bar": ["top", "bottom", "none"], "title": ["left", "center", "hidden"],
+ "ctl": ["left", "right"], "shape": ["square", "circle"],
+ "shadow": ["none", "soft", "strong"], "theme": ["light", "dark"],
+ "tb": ["neutral", "accent", "translucent", "inactive"],
+ "border": ["hair", "thin", "heavy", "none"], "btn": ["solid", "outline", "pill", "ghost"],
+ "field": ["outline", "filled", "underline"], "switch": ["pill", "square"],
+ "icons": ["filled", "line", "rounded"], "hover": ["lighten", "underline", "none"],
+ "tip": ["on", "off"], "font": ["sans", "mono", "serif", "bold"],
+ "scroll": ["thin", "wide", "hidden"], "dock": ["bottom", "left", "right", "none"],
+ "barh": [2, 3, 4, 5], "tbh": [2, 3, 4], "dockicon": [3, 4.4, 6, 8],
+ "radm": [0, 1, 2, 3, 4], "pad": [1, 2, 3], "fs": [1.5, 2, 2.5],
+}
+pmap = {}
+for f in sorted(glob.glob(os.path.join(HERE, "map", "m*.json"))):
+    pmap.update(json.load(open(f, encoding="utf-8")))
+bad = []
+for oid, m in pmap.items():
+    for k, v in m.items():
+        if k.startswith("_"):
+            continue
+        if k not in VOCAB or v not in VOCAB[k]:
+            bad.append(f"{oid}: {k}={v}")
+if bad:
+    sys.exit("valori non ammessi:\n" + "\n".join(bad))
 pmap = {k: v for k, v in pmap.items() if k in ids}
 
 html = open(os.path.join(HERE, "template.html"), encoding="utf-8").read()
 html = html.replace("/*DATA*/null", json.dumps(qs, ensure_ascii=False))
 html = html.replace("/*MAP*/null", json.dumps(pmap, ensure_ascii=False))
+html = html.replace("/*VOCAB*/null", json.dumps(VOCAB, ensure_ascii=False))
 open(os.path.join(HERE, "configurator.html"), "w", encoding="utf-8").write(html)
 
 opts = sum(len(q["options"]) for q in qs)
