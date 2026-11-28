@@ -1,13 +1,12 @@
 //! Host: senza argomenti misura 600000 frame (bot); con `N` ne misura N; con `--play` gioca a terminale
-//! (titolo, gioco, pausa); con `--shot-title|--shot-play|--shot-pause <file.ppm>` scrive un fotogramma.
-//! Il rendering sta qui (std); il core `pinball` è `no_std`.
+//! (titolo, gioco, pausa, fine); con `--shot-title|--shot-play|--shot-pause|--shot-over <file.ppm> [W H]`
+//! scrive un fotogramma vettoriale (default 1920×1080).
+//! Il rendering sta in `screen.rs` (std); il core `pinball` è `no_std`.
 
 mod screen;
-#[path = "../../hd_shot.rs"]
-mod hd_shot;
 
 use pinball::{Input, Pinball, State, BUMPERS, FP, TABLE_H, TABLE_W};
-use screen::{frame, menu_text, on_menu_key, Next, Screen};
+use screen::{menu_text, on_menu_key, render, Next, Screen};
 use std::io::{self, BufRead};
 use std::time::Instant;
 
@@ -34,21 +33,13 @@ fn bot(g: &Pinball, charge: &mut u32, frame: u32) -> Input {
             r = true
         }
     }
-    Input {
-        left: l && flutter,
-        right: r && flutter,
-        plunger: false,
-    }
+    Input { left: l && flutter, right: r && flutter, plunger: false }
 }
 
-/// Un frame di simulazione con il bot; a fine partita riparte e conta la partita.
-fn step(g: &mut Pinball, charge: &mut u32, frame: u32, games: &mut u32) {
-    let inp = bot(g, charge, frame);
-    g.tick(inp);
-    if g.state == State::Over {
-        *games += 1;
-        g.reset();
-    }
+/// Un frame con il bot. `true` se la partita finisce (lo stato resta `Over`).
+fn step(g: &mut Pinball, charge: &mut u32, frame: u32) -> bool {
+    g.tick(bot(g, charge, frame));
+    g.state == State::Over
 }
 
 fn put(grid: &mut [[u8; COLS]; ROWS], x: i64, y: i64, ch: u8) {
@@ -65,74 +56,68 @@ fn ascii(g: &Pinball) -> String {
     for f in &g.flips {
         let t = f.tip();
         for k in 0..=8 {
-            put(
-                &mut grid,
-                f.pivot.0 + (t.0 - f.pivot.0) * k / 8,
-                f.pivot.1 + (t.1 - f.pivot.1) * k / 8,
-                b'=',
-            );
+            put(&mut grid, f.pivot.0 + (t.0 - f.pivot.0) * k / 8, f.pivot.1 + (t.1 - f.pivot.1) * k / 8, b'=');
         }
     }
     for b in g.balls.iter().filter(|b| b.live) {
         put(&mut grid, b.pos.0, b.pos.1, b'o');
     }
-    grid.iter()
-        .map(|row| std::str::from_utf8(row).unwrap_or(""))
-        .collect::<Vec<_>>()
-        .join("\n")
+    grid.iter().map(|row| std::str::from_utf8(row).unwrap_or("")).collect::<Vec<_>>().join("\n")
 }
 
-/// Gioco a terminale: invio avvia, ogni riga in gioco avanza di un secondo (60 frame), `p` pausa, `q` esce.
+/// Gioco a terminale: invio avanza di un secondo (60 frame) col bot; `p` pausa, `q` esce.
 fn interactive() {
     let mut g = Pinball::new();
     let (mut charge, mut games, mut f) = (0u32, 0u32, 0u32);
     let mut screen = Screen::Title;
-    menu_text(screen);
+    menu_text(screen, &g);
     for line in io::stdin().lock().lines().map_while(Result::ok) {
         let key = line.trim();
         match screen {
-            Screen::Title | Screen::Pause => match on_menu_key(screen, key) {
-                Next::Go(s) => screen = s,
-                Next::Quit => break,
-                Next::Stay => {}
-            },
             Screen::Play => match key {
                 "p" => screen = Screen::Pause,
                 "q" => break,
                 _ => {
                     for _ in 0..60 {
-                        step(&mut g, &mut charge, f, &mut games);
+                        if step(&mut g, &mut charge, f) {
+                            games += 1;
+                            screen = Screen::Over;
+                            break;
+                        }
                         f = f.wrapping_add(1);
                     }
                 }
             },
+            _ => match on_menu_key(screen, key) {
+                Next::Go(s) => {
+                    if s == Screen::Play && screen == Screen::Over {
+                        g.reset();
+                    }
+                    screen = s;
+                }
+                Next::Quit => break,
+                Next::Stay => {}
+            },
         }
         if screen == Screen::Play {
-            println!(
-                "{}\npunti {}  vite {}  record {}  partite {games}",
-                ascii(&g),
-                g.score,
-                g.lives,
-                g.high
-            );
+            println!("{}\npunti {}  vite {}  record {}  partite {games}", ascii(&g), g.score, g.lives, g.high);
         } else {
-            menu_text(screen);
+            menu_text(screen, &g);
         }
     }
 }
 
-fn shot(path: &str, screen: Screen, hd: Option<(usize, usize)>) {
+fn shot(path: &str, screen: Screen, size: (usize, usize)) {
     let mut g = Pinball::new();
-    let (mut charge, mut games) = (0u32, 0u32);
+    let mut charge = 0u32;
     for f in 0..600 {
-        step(&mut g, &mut charge, f, &mut games);
+        if step(&mut g, &mut charge, f) {
+            break;
+        }
     }
-    let im = frame(&g, screen);
+    let im = render(&g, screen, size.0, size.1);
     let mut out = std::fs::File::create(path).expect("impossibile creare il file");
-    match hd {
-        Some((ow, oh)) => hd_shot::write_fit(&mut out, im.w, im.h, &im.px, ow, oh).expect("scrittura fallita"),
-        None => im.write_ppm(&mut out).expect("scrittura fallita"),
-    }
+    im.write_ppm(&mut out).expect("scrittura fallita");
     println!("fotogramma {}x{} scritto in {path}", im.w, im.h);
 }
 
@@ -141,14 +126,14 @@ fn bench(frames: u32) {
     let (mut charge, mut games) = (0u32, 0u32);
     let start = Instant::now();
     for f in 0..frames {
-        step(&mut g, &mut charge, f, &mut games);
+        if step(&mut g, &mut charge, f) {
+            games += 1;
+            g.reset();
+        }
     }
     let ns = start.elapsed().as_nanos() / frames.max(1) as u128;
     println!("{frames} frame, {games} partite finite, record {}", g.high);
-    println!(
-        "costo: {ns} ns/frame = {:.4}% del budget 60 Hz",
-        ns as f64 / 166_666.0 * 100.0
-    );
+    println!("costo: {ns} ns/frame = {:.4}% del budget 60 Hz", ns as f64 / 166_666.0 * 100.0);
     println!("{}", ascii(&g));
 }
 
@@ -158,18 +143,19 @@ fn main() {
         [_] => bench(600_000),
         [_, flag] if flag == "--play" => interactive(),
         [_, flag, path, rest @ ..] if flag.starts_with("--shot-") => {
-            let hd = match rest {
-                [w, h] => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
-                _ => None,
+            let size = match rest {
+                [w, h] => (w.parse().expect("larghezza"), h.parse().expect("altezza")),
+                _ => (1920, 1080),
             };
             match flag.as_str() {
-                "--shot-title" => shot(path, Screen::Title, hd),
-                "--shot-play" => shot(path, Screen::Play, hd),
-                "--shot-pause" => shot(path, Screen::Pause, hd),
-                _ => eprintln!("uso: pinball [N] | --shot-title|--shot-play|--shot-pause <file.ppm> [W H]"),
+                "--shot-title" => shot(path, Screen::Title, size),
+                "--shot-play" => shot(path, Screen::Play, size),
+                "--shot-pause" => shot(path, Screen::Pause, size),
+                "--shot-over" => shot(path, Screen::Over, size),
+                _ => eprintln!("uso: pinball [N] | --play | --shot-title|--shot-play|--shot-pause|--shot-over <file.ppm> [W H]"),
             }
         }
         [_, n] => bench(n.parse().unwrap_or(600_000)),
-        _ => eprintln!("uso: pinball [N] | --shot-title|--shot-play|--shot-pause <file.ppm>"),
+        _ => eprintln!("uso: pinball [N] | --play | --shot-*<file.ppm> [W H]"),
     }
 }

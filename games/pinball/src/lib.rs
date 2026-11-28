@@ -12,10 +12,10 @@ pub const MAX_BALLS: usize = 3;
 /// Centri dei paraurti in px.
 pub const BUMPERS: [V; 4] = [(40, 90), (75, 75), (105, 100), (70, 120)];
 
-const R: i64 = 3 * FP; // raggio pallina
-const BUMPER_R: i64 = 8 * FP;
-const SENSOR_R: i64 = 6 * FP;
-const SENSORS: [V; 3] = [(30, 30), (60, 22), (90, 30)];
+pub const R: i64 = 3 * FP; // raggio pallina
+pub const BUMPER_R: i64 = 8 * FP;
+pub const SENSOR_R: i64 = 6 * FP;
+pub const SENSORS: [V; 3] = [(30, 30), (60, 22), (90, 30)];
 const SENSOR_ALL: u8 = 0b111;
 const SUB: i64 = 8; // sottopassi per tick: niente tunneling
 const GRAVITY: i64 = 13; // ~0.05 px/tick²
@@ -28,7 +28,7 @@ const FLIP_LEN: i64 = 28 * FP;
 const FLIP_SPEED: i64 = 20; // gradi per tick
 const LANE: V = (149 * FP, 215 * FP);
 const MULTI_AT: u32 = 5000;
-const WALLS: [[i64; 4]; 7] = [
+pub const WALLS: [[i64; 4]; 7] = [
     [1, 1, 159, 1],       // soffitto
     [1, 1, 1, 200],       // sinistra
     [159, 1, 159, 232],   // destra
@@ -37,7 +37,7 @@ const WALLS: [[i64; 4]; 7] = [
     [138, 44, 138, 240],  // divisorio corsia
     [138, 14, 156, 40],   // guida corsia -> sinistra
 ];
-const KICKERS: [[i64; 4]; 2] = [[30, 170, 48, 200], [112, 170, 128, 198]];
+pub const KICKERS: [[i64; 4]; 2] = [[30, 170, 48, 200], [112, 170, 128, 198]];
 /// Seno in gradi 0..=90, scala FP.
 const SIN: [i64; 91] = [
     0, 4, 9, 13, 18, 22, 27, 31, 36, 40, 44, 49, 53, 58, 62, 66, 71, 75, 79, 83, 88, 92, 96, 100,
