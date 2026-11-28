@@ -102,6 +102,8 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
 .stage[data-shadow=off] .win{box-shadow:none}
 .stage[data-shadow=on] .win{box-shadow:0 calc(var(--u)*1) calc(var(--u)*3) rgba(0,0,0,.35)}
 .legend{font-size:12px;color:var(--mut)}
+#chips{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-wrap:wrap;gap:4px;pointer-events:none}
+#chips span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:11px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .sumbox{font-size:12px;border-top:1px solid var(--line);padding-top:8px}
 .sumbox div{display:flex;justify-content:space-between;padding:1px 0}
 .btnpri{background:var(--T0);color:var(--T1);padding:6px 12px;border-radius:7px;font-size:12px}
@@ -125,7 +127,7 @@ aside{padding:12px;overflow:hidden;display:flex;flex-direction:column;gap:10px;m
    <div class="seg" id="fit"></div>
   </div>
   <div class="legend" id="meta"></div>
-  <div class="frame" id="frame"><div class="dev" id="dev-box"><div class="stage" id="stage"></div></div></div>
+  <div class="frame" id="frame"><div class="dev" id="dev-box"><div class="stage" id="stage"></div></div><div id="chips"></div></div>
   <div class="sumbox" id="sumbox" style="display:none"></div>
  </aside>
  <div class="sp" data-s="2"></div>
@@ -243,6 +245,8 @@ function updatePreview(){
  const attrs={};
  for(const q of DATA){const a=S.ans[q.id];if(a&&MAP[a])attrs[MAP[a][0]]=MAP[a][1]}
  ['bar','dock','title','ctl','shape','theme','rad','shadow'].forEach(k=>{if(attrs[k]!==undefined)st.dataset[k]=attrs[k];else delete st.dataset[k]});
+ // ogni opzione scelta compare subito come etichetta nell'anteprima
+ $('chips').innerHTML=DATA.filter(q=>S.ans[q.id]).map(q=>{const o=q.options.find(x=>x.id===S.ans[q.id]);return `<span>${o.label}</span>`}).join('');
  $('meta').textContent=`${DEV[S.dev].l} · ${DEV[S.dev].w}×${DEV[S.dev].h} · ${ORI[S.ori]} · u=${uPx()}px (${S.pct}%)`;
  scaleDev();
 }
