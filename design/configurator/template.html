@@ -40,8 +40,8 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .seg button{padding:5px 10px;font-size:12px}
 .seg button.on{background:var(--T0);color:var(--T1)}
-.frame{flex:1;min-height:260px;display:flex;align-items:center;justify-content:center;background:#e6dccd;border-radius:10px;overflow:hidden;position:relative}
-.dev{position:absolute;left:50%;top:50%;transform-origin:center}
+.frame{flex:1;min-height:260px;display:flex;align-items:center;justify-content:center;background:#e6dccd;border-radius:10px;overflow:auto;position:relative}
+.dev{position:absolute;left:50%;top:50%}
 /* stage: all sizes are multiples of --u (unit u = max(1, round(S*pct/12800))) */
 .stage{position:relative;overflow:hidden;background:var(--T0);color:var(--T0);font-size:calc(var(--u)*2);--rad:calc(var(--u)*2)}
 .stage .bar{position:absolute;background:var(--T3);display:flex;align-items:center;gap:calc(var(--u)*3);padding:0 calc(var(--u)*2);height:calc(var(--u)*3);left:0;right:0;top:0;font-weight:600}
@@ -50,7 +50,7 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
 .stage .ic{position:absolute;width:calc(var(--u)*7);height:calc(var(--u)*7);border-radius:var(--rad);background:var(--T2);display:flex;align-items:flex-end;justify-content:center;font-size:calc(var(--u)*1.6);color:var(--T1);padding-bottom:calc(var(--u)*.5);cursor:pointer;user-select:none}
 .stage .ic:hover{filter:brightness(1.08)}
 .stage .ic:active{transform:scale(.96)}
-.stage .win{position:absolute;left:12%;top:18%;width:58%;height:56%;background:var(--T1);border-radius:var(--rad);overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.stage .win{position:absolute;left:12%;top:18%;width:58%;height:56%;background:var(--T1);border-radius:var(--rad);overflow:hidden;box-shadow:0 0 0 var(--hair,1px) rgba(0,0,0,.15)}
 .stage .win.hide{display:none}
 .stage .tb{height:calc(var(--u)*3);background:var(--T3);display:flex;align-items:center;gap:calc(var(--u)*1.2);padding:0 calc(var(--u)*2);font-weight:600;position:relative}
 .stage .tb .t{position:absolute;left:0;right:0;text-align:center;pointer-events:none}
@@ -62,7 +62,7 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
 .stage .btn{height:calc(var(--u)*3);padding:0 calc(var(--u)*2);border-radius:var(--rad);background:var(--T2);color:var(--T1);display:flex;align-items:center;justify-content:center;cursor:pointer;width:max-content;user-select:none}
 .stage .btn:hover{filter:brightness(1.08)}
 .stage .btn:active{transform:scale(.97)}
-.stage .field{height:calc(var(--u)*3);border:1px solid var(--T0);border-radius:var(--rad);background:#fff;padding:0 calc(var(--u)*1.5);display:flex;align-items:center;color:var(--mut,#666)}
+.stage .field{height:calc(var(--u)*3);border:var(--sw,1px) solid var(--T0);border-radius:var(--rad);background:#fff;padding:0 calc(var(--u)*1.5);display:flex;align-items:center;color:var(--mut,#666)}
 .stage .row{display:flex;align-items:center;gap:calc(var(--u)*2)}
 .stage .sw{width:calc(var(--u)*5);height:calc(var(--u)*2.6);border-radius:999px;background:var(--T0);position:relative;cursor:pointer;transition:background .2s}
 .stage .sw::after{content:"";position:absolute;top:calc(var(--u)*.3);left:calc(var(--u)*.3);width:calc(var(--u)*2);height:calc(var(--u)*2);border-radius:50%;background:var(--T1);transition:left .2s}
@@ -70,7 +70,7 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
 .stage .sw.on::after{left:calc(var(--u)*2.7)}
 .stage .sl{flex:1;height:calc(var(--u)*.8);background:rgba(16,33,57,.2);border-radius:999px;position:relative;cursor:pointer}
 .stage .sl i{position:absolute;left:0;top:0;bottom:0;width:60%;background:var(--T2);border-radius:999px}
-.stage .dock{position:absolute;display:flex;gap:calc(var(--u)*1.2);padding:calc(var(--u)*1.2);background:rgba(247,239,231,.85);border-radius:calc(var(--rad)*1.5);box-shadow:0 0 0 1px rgba(16,33,57,.15)}
+.stage .dock{position:absolute;display:flex;gap:calc(var(--u)*1.2);padding:calc(var(--u)*1.2);background:rgba(247,239,231,.85);border-radius:calc(var(--rad)*1.5);box-shadow:0 0 0 var(--hair,1px) rgba(16,33,57,.15)}
 .stage .dock span{width:calc(var(--u)*4.4);height:calc(var(--u)*4.4);border-radius:var(--rad);background:var(--T0);opacity:.8;cursor:pointer;transition:transform .15s}
 .stage .dock span:hover{transform:translateY(calc(var(--u)*-1))}
 .stage .dock span.act{opacity:1;background:var(--T2)}
@@ -119,6 +119,7 @@ aside{border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;
    <div class="seg" id="dev"></div>
    <div class="seg" id="ori"></div>
    <div class="seg" id="pct"></div>
+   <div class="seg" id="fit"></div>
   </div>
   <div class="legend" id="meta"></div>
   <div class="frame" id="frame"><div class="dev" id="dev-box"><div class="stage" id="stage"></div></div></div>
@@ -131,7 +132,7 @@ const MAP=/*MAP*/null;
 const DEV={"5":{w:800,h:480,l:'5"'},"7":{w:1024,h:600,l:'7"'},"14":{w:1920,h:1080,l:'14"'}};
 const ORI={l:'Orizzontale',p:'Verticale'};
 const PCTS=[100,125,150];
-const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,ans:{},cust:{}};
+const S={cat:null,sub:null,dev:'7',ori:'l',pct:100,fit:false,ans:{},cust:{}};
 const $=id=>document.getElementById(id);
 
 // ---- build tree
@@ -188,14 +189,23 @@ $('main').addEventListener('click',e=>{
 
 // ---- preview
 // u = max(1, round(S*pct/12800)), S = lato minore in px, pct = 100/125/150
-function uPx(){const s=Math.min(DEV[S.dev].w,DEV[S.dev].h);return Math.max(1,Math.round(s*S.pct/12800))}
+// geometria: u float (nessun arrotondamento); tratti: formula separata, in px interi, mai scalati
+function dims(){return S.ori==='l'?DEV[S.dev]:{w:DEV[S.dev].h,h:DEV[S.dev].w}}
+// 1:1 = dimensioni reali del dispositivo (u vera); adatta = la superficie viene ridotta e u si ricalcola dalla formula
+function fitK(){if(!S.fit)return 1;const f=$('frame').getBoundingClientRect(),d=dims();return Math.min(1,(f.width-24)/d.w,(f.height-24)/d.h)}
+function uPx(){const d=dims(),k=fitK();return Math.min(d.w,d.h)*k*S.pct/12800}
 function scaleDev(){
- const f=$('frame').getBoundingClientRect();const d=S.ori==='l'?DEV[S.dev]:{w:DEV[S.dev].h,h:DEV[S.dev].w};
- const k=Math.min((f.width-24)/d.w,(f.height-24)/d.h);
- const box=$('dev-box');box.style.width=d.w+'px';box.style.height=d.h+'px';
- box.style.transform=`translate(-50%,-50%) scale(${k})`;
- const st=$('stage');st.style.width=d.w+'px';st.style.height=d.h+'px';
+ const d=dims(),k=fitK(),w=Math.round(d.w*k),h=Math.round(d.h*k);
+ const box=$('dev-box');box.style.width=w+'px';box.style.height=h+'px';
+ box.style.transform='translate(-50%,-50%)';
+ const st=$('stage');st.style.width=w+'px';st.style.height=h+'px';
+ if(st.dataset.ready)updateStrokes();
 }
+// tratti: sottile = max(1, round(u/4)), spesso = max(2, round(u/2)); il filo di 1px non cambia mai
+function updateStrokes(){const u=uPx(),st=$('stage').style;
+ st.setProperty('--u',u+'px');
+ st.setProperty('--sw',Math.max(1,Math.round(u/4))+'px');
+ st.setProperty('--sw2',Math.max(2,Math.round(u/2))+'px');}
 function buildStage(){
  $('stage').innerHTML=`<div class="bar"><i></i><b>Fine</b><b>Modifica</b><b>Vista</b><span class="clock">12:00</span></div>
  <div class="win" id="win"><div class="tb"><div class="bt"><b data-x="close"></b><b data-x="min"></b><b data-x="max"></b></div><div class="t">Documenti</div></div>
@@ -224,7 +234,7 @@ function calcU(){return uPx()}
 // MAP: option id -> [attribute, value]. Options not listed here are not visual.
 function updatePreview(){
  const st=$('stage');
- st.style.setProperty('--u',uPx()+'px');
+ st.dataset.ready=1;updateStrokes();
  const attrs={};
  for(const q of DATA){const a=S.ans[q.id];if(a&&MAP[a])attrs[MAP[a][0]]=MAP[a][1]}
  ['bar','dock','title','ctl','shape','theme','rad','shadow'].forEach(k=>{if(attrs[k]!==undefined)st.dataset[k]=attrs[k];else delete st.dataset[k]});
@@ -235,10 +245,11 @@ function segs(){
  $('dev').innerHTML=Object.keys(DEV).map(k=>`<button data-k="dev" data-v="${k}" class="${k===S.dev?'on':''}">${DEV[k].l}</button>`).join('');
  $('ori').innerHTML=Object.keys(ORI).map(k=>`<button data-k="ori" data-v="${k}" class="${k===S.ori?'on':''}">${ORI[k]==='Orizzontale'?'Orizz.':'Vert.'}</button>`).join('');
  $('pct').innerHTML=PCTS.map(k=>`<button data-k="pct" data-v="${k}" class="${k===S.pct?'on':''}">${k}%</button>`).join('');
+ $('fit').innerHTML=`<button data-k="fit" data-v="1" class="${S.fit?'on':''}">Adatta</button><button data-k="fit" data-v="0" class="${S.fit?'':'on'}">1:1</button>`;
 }
 document.querySelector('.ctl').addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
- S[b.dataset.k]=b.dataset.k==='pct'?+b.dataset.v:b.dataset.v;segs();updatePreview();
+ S[b.dataset.k]=b.dataset.k==='pct'?+b.dataset.v:b.dataset.k==='fit'?b.dataset.v==='1':b.dataset.v;segs();updatePreview();
 });
 function updateSummary(){
  let n=0,c=0,tot=0;
