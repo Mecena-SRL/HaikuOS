@@ -9,11 +9,12 @@ pub struct Buf {
     pub h: i32,
     pub px: Vec<Tok>,
     pub texts: Vec<String>,
+    pub alpha: Vec<u8>,
 }
 
 impl Buf {
     pub fn new(w: i32, h: i32) -> Buf {
-        Buf { w, h, px: vec![Tok::T0; (w * h) as usize], texts: Vec::new() }
+        Buf { w, h, px: vec![Tok::T0; (w * h) as usize], texts: Vec::new(), alpha: vec![0; (w * h) as usize] }
     }
     pub fn at(&self, x: i32, y: i32) -> Tok {
         self.px[(y * self.w + x) as usize]
@@ -26,6 +27,13 @@ impl Canvas for Buf {
             for x in r.x.max(0)..(r.x + r.w).min(self.w) {
                 self.px[(y * self.w + x) as usize] = t;
             }
+        }
+    }
+    fn blend(&mut self, x: i32, y: i32, a: u8, t: Tok) {
+        if x >= 0 && y >= 0 && x < self.w && y < self.h {
+            let i = (y * self.w + x) as usize;
+            self.alpha[i] = self.alpha[i].max(a);
+            self.px[i] = t;
         }
     }
     fn text(&mut self, _x: i32, _y: i32, s: &str, _t: Tok) {

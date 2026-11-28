@@ -3,5 +3,19 @@
 version = 4
 
 [[package]]
+name = "haiku-gui"
+version = "0.1.0"
+dependencies = [
+ "sysapps",
+]
+
+[[package]]
 name = "platformer"
+version = "0.1.0"
+dependencies = [
+ "haiku-gui",
+]
+
+[[package]]
+name = "sysapps"
 version = "0.1.0"

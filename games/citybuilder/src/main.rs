@@ -1,6 +1,7 @@
 //! Città-impero da terminale. Comandi: `t` fine turno, `b <edificio> <x> <y>`,
 //! `r` ricerca irrigazione, `q` esci. Edifici: casa, fattoria, legno, cava, mercato, biblioteca.
 
+use citybuilder::menu::{on_menu_key, Next, Screen};
 use citybuilder::{Building, Game, Status, Terrain, WIN_POP};
 use std::io::{self, BufRead};
 
@@ -9,22 +10,50 @@ mod hd_shot;
 
 fn main() {
     let mut g = Game::new(24, 12, 0x4841494B55);
-    // `--shot <file.ppm>`: partita scriptata e un fotogramma grafico, senza terminale.
+    // `--shot <file.ppm>` (partita), `--shot-title` e `--shot-pause`: fotogrammi grafici, senza terminale.
     let args: Vec<String> = std::env::args().collect();
     if let [_, flag, path, rest @ ..] = args.as_slice() {
-        if flag == "--shot" {
+        let screen = match flag.as_str() {
+            "--shot" => Some(Screen::Play),
+            "--shot-title" => Some(Screen::Title),
+            "--shot-pause" => Some(Screen::Pause),
+            _ => None,
+        };
+        if let Some(screen) = screen {
+            // Facoltativo `W H`: screenshot ingrandito a quella risoluzione.
             let hd = match rest {
                 [w, h] => Some((w.parse().expect("larghezza"), h.parse().expect("altezza"))),
                 _ => None,
             };
-            shot(&mut g, path, hd);
+            shot(&mut g, path, screen, hd);
             return;
         }
     }
-    draw(&g);
+    let mut screen = Screen::Title;
+    menu_text(screen);
     for line in io::stdin().lock().lines().map_while(Result::ok) {
+        let key = line.trim();
+        if screen != Screen::Play {
+            match on_menu_key(screen, key) {
+                Next::Go(s) => screen = s,
+                Next::Quit => break,
+                Next::Stay => {}
+            }
+            if screen == Screen::Play {
+                draw(&g);
+            } else {
+                menu_text(screen);
+            }
+            continue;
+        }
         let parts: Vec<&str> = line.split_whitespace().collect();
         match parts.as_slice() {
+            ["p"] => {
+                screen = Screen::Pause;
+                draw(&g);
+                menu_text(screen);
+                continue;
+            }
             ["t"] => g.end_turn(),
             ["r"] => {
                 if !g.player.research_irrigation() {
@@ -98,6 +127,15 @@ fn glyph(g: &Game, i: usize) -> char {
     }
 }
 
+/// Testo dei menu di avvio e pausa (il terminale non ha grafica).
+fn menu_text(s: Screen) {
+    match s {
+        Screen::Title => println!("CITTÀ-IMPERO\nINVIO per iniziare, q per uscire"),
+        Screen::Pause => println!("PAUSA: r riprendi, q esci"),
+        Screen::Play => {}
+    }
+}
+
 fn draw(g: &Game) {
     for y in 0..g.map.h {
         let row: String = (0..g.map.w).map(|x| glyph(g, g.map.idx(x, y))).collect();
@@ -112,7 +150,7 @@ fn draw(g: &Game) {
 }
 
 /// Gioca alcuni turni con poche costruzioni valide e scrive un PPM.
-fn shot(g: &mut Game, path: &str, hd: Option<(usize, usize)>) {
+fn shot(g: &mut Game, path: &str, screen: Screen, hd: Option<(usize, usize)>) {
     for _ in 0..6 {
         g.end_turn();
     }
@@ -135,7 +173,8 @@ fn shot(g: &mut Game, path: &str, hd: Option<(usize, usize)>) {
         }
         g.end_turn();
     }
-    let frame = citybuilder::view::render(g);
+    let mut frame = citybuilder::view::render(g);
+    citybuilder::view::overlay(&mut frame, screen);
     let mut out = std::fs::File::create(path).expect("impossibile creare il file");
     match hd {
         Some((ow, oh)) => hd_shot::write_fit(&mut out, frame.w, frame.h, &frame.px, ow, oh).expect("scrittura fallita"),

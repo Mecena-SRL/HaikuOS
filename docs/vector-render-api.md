@@ -57,4 +57,49 @@ fn draw_score<C: Canvas>(c: &mut C, r: Rect, score: u32, t: Tok) {
 cd gui && cargo run --release --features wide-font --example desktop_vector -- 3840 2160 out.ppm
 ```
 
-Output committati: `design/screens/desktop_vector_*.png`. Limiti: il testo è il font 5×8 scalato a blocchi, e lo sfondo usa ancora le colline (`hills`), non il wallpaper bitmap di `design/wallpapers/`.
+Output committati: `design/screens/desktop_vector_*.png`. Limiti: i contorni del testo sono ancora il 5×8 vettorizzato, e lo sfondo usa ancora le colline (`hills`), non il wallpaper bitmap di `design/wallpapers/`.
+
+## 7. Font vettoriale con antialiasing
+
+Modulo `gui/src/vfont.rs` (no_std, senza allocazione, senza dipendenze). Metodo del trait: `c.vtext(x, y, size, s, t) -> i32` (ritorna la larghezza in px); `size` = px per em, 1..=64.
+
+Formato dei glifi (byte, coordinate `0..=64` per em, y verso il basso):
+
+| Op | Argomenti | Significato |
+|---|---|---|
+| `0` | `x y` | move: apre un contorno |
+| `1` | `x y` | linea |
+| `2` | `cx cy x y` | curva quadratica (4 segmenti) |
+| `3` | — | chiude il contorno |
+| `4` | `x0 y0 x1 y1` | rettangolo (scorciatoia per 4 linee) |
+
+Riempimento non zero. Copertura: 4 sotto-scanline per riga, area orizzontale esatta, valore 0..255.
+
+Dati: `gui/src/vfont_data.rs` è generato da `gui/tools/gen_vfont.py` dai glifi 5×8 di `x86/kernel/src/font.rs` (ASCII 0x20..0x7E). Passo fisso: 48 unità. Ogni altro byte disegna uno spazio.
+
+Antialiasing sul canvas: `Canvas::blend(x, y, a, t)`. Di base è a soglia (pixel pieno se `a ≥ 128`), quindi GBA e test funzionano. Il backend a 32 bit deve ridefinirlo per mescolare col fondo.
+
+Limiti: al massimo 128 lati per glifo (quelli in eccesso sono scartati), `size ≤ 64`, stack di circa 3 KB per glifo.
+
+Test: `gui/tests/vfont.rs`. Demo: `cargo run --release --example vtext_demo -- 3840 2160 out.ppm`, immagini in `design/screens/vtext_*.png`.
+
+## 8. Animazioni (`gui/src/anim.rs`)
+
+Tutto a interi (ms, permille, µs), no_std, senza allocazione nel frame.
+
+| Tipo | Fa |
+|---|---|
+| `Ease`, `ease(e, t)` | easing su permille: Linear, InQuad, OutQuad, InOutQuad, OutCubic |
+| `Tween` | interpolazione `from`→`to` fra `start` e `start+dur` (ms) |
+| `Reactive` | valore con `set(target, now, dur, ease)`: riparte dal valore visualizzato, nessun salto |
+| `Slide` | transizione orizzontale tra due schermate: `offsets(now)` dà gli spostamenti |
+| `Shifted<C>` | vista di un `Canvas` spostata di `(dx, dy)`: si disegna una schermata come sempre |
+| `Budget` | registra µs per frame, conta gli sforamenti di `FRAME_US` (16 667 µs = 60 Hz) |
+
+Scrivania animata (`render::draw_motion` con `Motion { win_dy, sel }`; `draw` resta fermo per GBA):
+
+```sh
+cd gui && cargo run --release --features wide-font --example desktop_vector -- 1920 1080 out.ppm 120 open
+```
+
+Modi: `open=MS` / `close=MS` (calcolatrice che sale/scende, `Reactive` 250/200 ms), `launch=MS` (selettore che scorre da FILE a CALC, 200 ms). Output: `design/screens/anim_{open,close,launch}_1920x1080.png`, `anim_open_3840x2160.png`. Budget misurato su host (release, x86) dopo il merge con `main`: 1920×1080 media 6,3 ms, massimo 10,8 ms; 3840×2160 media 19 ms, massimo 37 ms (27 frame su 30 sopra 16,7 ms). Da ottimizzare: le app vettoriali di `main` disegnano più testo per frame. Il testo passa da `vtext`, con copertura reale (`Vector::mix`); i contorni sono ancora quelli 5×8 del font di sistema.
