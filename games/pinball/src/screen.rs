@@ -3,7 +3,7 @@
 //! nessun bitmap, nitido a qualsiasi risoluzione (1920×1080, 800×480, ...).
 //! Coordinate del tavolo: unità = px logici del core.
 
-use pinball::{Pinball, BUMPERS, BUMPER_R, FP, KICKERS, SENSORS, TABLE_H, TABLE_W, WALLS};
+use pinball::{Pinball, State, BUMPERS, BUMPER_R, FP, KICKERS, SENSORS, TABLE_H, TABLE_W, WALLS};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Screen {
@@ -286,6 +286,16 @@ fn table(g: &Pinball, out: &mut Vec<Prim>) {
 /// HUD in gioco: punteggio e vite in alto nel tavolo.
 fn hud(g: &Pinball, out: &mut Vec<Prim>) {
     digits(out, g.score, 6.0, 5.0, 10.0, HUD);
+    // moltiplicatore: quattro pallini, accesi fino al livello attuale
+    for i in 0..4u32 {
+        let on = i + 1 < g.mult;
+        out.push(p(Shape::Circ((6.0 + i as f32 * 6.0, 20.0), 2.0), if on { LIT } else { UNLIT }));
+    }
+    // carica della leva nella corsia, solo in attesa di lancio
+    if g.state == State::Ready {
+        let h = g.charge as f32 * 1.8;
+        out.push(p(Shape::Rect((149.0, 232.0 - h / 2.0), (1.2, h / 2.0), 1.0), mix(LIT, HUD, g.charge as f32 / 100.0)));
+    }
     for i in 0..3u8 {
         let on = i < g.lives;
         out.push(p(Shape::Circ((150.0 - i as f32 * 8.0, 10.0), 2.5), if on { BALL } else { UNLIT }));

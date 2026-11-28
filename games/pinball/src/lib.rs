@@ -141,6 +141,10 @@ impl Pinball {
         self.state = State::Ready;
         self.balls = [Ball::default(); MAX_BALLS];
         self.balls[0] = Ball { pos: LANE, vel: (0, 0), live: true };
+        for f in self.flips.iter_mut() {
+            f.ang = f.rest;
+            f.dps = 0;
+        }
     }
 
     pub fn tick(&mut self, i: Input) {
@@ -208,9 +212,12 @@ impl Pinball {
                 }
                 for k in KICKERS {
                     let (a, c) = px(k);
+                    let before = b.vel;
                     if let Some(n) = hit_seg(&mut b, a, c, None, E_KICK) {
-                        b.vel = (b.vel.0 + n.0 * KICK / FP, b.vel.1 + n.1 * KICK / FP);
-                        pts += 10;
+                        if -dot(before, n) > 2 * FP {
+                            b.vel = (b.vel.0 + n.0 * KICK / FP, b.vel.1 + n.1 * KICK / FP);
+                            pts += 10;
+                        }
                     }
                 }
                 // ogni impulso può superare VMAX dentro il sottopasso: limita subito
@@ -274,10 +281,10 @@ impl Pinball {
     /// Due palline extra nei posti liberi, una volta per partita.
     fn multiball(&mut self) {
         self.multi_done = true;
-        let mut spawn = [(-3 * FP, -6 * FP), (3 * FP, -6 * FP)].into_iter();
+        let mut spawn = [((66 * FP, 150 * FP), (-3 * FP, -6 * FP)), ((74 * FP, 150 * FP), (3 * FP, -6 * FP))].into_iter();
         for b in self.balls.iter_mut().filter(|b| !b.live) {
             match spawn.next() {
-                Some(v) => *b = Ball { pos: (70 * FP, 150 * FP), vel: v, live: true },
+                Some((pos, vel)) => *b = Ball { pos, vel, live: true },
                 None => break,
             }
         }
