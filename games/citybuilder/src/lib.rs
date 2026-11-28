@@ -157,6 +157,7 @@ pub enum BuildError {
     WrongTerrain,
     NoResources,
     NothingToDemolish,
+    Housing,
 }
 
 impl std::fmt::Display for BuildError {
@@ -169,6 +170,7 @@ impl std::fmt::Display for BuildError {
             BuildError::WrongTerrain => write!(f, "terreno sbagliato per questo edificio"),
             BuildError::NoResources => write!(f, "risorse insufficienti"),
             BuildError::NothingToDemolish => write!(f, "niente da demolire"),
+            BuildError::Housing => write!(f, "qui vivono cittadini: non si demolisce"),
         }
     }
 }
@@ -269,9 +271,12 @@ impl Empire {
             return Err(BuildError::TurnLimit);
         }
         let b = self.grid[i].ok_or(BuildError::NothingToDemolish)?;
+        let left = self.capacity() - b.housing();
+        if self.citizens > left {
+            return Err(BuildError::Housing);
+        }
         self.grid[i] = None;
         self.stock.wood += b.cost().wood / 2;
-        self.citizens = self.citizens.min(self.capacity());
         self.built_this_turn = true;
         Ok(())
     }
@@ -324,7 +329,14 @@ impl Empire {
             self.famine = false;
             if self.citizens < self.capacity() && self.stock.food >= 2 {
                 // +1 a turno, +1 ogni tre fattorie, massimo +3; mai oltre la capienza.
-                let growth = (1 + self.count(Building::Farm) as u32 / 3).min(3);
+                // Solo fattorie completate: i cantieri non producono crescita.
+                let farms = self
+                    .grid
+                    .iter()
+                    .flatten()
+                    .filter(|&&b| b == Building::Farm)
+                    .count();
+                let growth = (1 + farms as u32 / 3).min(3);
                 self.citizens = (self.citizens + growth).min(self.capacity());
             }
         }
@@ -565,9 +577,8 @@ impl Game {
 /// IA semplice e deterministica: al massimo una costruzione per turno, nell'ordine di bisogno,
 /// sempre nella casella libera più vicina alla propria capitale (regole uguali al giocatore).
 fn ai_turn(e: &mut Empire, map: &Map, style: Style) {
-    if e.research_irrigation() {
-        return;
-    }
+    // La ricerca non consuma il turno di costruzione (come per il giocatore).
+    e.research_irrigation();
     let mut plan = [
         (Building::House, e.capacity() <= e.citizens),
         (
@@ -665,13 +676,19 @@ mod tests {
         let map = grass(4, 4);
         let mut e = Empire::new(&map, Stock::new(0, 0, 0, 0));
         e.grid[0] = Some(Building::House);
+        e.grid[1] = Some(Building::House);
         e.citizens = 5;
-        assert_eq!(e.demolish(1), Err(BuildError::NothingToDemolish));
+        assert_eq!(e.demolish(2), Err(BuildError::NothingToDemolish));
         assert_eq!(e.demolish(0), Ok(()));
         assert_eq!(e.building_at(0), None);
         assert_eq!(e.stock.wood, 5);
-        assert_eq!(e.citizens, 0, "senza case la capienza scende a zero");
         assert_eq!(e.demolish(1), Err(BuildError::TurnLimit));
+        e.tick();
+        assert_eq!(
+            e.demolish(1),
+            Err(BuildError::Housing),
+            "l'ultima casa non si demolisce con cittadini dentro"
+        );
     }
 
     #[test]
