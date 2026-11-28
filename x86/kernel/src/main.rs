@@ -95,6 +95,9 @@ pub extern "C" fn kmain() -> ! {
     console::puts("[ok] RAM utilizzabile: ");
     console::put_dec((mem::usable() >> 20) as u32);
     console::puts(" MB\n");
+    console::puts("[ok] pagine fisiche libere: ");
+    console::put_dec(mem::init_phys() as u32);
+    console::puts("\n");
     let n = pci::report();
     console::puts("[ok] PCI: ");
     console::put_dec(n);

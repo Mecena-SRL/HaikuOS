@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 haiku-gui = { path = "../../gui", features = ["wide-font"] }
 haiku-office = { path = "../../office" }
+haiku-memcore = { path = "../../memcore" }
 
 [profile.dev]
 panic = "abort"
