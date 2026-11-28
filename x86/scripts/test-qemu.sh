@@ -8,7 +8,7 @@ rm -f build/serial.log build/screen.ppm build/qmp.sock
 
 timeout 20 qemu-system-x86_64 \
   -drive file=build/haikuos.img,format=raw,if=ide,index=0,media=disk -device ahci,id=ahci0 -drive file=build/sata.img,format=raw,if=none,id=sata0 -device ide-hd,drive=sata0,bus=ahci0.0 \
-  -m 128M -display none -vga std -no-reboot \
+  -m 128M -display none -device VGA,vgamem_mb=64 -no-reboot \
   -serial file:build/serial.log \
   -qmp unix:build/qmp.sock,server,nowait &
 QEMU_PID=$!
