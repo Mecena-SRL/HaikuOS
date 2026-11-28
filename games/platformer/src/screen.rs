@@ -37,7 +37,7 @@ pub fn overlay(c: &mut Fb, s: Screen) {
     }
     c.darken();
     let (title, rows): (&str, &[&str]) = match s {
-        Screen::Title => ("PLATFORMER", &["INIZIA", "ESCI"]),
+        Screen::Title => ("OTTONE", &["INIZIA", "ESCI"]),
         _ => ("PAUSA", &["RIPRENDI", "ESCI"]),
     };
     let r = Rect::new(VIEW_W / 8, VIEW_H / 4, VIEW_W * 3 / 4, 26 + MENU_ROW * rows.len() as i32 + 4);
@@ -55,7 +55,7 @@ pub fn overlay(c: &mut Fb, s: Screen) {
 /// Testo dei menu per il terminale.
 pub fn menu_text(s: Screen) {
     match s {
-        Screen::Title => println!("PLATFORMER\nINVIO per iniziare, q per uscire"),
+        Screen::Title => println!("OTTONE\nINVIO per iniziare, q per uscire"),
         Screen::Pause => println!("PAUSA: r riprendi, q esci"),
         Screen::Play => {}
     }

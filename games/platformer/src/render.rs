@@ -14,19 +14,19 @@ const MAXW: usize = 1920;
 const COS: [i32; 16] = [256, 236, 181, 98, 0, -98, -181, -236, -256, -236, -181, -98, 0, 98, 181, 236];
 const SIN: [i32; 16] = [0, 98, 181, 236, 256, 236, 181, 98, 0, -98, -181, -236, -256, -236, -181, -98];
 
-const SKY_TOP: u32 = 0xFF3C7FD0;
-const SKY_BOT: u32 = 0xFFD8F4FF;
+const SKY_TOP: u32 = 0xFF2E4A5C;
+const SKY_BOT: u32 = 0xFFF2C47E;
 const SUN: u32 = 0xFFFFE070;
 const SUN_HALO: u32 = 0xFFFFF4B8;
-const MOUNT_FAR: u32 = 0xFF7FA6C9;
+const MOUNT_FAR: u32 = 0xFF6F7F8C;
 const CLOUD_FAR: u32 = 0xFFB8D4EA;
 const BUSH: u32 = 0xFF2F7A2C;
 const DUST: u32 = 0xFFE8E0D0;
-const HILL: u32 = 0xFF4E9F3D;
-const HILL_FAR: u32 = 0xFF3F8A32;
+const HILL: u32 = 0xFF4F6B3A;
+const HILL_FAR: u32 = 0xFF3E5450;
 const CLOUD: u32 = 0xFFF8FCFF;
-const GRASS: u32 = 0xFF5BC142;
-const DIRT: u32 = 0xFF8B5A2B;
+const GRASS: u32 = 0xFF7FA34A;
+const DIRT: u32 = 0xFF6B4A2E;
 const SEAM: u32 = 0xFF6E4420;
 const BRICK: u32 = 0xFFB5523B;
 const MORTAR: u32 = 0xFF7A3322;
@@ -34,20 +34,21 @@ const QUEST: u32 = 0xFFF2B233;
 const QUEST_IN: u32 = 0xFFFFD76A;
 const INK: u32 = 0xFF2A1A0A;
 const USED: u32 = 0xFF6E5A4A;
-const COIN: u32 = 0xFFFFD700;
-const COIN_IN: u32 = 0xFFFFF07A;
+const COIN: u32 = 0xFFC9A227;
+const COIN_IN: u32 = 0xFFF0D27A;
+const LANTERN: u32 = 0xFFFFE08A;
 const FLAG: u32 = 0xFF2E8B57;
 const POLE: u32 = 0xFFEEEEEE;
-const FUNGO_CAP: u32 = 0xFF9C5A2E;
-const FUNGO_BODY: u32 = 0xFFF3D9A4;
+const FUNGO_CAP: u32 = 0xFF5B7A2A;
+const FUNGO_BODY: u32 = 0xFFD9B77A;
 const MUSH_CAP: u32 = 0xFFE03C31;
 const MUSH_STEM: u32 = 0xFFF5E6C8;
 const STAR_C: u32 = 0xFFFFE94D;
 const WHITE: u32 = 0xFFFFFFFF;
 const BLACK: u32 = 0xFF111111;
-const CAP: u32 = 0xFFD83A2A;
-const SHIRT: u32 = 0xFFD83A2A;
-const OVERALL: u32 = 0xFF2A5FD8;
+const CAP: u32 = 0xFF2F8F86;
+const SHIRT: u32 = 0xFF2F8F86;
+const OVERALL: u32 = 0xFF3B4A5A;
 const SKIN: u32 = 0xFFF2C29B;
 const SHOE: u32 = 0xFF5A2D0C;
 const MOUSTACHE: u32 = 0xFF4A2A10;
@@ -487,14 +488,13 @@ fn tiles(g: &Game, c: &mut Fb) {
     }
 }
 
-/// Moneta che ruota: larghezza proporzionale al coseno.
+/// Ingranaggio d'ottone che gira: anello, foro e quattro raggi.
 fn coin(c: &mut Fb, cx: i32, cy: i32, frame: u32) {
-    let k = (frame as usize * 2) % 16;
-    let rx = (p(5) * COS[k].abs() / 256).max(p(1) / 2);
-    c.ell(cx, cy, rx, p(5), COIN);
-    if rx > p(2) {
-        c.ell(cx, cy, rx - p(2) / 2, p(3), COIN_IN);
-        c.disc(cx - rx / 2, cy - p(2), p(1) / 2 + 4, WHITE);
+    c.disc(cx, cy, p(5), COIN);
+    c.disc(cx, cy, p(2), INK);
+    for i in 0..4 {
+        let k = ((frame / 2) as usize + i * 4) & 15;
+        c.seg(cx, cy, cx + p(4) * COS[k] / 256, cy + p(4) * SIN[k] / 256, p(1) / 2, COIN_IN);
     }
 }
 
@@ -578,6 +578,7 @@ fn player(g: &Game, c: &mut Fb) {
     c.rrect(x(vis), y(p(4)), p(5), p(1), p(1) / 2, cap);
     let ex = if f > 0 { p(8) } else { p(4) };
     c.disc(x(ex), y(p(5)), p(1) + 8, WHITE);
+    c.disc(x(if f > 0 { p(12) } else { p(0) }), y(p(8)), p(2), LANTERN);
     c.disc(x(ex + p(f) / 2), y(p(5)), p(1) / 2 + 2, BLACK);
     c.rrect(x(p(4)), y(p(6)), p(4), h(p(1)), p(1) / 2, MOUSTACHE);
 }
