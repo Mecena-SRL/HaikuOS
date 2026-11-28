@@ -54,3 +54,24 @@ fn rect_rounded_di_base_riempie_il_rettangolo() {
     assert_eq!(b.at(4, 4), Tok::T1);
     assert_eq!(b.at(5, 5), Tok::T0);
 }
+
+#[test]
+fn icona_vettoriale_scalata_nella_cella() {
+    let mut b = Buf::new(40, 40);
+    // Cella 32×32 = griglia 16×16 ×2: il rettangolo (4,4,2,2) diventa (10,10) 4×4.
+    b.icon_vec(Rect::new(2, 2, 32, 32), &[(4, 4, 2, 2)], Tok::T1);
+    assert_eq!(b.at(10, 10), Tok::T1);
+    assert_eq!(b.at(13, 13), Tok::T1);
+    assert_eq!(b.at(14, 14), Tok::T0);
+    assert_eq!(b.at(9, 9), Tok::T0);
+}
+
+#[test]
+fn menu_evidenzia_la_riga_selezionata() {
+    let mut b = Buf::new(20, 40);
+    b.menu(Rect::new(0, 0, 20, 40), &["a", "b", "c"], 1);
+    // La riga 1 va da y=10 a y=19: è piena di T2.
+    assert_eq!(b.at(5, 15), Tok::T2);
+    assert_eq!(b.at(5, 5), Tok::T0);
+    assert_eq!(b.texts, vec!["a", "b", "c"]);
+}

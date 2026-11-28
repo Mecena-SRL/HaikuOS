@@ -26,6 +26,27 @@ pub trait Canvas {
     fn rect_rounded(&mut self, r: Rect, _radius: i32, t: Tok) {
         self.fill(r, t);
     }
+    /// Icona vettoriale: rettangoli `(x, y, w, h)` su una griglia 16×16, scalati nella cella `cell`.
+    fn icon_vec(&mut self, cell: Rect, rects: &[(i32, i32, i32, i32)], t: Tok) {
+        for &(x, y, w, h) in rects {
+            let px = cell.x + x * cell.w / 16;
+            let py = cell.y + y * cell.h / 16;
+            self.fill(Rect::new(px, py, (w * cell.w / 16).max(1), (h * cell.h / 16).max(1)), t);
+        }
+    }
+    /// Menu a righe nel rettangolo `r`: la riga `sel` è evidenziata. Ogni riga è alta `MENU_ROW`.
+    fn menu(&mut self, r: Rect, rows: &[&str], sel: usize) {
+        self.fill(r, T0);
+        for (i, label) in rows.iter().enumerate() {
+            let y = r.y + i as i32 * MENU_ROW;
+            if y + MENU_ROW > r.y + r.h {
+                break;
+            }
+            let (bg, fg) = if i == sel { (T2, T0) } else { (T0, T2) };
+            self.fill(Rect::new(r.x, y, r.w, MENU_ROW), bg);
+            self.text(r.x + 2, y + MENU_ROW - 2, label, fg);
+        }
+    }
     /// Segmento di spessore `w` (px, minimo 1), da `(x1, y1)` a `(x2, y2)`. Di base: quadrati pieni lungo Bresenham.
     fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, w: i32, t: Tok) {
         let w = w.max(1);

@@ -21,14 +21,14 @@ Tipi di supporto: `Rect` e `Tok` (token colore della palette). Layout condiviso 
 
 ## 3. Estensioni vettoriali (in parte implementate)
 
-`rect_rounded` e `line` sono nel trait con implementazione di base (`gui/src/render.rs`, test in `gui/tests/vector.rs`). `icon_svg` e `menu` restano proposte, da verificare.
+`rect_rounded`, `line`, `icon_vec` e `menu` sono nel trait con implementazione di base (`gui/src/render.rs`, test in `gui/tests/vector.rs`). `icon_vec` riceve rettangoli precompilati da un SVG su griglia 16×16, non parsa SVG a runtime.
 
 | Primitiva | Forma proposta | Uso |
 |---|---|---|
 | `rect_rounded(r, radius, t)` | rettangolo con raggio | pulsanti, menu, finestre HD |
 | `line(x1, y1, x2, y2, w, t)` | segmento di spessore `w` (implementata) | bordi, grafici, orologio |
-| `icon_svg(cell, id)` | icona da un sottoinsieme SVG pre-compilato | icone HD: nessun PNG a runtime |
-| `menu(r, rows)` | menu a righe con etichetta e scorciatoia | menu app e contestuali |
+| `icon_vec(cell, rects, t)` | icona da rettangoli precompilati su griglia 16×16 (implementata) | icone scalabili, nessun PNG a runtime |
+| `menu(r, rows, sel)` | menu a righe, riga `sel` evidenziata (implementata) | menu app e contestuali |
 
 Regola: ogni primitiva ha un fallback sul GBA (es. `rect_rounded` diventa `fill`). Un gioco scritto con le primitive base gira ovunque.
 
@@ -38,7 +38,7 @@ Regola: ogni primitiva ha un fallback sul GBA (es. `rect_rounded` diventa `fill`
 2. Usare i token della palette, non colori RGB diretti.
 3. Chiedere `rounded()` e `rich()` prima di scegliere uno stile.
 4. Nessuna allocazione nel ciclo di disegno (budget RAM del GBA).
-5. Le icone passano da `icon` o `icon_svg`, mai da file caricati a parte.
+5. Le icone passano da `icon` o `icon_vec`, mai da file caricati a parte.
 
 ## 5. Esempio
 
