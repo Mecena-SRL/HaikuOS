@@ -222,13 +222,23 @@ fn digits_width(n: u32, hgt: f32) -> f32 {
 }
 
 /// Tavolo: sempre disegnato.
+/// Colori del mondo corrente: sfondo, aloni, pannello del tavolo.
+fn world_palette(w: u8) -> (Rgb, Rgb, Rgb) {
+    match w {
+        0 => ([0.10, 0.25, 0.45], [0.35, 0.08, 0.30], DARK),
+        1 => ([0.05, 0.25, 0.30], [0.10, 0.10, 0.35], [0.02, 0.06, 0.10]),
+        _ => ([0.28, 0.12, 0.05], [0.10, 0.04, 0.12], [0.06, 0.03, 0.02]),
+    }
+}
+
 fn table(g: &Pinball, out: &mut Vec<Prim>) {
     let f = |v: f32| v / FP as f32;
     let fp = |v: (i64, i64)| (f(v.0 as f32), f(v.1 as f32));
     // sfondo a tema: aloni morbidi e stelle, dietro al tavolo
+    let (h1, h2, table_col) = world_palette(g.world);
     for (c, r, col, a) in [
-        ((80.0, 60.0), 150.0, [0.10, 0.25, 0.45], 0.35),
-        ((120.0, 200.0), 120.0, [0.35, 0.08, 0.30], 0.30),
+        ((80.0, 60.0), 150.0, h1, 0.35),
+        ((120.0, 200.0), 120.0, h2, 0.30),
     ] {
         out.push(Prim { s: Shape::Circ(c, r), col, a });
     }
@@ -247,7 +257,7 @@ fn table(g: &Pinball, out: &mut Vec<Prim>) {
         let y = 222.0 + k as f32 * 6.0;
         out.push(Prim { s: Shape::Rect((80.0, y), (140.0, 1.2), 1.0), col: [0.20, 0.55, 0.65], a: 0.18 });
     }
-    out.push(p(Shape::Rect((80.0, 120.0), (80.0, 120.0), 4.0), DARK));
+    out.push(p(Shape::Rect((80.0, 120.0), (80.0, 120.0), 4.0), table_col));
     for w in WALLS {
         out.push(p(Shape::Seg((w[0] as f32, w[1] as f32), (w[2] as f32, w[3] as f32), 0.9), WALL));
     }
@@ -296,6 +306,10 @@ fn table(g: &Pinball, out: &mut Vec<Prim>) {
 /// HUD in gioco: punteggio e vite in alto nel tavolo.
 fn hud(g: &Pinball, out: &mut Vec<Prim>) {
     digits(out, g.score, 6.0, 5.0, 10.0, HUD);
+    // missione: tre pallini, accesi man mano che la guardiana li richiede
+    for i in 0..3u8 {
+        out.push(p(Shape::Circ((6.0 + i as f32 * 6.0, 27.0), 2.0), if i < g.mission { HUD } else { UNLIT }));
+    }
     // moltiplicatore: quattro pallini, accesi fino al livello attuale
     for i in 0..4u32 {
         let on = i + 1 < g.mult;

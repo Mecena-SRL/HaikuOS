@@ -103,6 +103,10 @@ pub struct Pinball {
     multi_done: bool,
     prev_plunger: bool,
     ball_pts: u32,
+    /// Mondo corrente: 0 porto, 1 mare aperto, 2 sala del faro.
+    pub world: u8,
+    /// Passo della missione della guardiana (0..3), sensori nell'ordine SENSORS.
+    pub mission: u8,
 }
 
 impl Pinball {
@@ -123,6 +127,8 @@ impl Pinball {
             multi_done: false,
             prev_plunger: false,
             ball_pts: 0,
+            world: 0,
+            mission: 0,
         };
         p.reset();
         p
@@ -138,6 +144,8 @@ impl Pinball {
         self.multi_done = false;
         self.prev_plunger = false;
         self.ball_pts = 0;
+        self.world = 0;
+        self.mission = 0;
         self.state = State::Ready;
         self.balls = [Ball::default(); MAX_BALLS];
         self.balls[0] = Ball { pos: LANE, vel: (0, 0), live: true };
@@ -207,7 +215,7 @@ impl Pinball {
                 }
                 for c in BUMPERS {
                     if hit_circle(&mut b, (c.0 * FP, c.1 * FP), BUMPER_R, E_BUMPER) {
-                        pts += 100;
+                        pts += 100 * (self.world as u32 + 1);
                     }
                 }
                 for k in KICKERS {
@@ -226,6 +234,17 @@ impl Pinball {
                     if dx * dx + dy * dy < SENSOR_R * SENSOR_R && (lit & (1u8 << j)) == 0 {
                         lit |= 1 << j;
                         pts += 200;
+                        if j as u8 == self.mission {
+                            self.mission += 1;
+                            pts += 500;
+                            if self.mission == 3 {
+                                // missione compiuta: la porta di marea si apre sul mondo successivo
+                                self.mission = 0;
+                                self.world = (self.world + 1) % 3;
+                                pts += 2000;
+                                lit = 0;
+                            }
+                        }
                     }
                 }
                 b.vel = (clamp(b.vel.0), clamp(b.vel.1));
@@ -493,10 +512,10 @@ mod tests {
     fn rollover_scores_once() {
         let mut g = ball(30, 30, 0, 0);
         g.tick(Input::default());
-        assert_eq!(g.score, 200);
+        assert_eq!(g.score, 700, "200 del sensore più 500 della missione");
         assert_eq!(g.lit, 0b001);
         g.tick(Input::default());
-        assert_eq!(g.score, 200, "un sensore non paga due volte");
+        assert_eq!(g.score, 700, "un sensore non paga due volte");
     }
 
     #[test]
@@ -539,6 +558,19 @@ mod tests {
         let high = g.high;
         g.reset();
         assert_eq!((g.score, g.lives, g.high), (0, 3, high));
+    }
+
+    #[test]
+    fn sensors_in_order_complete_mission_and_change_world() {
+        let mut g = Pinball::new();
+        for j in 0..3 {
+            let s = SENSORS[j];
+            g.balls[0] = Ball { pos: (s.0 * FP, s.1 * FP), vel: (0, 0), live: true };
+            g.state = State::Playing;
+            g.tick(Input::default());
+        }
+        assert_eq!(g.world, 1);
+        assert_eq!(g.mission, 0);
     }
 
     #[test]
