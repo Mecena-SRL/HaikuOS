@@ -395,6 +395,13 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
         c.disc(x, 6.0, 1.5, BALL);
     }
 
+    if g.paused {
+        c.rr_a(-1.0, -1.0, pw + 1.0, ph + 1.0, 0.5, 0xFF000000, 0xFF000000, 0.5);
+        c.panel(90.0, 56.0, 150.0, 80.0);
+        c.text_c(b"PAUSA", 62.0, 2.0, TXT);
+        c.text_c(b"P PER RIPRENDERE", 74.0, 1.0, TXT);
+    }
+
     match g.phase {
         Phase::Title => {
             c.rr_a(-1.0, -1.0, pw + 1.0, ph + 1.0, 0.5, 0xFF000000, 0xFF000000, 0.5);
@@ -402,7 +409,12 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             c.text_c(b"WILKANOID", 52.0, 3.0, TXT);
             c.text_c(b"PREMI SPAZIO", 80.0, 2.0, TXT);
         }
-        Phase::Ready => c.text_c(b"PREMI SPAZIO", 96.0, 1.0, TXT),
+        Phase::Ready => {
+            c.text_c(b"PREMI SPAZIO", 96.0, 1.0, TXT);
+            if g.level == 0 && g.score == 0 {
+                c.text_c(b"A D MUOVI", 106.0, 1.0, TXT);
+            }
+        }
         Phase::Lost => {
             c.panel(60.0, 50.0, 180.0, 80.0);
             c.text_c(b"VITA PERSA", 62.0, 2.0, TXT);

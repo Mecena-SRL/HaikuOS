@@ -76,6 +76,8 @@ pub enum Cmd {
     Left,
     Right,
     Fire,
+    /// Pausa on/off (in gioco).
+    Pause,
 }
 
 /// Palla, in subunità (posizione del centro, velocità per tick; y negativo = su).
@@ -127,6 +129,8 @@ pub struct Game {
     pub shake: u32,
     /// Fire premuto durante la perdita di vita: lancia alla fine della pausa.
     pub launch: bool,
+    /// Pausa: il tempo è fermo, la scena resta visibile.
+    pub paused: bool,
     timer: u32,
     rng: u32,
 }
@@ -149,6 +153,7 @@ impl Game {
             trail: [(0, 0); TRAIL],
             shake: 0,
             launch: false,
+            paused: false,
             timer: 0,
             rng: seed | 1,
         };
@@ -183,6 +188,9 @@ impl Game {
     }
 
     pub fn input(&mut self, c: Cmd) {
+        if self.paused && c != Cmd::Pause {
+            return;
+        }
         match self.phase {
             Phase::Title | Phase::Over | Phase::Won => {
                 if c == Cmd::Fire {
@@ -190,6 +198,7 @@ impl Game {
                 }
             }
             Phase::Ready | Phase::Play => match c {
+                Cmd::Pause => {}
                 Cmd::Left => self.move_paddle(-3 * SUB),
                 Cmd::Right => self.move_paddle(3 * SUB),
                 Cmd::Fire => {
@@ -204,9 +213,15 @@ impl Game {
                 }
             }
         }
+        if c == Cmd::Pause && self.phase == Phase::Play {
+            self.paused = !self.paused;
+        }
     }
 
     pub fn tick(&mut self) {
+        if self.paused {
+            return;
+        }
         match self.phase {
             Phase::Ready => {
                 if let Some(b) = self.balls[0].as_mut() {
@@ -577,6 +592,22 @@ mod tests {
         }
         assert_eq!(g.phase, Phase::Over);
         assert_eq!(g.lives, 0);
+    }
+
+    #[test]
+    fn pause_freezes_the_ball() {
+        let mut g = Game::at_level(1, 0);
+        g.input(Cmd::Fire);
+        g.tick();
+        g.input(Cmd::Pause);
+        let before = g.lead();
+        for _ in 0..30 {
+            g.tick();
+        }
+        assert_eq!(g.lead().map(|b| (b.x, b.y)), before.map(|b| (b.x, b.y)));
+        g.input(Cmd::Pause);
+        g.tick();
+        assert_ne!(g.lead().map(|b| (b.x, b.y)), before.map(|b| (b.x, b.y)));
     }
 
     #[test]
