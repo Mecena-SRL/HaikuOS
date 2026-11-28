@@ -7,6 +7,9 @@ use kart::{
 };
 use std::time::Instant;
 
+#[path = "../../hd_shot.rs"]
+mod hd_shot;
+
 fn main() {
     match std::env::args().nth(1).as_deref() {
         Some("cup") => {
@@ -15,8 +18,27 @@ fn main() {
             }
         }
         Some("bench") => bench(),
+        Some("shot") => shot(),
         _ => eprintln!("uso: kart cup | bench"),
     }
+}
+
+/// `kart shot <ow> <oh> <traccia 0-2> <tick> <out.ppm>`: griglia logica 240x135, ingrandita con `hd_shot`.
+fn shot() {
+    let a: Vec<String> = std::env::args().skip(2).collect();
+    let (ow, oh): (usize, usize) = (a[0].parse().unwrap(), a[1].parse().unwrap());
+    let track = &TRACKS[a[2].parse::<usize>().unwrap()];
+    let ticks: u32 = a[3].parse().unwrap();
+    let (w, h) = (240, 135);
+    let mut race = Race::new(track, 8, 42);
+    while race.tick < ticks && !race.finished() {
+        race.tick(None);
+    }
+    let mut buf = vec![0u32; w * h];
+    render::draw(&race, &mut buf, w, h, 0);
+    let px: Vec<[u8; 3]> = buf.iter().map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8]).collect();
+    let mut f = std::fs::File::create(&a[4]).unwrap();
+    hd_shot::write_fit(&mut f, w, h, &px, ow, oh).unwrap();
 }
 
 fn bench() {
