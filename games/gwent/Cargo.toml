@@ -1,0 +1,9 @@
+[package]
+name = "gwent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+haiku-gui = { path = "../../gui" }
+
+[workspace]

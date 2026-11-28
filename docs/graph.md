@@ -27,6 +27,7 @@ Mappa viva di moduli e dipendenze. Va aggiornata ad ogni PR.
 | `office/src/pages.rs` | host, no_std | snappy, zip | testo Pages da IWA, **da verificare** |
 | `devtools/` | host, std | - | manifest, ordine di build, build runner, package manager, nucleo IDE, progetto, SHA-256, CLI `hdev` |
 | `tools/recompiler/` | host, std | serde_json | ricompilatore C -> Rust via LLM, verifica con `cargo test`; vedi `docs/recompiler.md` |
+| `games/gwent/` | `no_std` core + host std | gui | Gwent a console: regole, mazzi, IA, render 1920×1080 e 800×480, test inline |
 
 ## Stato
 
