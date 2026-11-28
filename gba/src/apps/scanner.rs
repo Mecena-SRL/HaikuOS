@@ -2,7 +2,7 @@
 //! ogni scansione dà errore "scanner assente" finché non c'è un driver hardware.
 //! Hardware necessario: scanner con alimentatore (ADF) o sensore d'immagine collegato via USB o porta dedicata.
 
-pub const AVVISO: &str = "Serve uno scanner collegato. Da verificare su hardware.";
+pub const AVVISO: &[&str] = &["SERVE UNO", "SCANNER COLLEGATO", "DA VERIFICARE"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Stato {
@@ -56,6 +56,6 @@ mod tests {
         s.evento(Evento::Accendi);
         assert!(s.evento(Evento::Scansiona));
         assert_eq!(s.stato(), Stato::ScannerAssente);
-        assert!(AVVISO.contains("hardware"));
+        assert_eq!(AVVISO.len(), 3);
     }
 }

@@ -1,10 +1,10 @@
 //! Visita guidata: passi in sequenza. `avanti` ritorna falso alla fine del tour.
 
-pub const PASSI: [&str; 4] = [
-    "Benvenuto in HaikuOS.",
-    "Le app stanno nel menu. Scegline una con su e giu.",
-    "Ogni app usa solo la memoria che il sistema le concede.",
-    "Fine del tour. Puoi rifarlo dalla voce Aiuto.",
+pub const PASSI: [&[&str]; 4] = [
+    &["BENVENUTO IN", "HAIKUOS."],
+    &["LE APP STANNO", "NEL MENU.", "SCEGLINE UNA", "CON SU E GIU."],
+    &["OGNI APP USA", "SOLO LA MEMORIA", "CHE LE SPETTA."],
+    &["FINE DEL TOUR.", "RIFALLO DA", "AIUTO."],
 ];
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -21,7 +21,7 @@ impl Tour {
         self.passo as usize
     }
 
-    pub fn testo(&self) -> &'static str {
+    pub fn righe(&self) -> &'static [&'static str] {
         PASSI[self.passo()]
     }
 
