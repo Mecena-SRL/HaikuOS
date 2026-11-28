@@ -184,6 +184,8 @@ pub struct Empire {
     built_this_turn: bool,
     /// Traguardi già premiati (bit 0: 10 cittadini, bit 1: 25, bit 2: 40).
     milestones: u8,
+    /// Il turno scorso il cibo è finito: alla prossima carestia si perde un cittadino.
+    famine: bool,
     grid: Vec<Option<Building>>,
     /// Cantieri: (casella, edificio, turni che mancano). Completano dopo due fine turno.
     sites: Vec<(usize, Building, u8)>,
@@ -198,6 +200,7 @@ impl Empire {
             irrigation: false,
             built_this_turn: false,
             milestones: 0,
+            famine: false,
             grid: vec![None; map.w * map.h],
             sites: Vec::new(),
         }
@@ -311,12 +314,23 @@ impl Empire {
         // Ogni due cittadini consumano una unità di cibo per turno.
         self.stock.food -= (self.citizens as i32 + 1) / 2;
         if self.stock.food < 0 {
+            // Carestia: il primo turno è di grazia, dal secondo si perde un cittadino.
             self.stock.food = 0;
-            self.citizens = self.citizens.saturating_sub(1);
-        } else if self.citizens < self.capacity() && self.stock.food >= 2 {
-            // +1 a turno, +1 ogni tre fattorie, massimo +3; mai oltre la capienza.
-            let growth = (1 + self.count(Building::Farm) as u32 / 3).min(3);
-            self.citizens = (self.citizens + growth).min(self.capacity());
+            if self.famine {
+                self.citizens = self.citizens.saturating_sub(1);
+            }
+            self.famine = true;
+        } else {
+            self.famine = false;
+            if self.citizens < self.capacity() && self.stock.food >= 2 {
+                // +1 a turno, +1 ogni tre fattorie, massimo +3; mai oltre la capienza.
+                let growth = (1 + self.count(Building::Farm) as u32 / 3).min(3);
+                self.citizens = (self.citizens + growth).min(self.capacity());
+            }
+        }
+        // Sussidio anti-stallo: senza legnaia e con legno sotto il costo minimo, +2 legno.
+        if self.stock.wood < 5 && self.count(Building::Lumber) == 0 {
+            self.stock.wood += 2;
         }
         self.check_milestones();
         self.built_this_turn = false;
@@ -780,6 +794,8 @@ mod tests {
         let mut e = Empire::new(&map, Stock::new(0, 0, 0, 0));
         e.citizens = 4;
         e.tick();
+        assert_eq!(e.citizens, 4, "il primo turno di carestia è di grazia");
+        e.tick();
         assert_eq!(e.citizens, 3);
     }
 
@@ -843,12 +859,12 @@ mod tests {
     #[test]
     fn traguardi_premiati_una_volta() {
         let map = grass(4, 4);
-        let mut e = Empire::new(&map, Stock::new(100, 0, 0, 0));
+        let mut e = Empire::new(&map, Stock::new(100, 20, 0, 0));
         e.citizens = 10;
         e.tick();
-        assert_eq!(e.stock.wood, 10);
+        assert_eq!(e.stock.wood, 30);
         e.tick();
-        assert_eq!(e.stock.wood, 10, "il traguardo vale una sola volta");
+        assert_eq!(e.stock.wood, 30, "il traguardo vale una sola volta");
     }
 
     #[test]
