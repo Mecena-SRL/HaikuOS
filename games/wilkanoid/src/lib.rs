@@ -41,19 +41,21 @@ pub const EMPTY: u8 = 0;
 pub const NORMAL: u8 = 1;
 pub const STEEL: u8 = 2;
 pub const CRACKED: u8 = 3;
+/// Mattone esplosivo: distrugge i vicini quando cade.
+pub const BOMB: u8 = 4;
 
 /// Power-up che cadono.
 pub const DROP_WIDE: u8 = 0;
 pub const DROP_MULTI: u8 = 1;
 
-/// Livelli: '0' vuoto, '1' mattone normale, '2' acciaio (due colpi).
+/// Livelli: '0' vuoto, '1' normale, '2' acciaio (due colpi), '4' esplosivo.
 pub const LEVELS: [[&[u8; COLS]; ROWS]; 6] = [
     [b"111111111", b"111111111", b"111111111", b"121111121", b"111111111", b"111111111"],
     [b"000010000", b"000111000", b"001111100", b"011111110", b"111111111", b"101010101"],
     [b"222022022", b"111111111", b"202020202", b"111111111", b"222222222", b"010101010"],
     [b"000020000", b"000222000", b"002222200", b"022222220", b"222222222", b"022222220"],
-    [b"111010111", b"011111110", b"110111011", b"111010111", b"011111110", b"111111111"],
-    [b"222222222", b"212121212", b"222222222", b"121212121", b"222222222", b"010101010"],
+    [b"111010111", b"011414110", b"110111011", b"111010111", b"011111110", b"111111111"],
+    [b"222222222", b"212121212", b"222222222", b"141212141", b"222222222", b"010101010"],
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -384,6 +386,7 @@ impl Game {
 
         // Mattoni: il primo colpo rimbalza; gli altri mattoni toccati nello stesso tick si rompono senza rimbalzo.
         let mut bounced = false;
+        let mut boom: Option<(usize, usize)> = None;
         for r in 0..ROWS {
             for c in 0..COLS {
                 if self.cells[r][c] == EMPTY {
@@ -417,7 +420,16 @@ impl Game {
                     bounced = true;
                 }
                 let cell = self.cells[r][c];
-                let pts = (self.level as u32 + 1) * if cell == NORMAL { 10 } else if cell == STEEL { 5 } else { 20 };
+                if cell == BOMB {
+                    boom = Some((r, c));
+                }
+                let pts = (self.level as u32 + 1)
+                    * match cell {
+                        NORMAL => 10,
+                        STEEL => 5,
+                        BOMB => 15,
+                        _ => 20,
+                    };
                 self.cells[r][c] = match cell {
                     STEEL => CRACKED,
                     _ => EMPTY,
@@ -425,7 +437,11 @@ impl Game {
                 self.score += pts;
                 self.flash[r][c] = FLASH_TICKS;
                 self.shake = self.shake.max(4);
-                let tone = if cell == NORMAL { r as u8 } else { 6 };
+                let tone = match cell {
+                    NORMAL => r as u8,
+                    BOMB => 7,
+                    _ => 6,
+                };
                 let (mx, my) = (bx0 + BW / 2 * SUB, by0 + BH / 2 * SUB);
                 self.burst(mx, my, tone);
                 if self.cells[r][c] == EMPTY && self.rand() % 5 == 0 {
@@ -437,11 +453,32 @@ impl Game {
             }
         }
 
+        if let Some((r, c)) = boom {
+            self.explode(r, c);
+        }
+
         // Palla persa: esce sotto il campo.
         if y - BALL_R > PH * SUB {
             return None;
         }
         Some(Ball { x, y, vx, vy })
+    }
+
+    /// Esplosione: rompe i mattoni vicini (non l'esplosivo stesso, già rotto).
+    fn explode(&mut self, r: usize, c: usize) {
+        for rr in r.saturating_sub(1)..=(r + 1).min(ROWS - 1) {
+            for cc in c.saturating_sub(1)..=(c + 1).min(COLS - 1) {
+                if (rr, cc) == (r, c) || self.cells[rr][cc] == EMPTY {
+                    continue;
+                }
+                self.score += (self.level as u32 + 1) * 10;
+                self.cells[rr][cc] = EMPTY;
+                self.flash[rr][cc] = FLASH_TICKS;
+                let (mx, my) = ((BX0 + cc as i32 * (BW + BGX)) * SUB + BW / 2 * SUB, (BY0 + rr as i32 * (BH + BGY)) * SUB + BH / 2 * SUB);
+                self.burst(mx, my, 7);
+            }
+        }
+        self.shake = self.shake.max(10);
     }
 
     /// Power-up: cadono e la racchetta li prende.

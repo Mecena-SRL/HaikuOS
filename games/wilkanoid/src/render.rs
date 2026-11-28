@@ -2,7 +2,7 @@
 //! Coordinate logiche -> pixel con scala uniforme (letterbox).
 
 use crate::{
-    Game, Phase, BALL_R, BGX, BGY, BH, BW, BX0, BY0, COLS, CRACKED, DROP_MULTI, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB, TRAIL,
+    Game, Phase, BALL_R, BGX, BGY, BH, BW, BOMB, BX0, BY0, COLS, CRACKED, DROP_MULTI, EMPTY, NORMAL, PAD_H, PAD_Y, PH, PW, ROWS, SUB, TRAIL,
 };
 
 const BG_T: u32 = 0xFF0E1433;
@@ -22,6 +22,8 @@ const PAD_B: u32 = 0xFF5B6BF0;
 const BALL: u32 = 0xFFFFFFFF;
 const DROP_T: u32 = 0xFFFFE08A;
 const MULTI_T: u32 = 0xFF9BF5C8;
+const BOMB_T: u32 = 0xFFFF7A3D;
+const BOMB_B: u32 = 0xFF8A2A10;
 const MULTI_B: u32 = 0xFF2A9D8F;
 const DROP_B: u32 = 0xFFF28F3B;
 const TXT: u32 = 0xFFFFFFFF;
@@ -246,10 +248,10 @@ impl<'a> Cv<'a> {
 }
 
 fn tone_col(t: u8) -> u32 {
-    if (t as usize) < ROWS {
-        ROW[t as usize]
-    } else {
-        STEEL_T
+    match t {
+        7 => BOMB_T,
+        _ if (t as usize) < ROWS => ROW[t as usize],
+        _ => STEEL_T,
     }
 }
 
@@ -300,7 +302,11 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             }
             let x = (BX0 + col as i32 * (BW + BGX)) as f32;
             let y = (BY0 + r as i32 * (BH + BGY)) as f32;
-            let t = if k == NORMAL { ROW[r] } else { STEEL_T };
+            let t = match k {
+                NORMAL => ROW[r],
+                BOMB => BOMB_T,
+                _ => STEEL_T,
+            };
             c.rr_a(x - 2.0, y - 2.0, x + BW as f32 + 2.0, y + BH as f32 + 2.0, 3.0, t, t, 0.18);
         }
     }
@@ -314,6 +320,7 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             let y = (BY0 + r as i32 * (BH + BGY)) as f32;
             let (t, b) = match k {
                 NORMAL => (ROW[r], shade(ROW[r])),
+                BOMB => (BOMB_T, BOMB_B),
                 CRACKED => (CRACK_T, CRACK_B),
                 _ => (STEEL_T, STEEL_B),
             };
@@ -322,6 +329,9 @@ pub fn render(g: &Game, px: &mut [u32], w: usize, h: usize) {
             let f = g.flash[r][col];
             if f > 0 {
                 c.rr_a(x, y, x + BW as f32, y + BH as f32, 1.0, 0xFFFFFFFF, 0xFFFFFFFF, f as f32 / 10.0);
+            }
+            if k == BOMB {
+                c.disc(x + BW as f32 / 2.0, y + BH as f32 / 2.0, 1.4, 0xFFFFF3C4);
             }
             if k == CRACKED {
                 c.rr(x + 6.0, y + 1.0, x + 8.0, y + 4.0, 0.5, CRACK_LINE, CRACK_LINE);
