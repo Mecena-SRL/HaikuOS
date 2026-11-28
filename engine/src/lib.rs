@@ -3,6 +3,7 @@
 #![cfg_attr(not(test), no_std)]
 
 pub mod replay;
+pub mod shapes;
 
 /// Numero in virgola fissa Q16.16. Stessi bit su ogni piattaforma: la simulazione è deterministica.
 pub type Fx = i32;
