@@ -32,6 +32,9 @@ fn main() {
                 g.press(b);
             }
         }
+        for _ in 0..16 {
+            g.tick();
+        }
         let mut px = vec![0u32; w * h];
         draw::draw(&mut Canvas { px: &mut px, w, h }, &g);
         let mut data = format!("P6\n{w} {h}\n255\n").into_bytes();
@@ -50,6 +53,7 @@ fn main() {
             }
             if let Some(b) = key(c) {
                 g.press(b);
+                g.tick();
             }
         }
         show(&g);

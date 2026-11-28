@@ -64,6 +64,8 @@ pub struct Game {
     pub page: usize,
     pub pending: Option<usize>,
     pub battle: Battle,
+    /// Fotogrammi della transizione a barre (0 = nessuna).
+    pub fade: u32,
 }
 
 impl Game {
@@ -85,6 +87,7 @@ impl Game {
             page: 0,
             pending: None,
             battle: Battle::new(Creature::new(3), false),
+            fade: 0,
         }
     }
 
@@ -110,7 +113,13 @@ impl Game {
         }
     }
 
+    /// Avanza la transizione di un passo; chiamare una volta per fotogramma.
+    pub fn tick(&mut self) {
+        self.fade = self.fade.saturating_sub(1);
+    }
+
     fn start(&mut self, foe: Creature, trainer: bool) {
+        self.fade = 16;
         self.battle = Battle::new(foe, trainer);
         self.mode = Mode::Fight;
     }
@@ -124,8 +133,14 @@ impl Game {
         self.x = nx;
         self.y = ny;
         match world::tile(self.map, nx, ny) {
-            '>' => (self.map, self.x, self.y) = (1, 1, 6),
-            '<' => (self.map, self.x, self.y) = (0, 14, 6),
+            '>' => {
+                (self.map, self.x, self.y) = (1, 1, 6);
+                self.fade = 16;
+            }
+            '<' => {
+                (self.map, self.x, self.y) = (0, 14, 6);
+                self.fade = 16;
+            }
             ',' if self.rng.below(6) == 0 => {
                 let sp = [3, 2, 1][self.rng.below(3) as usize];
                 self.start(Creature::new(sp), false);
@@ -189,7 +204,7 @@ impl Game {
     }
 
     fn act(&mut self, a: Act) {
-        if a == Act::Catch {
+        if a == Act::Catch && !self.battle.trainer {
             if self.balls == 0 {
                 self.battle.say("NIENTE PALLE!");
                 return;
@@ -326,6 +341,22 @@ mod tests {
             b.turn(&mut me, Act::Catch, &mut rng);
         }
         assert!(matches!(b.outcome, Some(Outcome::Caught) | Some(Outcome::Lose)));
+    }
+
+    #[test]
+    fn trainer_catch_keeps_ball() {
+        let mut g = Game::new(7);
+        g.map = 1;
+        (g.x, g.y, g.dir) = (8, 5, 3);
+        for _ in 0..3 {
+            g.press(Button::A);
+        }
+        assert_eq!(g.mode, Mode::Fight);
+        g.press(Button::Down);
+        g.press(Button::A);
+        g.press(Button::Down);
+        g.press(Button::A);
+        assert_eq!(g.balls, 5);
     }
 
     #[test]
