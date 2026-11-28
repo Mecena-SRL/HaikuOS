@@ -127,3 +127,15 @@ Nota: una foto piena (240×160×2 B ≈ 75 KB) non entra nello store da 8 KB né
 
 Test host: `cd gba && rustc --edition 2021 --test host/test_sistema.rs -o /tmp/sis_t && /tmp/sis_t` (12 test, tutti ok).
 Il disegno e il collegamento al lanciatore (`desktop.rs`, `ui.rs`) sono il passo successivo: **da verificare** su schermo e memoria.
+
+## App GNOME Circle (icone 24–28, pagina 3)
+
+| App | Icona | Comando | Tasti | Da verificare su GBA |
+|---|---|---|---|---|
+| Timer per esercizi | TIMER (24) | TIMER | A pausa, Select azzera | Frame reali (60 Hz) |
+| Orologio per scacchi | CHESSCLOCK (25) | CHESSCLOCK | L/R premono i giocatori, Select pausa | Frame reali |
+| Contatore | TALLY (26) | TALLY | Su/giù, Select azzera | — |
+| Testo segnaposto | LOREM (27) | LOREM | A cambia seme | — |
+| Distruggi file | SHRED (28) | SHRED | A distrugge il buffer di prova | Su SRAM/flash la sovrascrittura non è garantita: da verificare |
+
+Logica in `apps/timer_esercizi.rs`, `apps/orologio_scacchi.rs`, `apps/contatore.rs`, `apps/testo_segnaposto.rs`, `apps/distruggi.rs`. Lo shredder lavora sul buffer di prova, non ancora sui file.

@@ -6,6 +6,8 @@ use crate::apps::maps::LATO;
 use crate::apps::passwords::MAX_CAMPO;
 use crate::apps::ui::AppsUi;
 use crate::apps::{clock::Clock, notes::Notes, settings::Settings};
+use crate::apps::timer_esercizi::Fase;
+use crate::apps::testo_segnaposto;
 use crate::font::{self, ADVANCE};
 
 const BODY_W: usize = 106;
@@ -276,6 +278,59 @@ pub fn da_verificare(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, m
     body(fb, w, h, x0, y0, p);
     font::draw(fb, w, h, x0 + 2, y0 + 24, b"DA VERIFICARE", p[0]);
     font::draw(fb, w, h, x0 + 2, y0 + 34, motivo, p[2]);
+}
+
+/// Timer: round, fase e secondi restanti (tre cifre).
+pub fn timer(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &AppsUi, p: [u16; 4]) {
+    body(fb, w, h, x0, y0, p);
+    let t = &a.timer;
+    let r = t.round() as usize;
+    font::draw(fb, w, h, x0 + 2, y0 + 2, &[b'R', b'O', b'U', b'N', b'D', b' ', digit(r)], p[0]);
+    let fase: &[u8] = match t.fase() {
+        Fase::Lavoro => b"LAVORO",
+        Fase::Riposo => b"RIPOSO",
+        Fase::Fine => b"FINE",
+    };
+    font::draw(fb, w, h, x0 + 2, y0 + 14, fase, p[2]);
+    let s = t.secondi() as usize;
+    font::draw(fb, w, h, x0 + 43, y0 + 30, &[digit(s / 100), digit(s / 10), digit(s)], p[0]);
+    if t.in_pausa() {
+        font::draw(fb, w, h, x0 + 2, y0 + 60, b"PAUSA", p[2]);
+    }
+}
+
+/// Orologio per scacchi: tempo dei due giocatori, mm:ss.
+pub fn scacchi_orologio(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &AppsUi, p: [u16; 4]) {
+    body(fb, w, h, x0, y0, p);
+    for (i, riga) in [(0u8, b"BIANCO" as &[u8]), (1u8, b"NERO")] {
+        let y = y0 + 12 + i as usize * 28;
+        font::draw(fb, w, h, x0 + 2, y, riga, p[0]);
+        let s = a.scacchi.secondi(i) as usize;
+        let mmss = [digit(s / 600), digit(s / 60), b':', digit(s % 60 / 10), digit(s % 10)];
+        font::draw(fb, w, h, x0 + 2, y + 12, &mmss, p[2]);
+    }
+}
+
+/// Contatore: numero grande.
+pub fn contatore(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &AppsUi, p: [u16; 4]) {
+    body(fb, w, h, x0, y0, p);
+    font::draw(fb, w, h, x0 + 43, y0 + 30, &a.contatore.testo(), p[0]);
+}
+
+/// Testo segnaposto: un paragrafo generato dal seme, a capo automatico.
+pub fn testo_segnaposto(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &AppsUi, p: [u16; 4]) {
+    body(fb, w, h, x0, y0, p);
+    let mut buf = [0u8; 96];
+    let n = testo_segnaposto::genera(a.seme, &mut buf);
+    testo_a_capo(fb, w, h, x0 + 2, y0 + 2, &buf[..n], 24, 8, p[0]);
+}
+
+/// Distruggi file: stato del buffer di prova e passate eseguite.
+pub fn distruggi(fb: &mut [u16], w: usize, h: usize, x0: usize, y0: usize, a: &AppsUi, p: [u16; 4]) {
+    body(fb, w, h, x0, y0, p);
+    font::draw(fb, w, h, x0 + 2, y0 + 2, b"A: DISTRUGGI", p[0]);
+    font::draw(fb, w, h, x0 + 2, y0 + 14, b"PASSATE", p[0]);
+    font::draw(fb, w, h, x0 + 50, y0 + 14, &[digit(a.passate as usize)], p[2]);
 }
 
 #[cfg(test)]

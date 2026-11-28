@@ -42,6 +42,10 @@ impl Timer {
         self.frames.div_ceil(FPS)
     }
 
+    pub fn in_pausa(&self) -> bool {
+        self.pausa
+    }
+
     pub fn pausa(&mut self) {
         self.pausa = !self.pausa;
     }

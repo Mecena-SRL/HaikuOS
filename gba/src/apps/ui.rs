@@ -5,6 +5,10 @@
 use crate::apps::calendar::{Calendario, Data, Mese, Ora};
 use crate::apps::dictionary::Sfoglia;
 use crate::apps::maps::{Cursore, Mappa};
+use crate::apps::timer_esercizi::Timer;
+use crate::apps::orologio_scacchi::Orologio;
+use crate::apps::contatore::Contatore;
+use crate::apps::distruggi;
 use crate::apps::vault::{self, Cassa};
 use crate::fs::Fs;
 use crate::apps::photo_view::PhotoView;
@@ -28,6 +32,14 @@ pub struct AppsUi {
     pub vista: PhotoView,
     pub mappa: Mappa,
     pub cursore: Cursore,
+    pub timer: Timer,
+    pub scacchi: Orologio,
+    pub contatore: Contatore,
+    /// Seme del testo segnaposto (A cambia testo).
+    pub seme: u32,
+    /// Buffer di prova per la distruzione (A lo distrugge) e passate eseguite.
+    pub segreto: [u8; 16],
+    pub passate: u8,
 }
 
 impl AppsUi {
@@ -51,6 +63,12 @@ impl AppsUi {
             vista: PhotoView::new(96, 64),
             mappa: Mappa::da_seed(7),
             cursore: Cursore::new(0, 0),
+            timer: Timer::new(30, 10, 3),
+            scacchi: Orologio::new(300),
+            contatore: Contatore::new(),
+            seme: 1,
+            segreto: *b"SEGRETO DI PROVA",
+            passate: 0,
         }
     }
 
@@ -223,6 +241,51 @@ impl AppsUi {
                     dx = 1;
                 }
                 self.cursore.muovi(&self.mappa, dx, dy)
+            }
+            App::Timer => {
+                if pressed & KEY_A != 0 {
+                    self.timer.pausa();
+                }
+                if pressed & KEY_SELECT != 0 {
+                    self.timer = Timer::new(30, 10, 3);
+                }
+                pressed & (KEY_A | KEY_SELECT) != 0
+            }
+            App::ChessClock => {
+                if pressed & KEY_L != 0 {
+                    self.scacchi.premi(0);
+                }
+                if pressed & KEY_R != 0 {
+                    self.scacchi.premi(1);
+                }
+                if pressed & KEY_SELECT != 0 {
+                    self.scacchi.pausa();
+                }
+                pressed & (KEY_L | KEY_R | KEY_SELECT) != 0
+            }
+            App::Tally => {
+                if pressed & KEY_UP != 0 {
+                    self.contatore.su();
+                }
+                if pressed & KEY_DOWN != 0 {
+                    self.contatore.giu();
+                }
+                if pressed & KEY_SELECT != 0 {
+                    self.contatore.azzera();
+                }
+                pressed & (KEY_UP | KEY_DOWN | KEY_SELECT) != 0
+            }
+            App::Lorem => {
+                if pressed & KEY_A != 0 {
+                    self.seme = self.seme.wrapping_add(1);
+                }
+                pressed & KEY_A != 0
+            }
+            App::Shred => {
+                if pressed & KEY_A != 0 {
+                    self.passate = distruggi::distruggi(&mut self.segreto);
+                }
+                pressed & KEY_A != 0
             }
             _ => false,
         }
