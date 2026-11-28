@@ -19,26 +19,34 @@ pub struct Species {
     pub spd: i32,
     /// Indici in `MOVES`.
     pub moves: [usize; 2],
+    /// Valore di cattura: più alto, più facile catturare.
+    pub catch: i32,
 }
 
 pub struct Move {
     pub name: &'static str,
     pub kind: Kind,
     pub power: i32,
+    /// Precisione in percento.
+    pub acc: i32,
 }
 
 pub static SPECIES: [Species; 4] = [
-    Species { name: "FLAMEL", kind: Kind::Fire, hp: 22, atk: 9, def: 6, spd: 8, moves: [0, 3] },
-    Species { name: "AQUO", kind: Kind::Water, hp: 20, atk: 6, def: 7, spd: 6, moves: [1, 3] },
-    Species { name: "LEAFO", kind: Kind::Grass, hp: 23, atk: 8, def: 7, spd: 7, moves: [2, 3] },
-    Species { name: "RATTO", kind: Kind::Normal, hp: 14, atk: 6, def: 4, spd: 9, moves: [3, 3] },
+    Species { name: "FLAMEL", kind: Kind::Fire, hp: 22, atk: 9, def: 6, spd: 8, moves: [0, 6], catch: 60 },
+    Species { name: "AQUO", kind: Kind::Water, hp: 20, atk: 6, def: 7, spd: 6, moves: [1, 4], catch: 120 },
+    Species { name: "LEAFO", kind: Kind::Grass, hp: 23, atk: 8, def: 7, spd: 7, moves: [2, 5], catch: 90 },
+    Species { name: "RATTO", kind: Kind::Normal, hp: 14, atk: 6, def: 4, spd: 9, moves: [3, 7], catch: 180 },
 ];
 
-pub static MOVES: [Move; 4] = [
-    Move { name: "EMBER", kind: Kind::Fire, power: 10 },
-    Move { name: "BOLLA", kind: Kind::Water, power: 10 },
-    Move { name: "FRUSTA", kind: Kind::Grass, power: 10 },
-    Move { name: "PLACCA", kind: Kind::Normal, power: 8 },
+pub static MOVES: [Move; 8] = [
+    Move { name: "EMBER", kind: Kind::Fire, power: 10, acc: 95 },
+    Move { name: "BOLLA", kind: Kind::Water, power: 10, acc: 95 },
+    Move { name: "FRUSTA", kind: Kind::Grass, power: 10, acc: 95 },
+    Move { name: "PLACCA", kind: Kind::Normal, power: 8, acc: 100 },
+    Move { name: "GETTO", kind: Kind::Water, power: 12, acc: 75 },
+    Move { name: "SPORA", kind: Kind::Grass, power: 12, acc: 75 },
+    Move { name: "FIAMMATA", kind: Kind::Fire, power: 14, acc: 75 },
+    Move { name: "MORSO", kind: Kind::Normal, power: 12, acc: 80 },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -61,6 +69,8 @@ impl Creature {
 pub struct Msg {
     buf: [u8; 128],
     len: usize,
+    /// Vero se qualche byte è stato scartato perché il buffer era pieno.
+    pub overflow: bool,
 }
 
 impl Default for Msg {
@@ -71,7 +81,7 @@ impl Default for Msg {
 
 impl Msg {
     pub fn new() -> Self {
-        Self { buf: [0; 128], len: 0 }
+        Self { buf: [0; 128], len: 0, overflow: false }
     }
     pub fn clear(&mut self) {
         self.len = 0;
@@ -80,6 +90,8 @@ impl Msg {
         if self.len < self.buf.len() {
             self.buf[self.len] = b;
             self.len += 1;
+        } else {
+            self.overflow = true;
         }
     }
     pub fn push(&mut self, s: &str) {

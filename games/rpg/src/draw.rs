@@ -385,3 +385,18 @@ fn glyph(ch: char) -> [u8; 5] {
         _ => [0; 5],
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::glyph;
+    use crate::world::NPCS;
+
+    #[test]
+    fn npc_texts_have_glyphs() {
+        for n in NPCS.iter() {
+            for ch in n.text.chars().filter(|&c| c != '|' && c != ' ') {
+                assert_ne!(glyph(ch), [0; 5], "missing glyph {ch:?} in {}", n.text);
+            }
+        }
+    }
+}

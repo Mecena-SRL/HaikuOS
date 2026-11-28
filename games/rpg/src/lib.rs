@@ -133,13 +133,11 @@ impl Game {
         self.x = nx;
         self.y = ny;
         match world::tile(self.map, nx, ny) {
-            '>' => {
-                (self.map, self.x, self.y) = (1, 1, 6);
-                self.fade = 16;
-            }
-            '<' => {
-                (self.map, self.x, self.y) = (0, 14, 6);
-                self.fade = 16;
+            '>' | '<' => {
+                if let Some((m, x, y)) = world::warp(self.map, self.x, self.y) {
+                    (self.map, self.x, self.y) = (m, x, y);
+                    self.fade = 16;
+                }
             }
             ',' if self.rng.below(6) == 0 => {
                 let sp = [3, 2, 1][self.rng.below(3) as usize];
@@ -294,7 +292,7 @@ mod tests {
 
     #[test]
     fn maps_are_16_by_12() {
-        for m in 0..2 {
+        for m in 0..3 {
             let rows = world::map(m);
             assert_eq!(rows.len(), 12);
             assert!(rows.iter().all(|r| r.len() == 16), "map {m} row width");
@@ -398,7 +396,7 @@ mod tests {
 
     #[test]
     fn map_borders_are_closed() {
-        for m in 0..2 {
+        for m in 0..3 {
             let rows = world::map(m);
             for x in 0..16 {
                 for y in [0usize, 11] {
@@ -427,6 +425,7 @@ mod tests {
                 b.turn(&mut me, Act::Move(0), &mut rng);
                 let lines = b.msg.as_str().matches('\n').count() + 1;
                 assert!(lines <= 6, "seed {seed}: {lines} lines");
+                assert!(!b.msg.overflow, "seed {seed}: message overflow");
             }
         }
     }
