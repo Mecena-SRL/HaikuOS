@@ -77,6 +77,25 @@ fn interactive() {
             Screen::Play => match key {
                 "p" => screen = Screen::Pause,
                 "q" => break,
+                "z" | "m" | "" => {
+                    // comandi umani: z sinistra, m destra, invio leva (tenuta, poi rilascio)
+                    let inp = match key {
+                        "z" => Input { left: true, ..Input::default() },
+                        "m" => Input { right: true, ..Input::default() },
+                        _ => Input { plunger: true, ..Input::default() },
+                    };
+                    for _ in 0..60 {
+                        g.tick(inp);
+                        if g.state == State::Over {
+                            games += 1;
+                            screen = Screen::Over;
+                            break;
+                        }
+                    }
+                    if key.is_empty() {
+                        g.tick(Input::default());
+                    }
+                }
                 _ => {
                     for _ in 0..60 {
                         if step(&mut g, &mut charge, f) {

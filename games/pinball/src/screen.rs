@@ -351,7 +351,7 @@ pub fn render(g: &Pinball, screen: Screen, w: usize, h: usize) -> Frame {
 /// Testo dei menu per il terminale.
 pub fn menu_text(s: Screen, g: &Pinball) {
     match s {
-        Screen::Title => println!("PINBALL\nINVIO per iniziare (leva: invio), q per uscire"),
+        Screen::Title => println!("PINBALL\nINVIO per iniziare. Gioco: z sinistra, m destra, invio leva, q esce"),
         Screen::Pause => println!("PAUSA: r riprendi, q esci"),
         Screen::Over => println!("FINE: punti {}  record {}. INVIO ricomincia, q esci", g.score, g.high),
         Screen::Play => {}

@@ -66,7 +66,12 @@ pub struct Flip {
 impl Flip {
     /// Punta del flipper in FP.
     pub fn tip(&self) -> V {
-        let (c, s) = sin_cos(self.ang);
+        self.tip_at(self.ang)
+    }
+
+    /// Punta alla rotazione `ang` (per sottopasso).
+    pub fn tip_at(&self, ang: i64) -> V {
+        let (c, s) = sin_cos(ang);
         (self.pivot.0 + FLIP_LEN * c / FP, self.pivot.1 + FLIP_LEN * s / FP)
     }
 }
@@ -173,7 +178,6 @@ impl Pinball {
 
     fn physics(&mut self) {
         let fl = self.flips;
-        let ends = [fl[0].tip(), fl[1].tip()];
         let mut pts: u32 = 0;
         let mut lit = self.lit;
         for bi in 0..MAX_BALLS {
@@ -185,15 +189,17 @@ impl Pinball {
             b.vel = (clamp(b.vel.0), clamp(b.vel.1));
             b.vel.0 -= b.vel.0 / 512; // attrito lieve
             b.vel.1 -= b.vel.1 / 512;
-            for _ in 0..SUB {
+            for k in 0..SUB {
                 b.pos.0 += b.vel.0 / SUB;
                 b.pos.1 += b.vel.1 / SUB;
                 for w in WALLS {
                     let (a, c) = px(w);
                     hit_seg(&mut b, a, c, None, E_WALL);
                 }
-                for (f, t) in fl.iter().zip(ends) {
-                    hit_seg(&mut b, f.pivot, t, Some((f.pivot, f.dps)), E_WALL);
+                for f in fl.iter() {
+                    // la pala ruota durante il tick: ogni sottopasso usa la sua posa
+                    let a = f.ang - f.dps + f.dps * (k + 1) / SUB;
+                    hit_seg(&mut b, f.pivot, f.tip_at(a), Some((f.pivot, f.dps)), E_WALL);
                 }
                 for c in BUMPERS {
                     if hit_circle(&mut b, (c.0 * FP, c.1 * FP), BUMPER_R, E_BUMPER) {
@@ -221,6 +227,33 @@ impl Pinball {
                 b.live = false;
             }
             self.balls[bi] = b;
+        }
+        // palline contro palline: urto elastico a masse uguali
+        for i in 0..MAX_BALLS {
+            for j in i + 1..MAX_BALLS {
+                let (mut a, mut c) = (self.balls[i], self.balls[j]);
+                if !a.live || !c.live {
+                    continue;
+                }
+                let d = (a.pos.0 - c.pos.0, a.pos.1 - c.pos.1);
+                let d2 = d.0 * d.0 + d.1 * d.1;
+                if d2 >= (2 * R) * (2 * R) {
+                    continue;
+                }
+                let n = unit(d, d2);
+                let mid = ((a.pos.0 + c.pos.0) / 2, (a.pos.1 + c.pos.1) / 2);
+                a.pos = (mid.0 + n.0 * R / FP, mid.1 + n.1 * R / FP);
+                c.pos = (mid.0 - n.0 * R / FP, mid.1 - n.1 * R / FP);
+                let rel = (a.vel.0 - c.vel.0, a.vel.1 - c.vel.1);
+                if dot(rel, n) < 0 {
+                    let r = bounce(rel, n, E_BUMPER);
+                    let dv = ((r.0 - rel.0) / 2, (r.1 - rel.1) / 2);
+                    a.vel = (a.vel.0 + dv.0, a.vel.1 + dv.1);
+                    c.vel = (c.vel.0 - dv.0, c.vel.1 - dv.1);
+                }
+                self.balls[i] = a;
+                self.balls[j] = c;
+            }
         }
         self.lit = lit;
         self.score += pts * self.mult;
@@ -499,6 +532,16 @@ mod tests {
         let high = g.high;
         g.reset();
         assert_eq!((g.score, g.lives, g.high), (0, 3, high));
+    }
+
+    #[test]
+    fn balls_do_not_overlap() {
+        let mut g = ball(70, 150, 0, 0);
+        g.balls[1] = Ball { pos: (70 * FP, 150 * FP), vel: (0, 0), live: true };
+        g.tick(Input::default());
+        let (a, c) = (g.balls[0].pos, g.balls[1].pos);
+        let d2 = (a.0 - c.0).pow(2) + (a.1 - c.1).pow(2);
+        assert!(d2 >= (2 * R - FP / 4).pow(2), "palline compenetrate: {d2}");
     }
 
     #[test]
