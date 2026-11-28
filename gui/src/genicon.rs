@@ -137,7 +137,15 @@ pub struct Unit {
     pub class: Class,
 }
 
+/// Scala utente predefinita (come Mac/Windows): 100, 125, 150 %.
+pub const USER_SCALES: [i32; 3] = [100, 125, 150];
+
 pub fn unit_for(w: i32, h: i32) -> Unit {
+    unit_for_scaled(w, h, 100)
+}
+
+/// `pct` = scala utente in percento. u = round(S · pct / (128 · 100)), minimo 1.
+pub fn unit_for_scaled(w: i32, h: i32, pct: i32) -> Unit {
     let s = w.min(h);
     let class = if s < 360 {
         Class::Small
@@ -146,7 +154,7 @@ pub fn unit_for(w: i32, h: i32) -> Unit {
     } else {
         Class::Large
     };
-    Unit { u: (s / GRID).max(1), class }
+    Unit { u: ((s * pct + GRID * 50) / (GRID * 100)).max(1), class }
 }
 
 impl Unit {

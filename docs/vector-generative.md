@@ -53,9 +53,17 @@ Regola di gerarchia: una parte non nasce sotto la soglia del suo genitore. Sempl
 ## 5. Unità `u` e classi di schermo
 
 - **Superficie**: lato minore `S = min(w, h)` in pixel fisici.
-- **Unità**: `u = max(1, S / 128)` (divisione intera). Su schermi piccoli `u` è un numero intero di pixel (GBA 240×160 → 1 px; PSP 480×272 → 2 px). Su schermi grandi cresce con la superficie (1080p → 8 px; 4K → 16 px).
+- **Scala utente** `pct` (come Mac/Windows): 100 %, 125 %, 150 % (`genicon::USER_SCALES`). Moltiplica `u`.
+- **Unità**: `u = max(1, round(S · pct / 12800))`, arrotondata all'intero più vicino. Su schermi piccoli `u` è un numero intero di pixel (GBA 240×160 → 1 px; PSP 480×272 → 2 px). Su schermi grandi cresce con la superficie (1080p → 8 px; 4K → 16 px).
 - **Icona** = 16 u (128 px su 1080p, 32 px su 480×272). **Padding** = 2 u (s/8). **Spazio** = 1 u (s/16). **Raggio icona** = 2 u.
 - **Testo** = 2 u, con minimo per classe.
+
+| Scala | 100 % | 125 % | 150 % |
+|---|---|---|---|
+| 480×272: u / icona | 2 / 32 px | 3 / 48 px | 3 / 48 px |
+| 1920×1080: u / icona | 8 / 128 px | 11 / 176 px | 13 / 208 px |
+
+Con u intero a 272 px di lato, 125 % e 150 % danno lo stesso u. Per distinguerli servirebbe u in quarti di pixel (passo da pianificare).
 
 | Classe | Lato minore | Testo minimo | Esempio |
 |---|---|---|---|

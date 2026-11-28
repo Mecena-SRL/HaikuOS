@@ -1,5 +1,5 @@
 // Icone generative: LOD, gerarchia, limiti nella cella, cache (hit/miss/sostituzione).
-use haiku_gui::genicon::{folder, lod_for, unit_for, Cache, Class, Lod, Prim, MAX_PRIMS};
+use haiku_gui::genicon::{folder, lod_for, unit_for, unit_for_scaled, Cache, Class, Lod, Prim, MAX_PRIMS};
 use haiku_gui::layout::Rect;
 
 fn prims(w: i32, h: i32) -> (usize, Lod, [Prim; MAX_PRIMS]) {
@@ -64,4 +64,13 @@ fn unit_scales_with_surface() {
     assert_eq!((c.u, c.class, c.icon()), (8, Class::Large, 128));
     assert_eq!(c.text_px(), 16);
     assert_eq!(unit_for(1080, 1920).u, 8); // orientamento indifferente
+}
+
+#[test]
+fn user_scale_applies_to_u() {
+    assert_eq!(unit_for_scaled(480, 272, 125).u, 3);
+    assert_eq!(unit_for_scaled(480, 272, 150).u, 3);
+    assert_eq!(unit_for_scaled(1920, 1080, 125).u, 11);
+    assert_eq!(unit_for_scaled(1920, 1080, 150).u, 13);
+    assert_eq!(unit_for_scaled(1920, 1080, 100).u, unit_for(1920, 1080).u);
 }
