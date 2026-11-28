@@ -1,0 +1,161 @@
+{
+ "q079-tipo-stessa-famiglia-pesi": {
+  "font": "sans",
+  "_f": "font = sans; una famiglia, pesi variabili"
+ },
+ "q080-scala-classica-fissa": {
+  "fs": 2,
+  "_f": "fs = 2u; corpo fisso"
+ },
+ "q082-palette-neutri-sistema": {
+  "tb": "neutral",
+  "_f": "tb = neutral; grigi di sistema"
+ },
+ "q082-palette-adwaita-grigi": {
+  "tb": "neutral",
+  "_f": "tb = neutral; tre grigi"
+ },
+ "q082-palette-breeze-accento-fondo": {
+  "tb": "accent",
+  "_f": "tb = accent; fondo con accento"
+ },
+ "q094-focus-anello-spesso": {
+  "border": "heavy",
+  "_f": "border = heavy; anello focus 0.5u"
+ },
+ "q083-modo-automatico-sistema": {
+  "_nv": true
+ },
+ "q083-modo-preferenza-globale": {
+  "_nv": true
+ },
+ "q083-modo-scelta-manuale": {
+  "_nv": true
+ },
+ "q089-durata-breve-150": {
+  "_nv": true
+ },
+ "q089-durata-disattivata": {
+  "_nv": true
+ },
+ "q089-durata-lunga-300": {
+  "_nv": true
+ },
+ "q089-durata-media-200": {
+  "_nv": true
+ },
+ "q089-durata-variabile-distanza": {
+  "_nv": true
+ },
+ "q090-curva-dal-tema": {
+  "_nv": true
+ },
+ "q090-curva-decelerazione": {
+  "_nv": true
+ },
+ "q090-curva-lineare": {
+  "_nv": true
+ },
+ "q090-curva-molla-smorzata": {
+  "_nv": true
+ },
+ "q090-curva-simmetrica": {
+  "_nv": true
+ },
+ "q091-animazioni-scorrimento-inerzia": {
+  "_nv": true
+ },
+ "q091-animazioni-solo-a-fuoco": {
+  "_nv": true
+ },
+ "q091-animazioni-solo-finestre": {
+  "_nv": true
+ },
+ "q091-animazioni-solo-stato": {
+  "_nv": true
+ },
+ "q091-animazioni-tutto": {
+  "_nv": true
+ },
+ "q093-puntatore-accelerazione-leggera": {
+  "_nv": true
+ },
+ "q093-puntatore-curva-due-tratti": {
+  "_nv": true
+ },
+ "q093-puntatore-flat-velocita": {
+  "_nv": true
+ },
+ "q093-puntatore-lineare": {
+  "_nv": true
+ },
+ "q093-puntatore-sei-livelli": {
+  "_nv": true
+ },
+ "q094-focus-solo-tastiera": {
+  "_nv": true
+ },
+ "q098-movimento-azzera": {
+  "_nv": true
+ },
+ "q098-movimento-dissolvenza": {
+  "_nv": true
+ },
+ "q098-movimento-meta-durata": {
+  "_nv": true
+ },
+ "q098-movimento-no-parallasse": {
+  "_nv": true
+ },
+ "q098-movimento-solo-stato": {
+  "_nv": true
+ },
+ "q099-contrasto-interruttore": {
+  "_nv": true
+ },
+ "q099-contrasto-segue-sistema": {
+  "_nv": true
+ },
+ "q101-blocco-senza-notifiche": {
+  "_nv": true
+ },
+ "q102-login-automatico": {
+  "_nv": true
+ },
+ "q102-login-biometria-riserva": {
+  "_nv": true
+ },
+ "q102-login-pin-predefinito": {
+  "_nv": true
+ },
+ "q103-suoni-nessuno": {
+  "_nv": true
+ },
+ "q103-suoni-ogni-evento": {
+  "_nv": true
+ },
+ "q103-suoni-pochi-errori": {
+  "_nv": true
+ },
+ "q103-suoni-solo-critici": {
+  "_nv": true
+ },
+ "q103-suoni-tema-sostituibile": {
+  "_nv": true
+ },
+ "q104-aptico-conferme-brevi": {
+  "_nv": true
+ },
+ "q104-aptico-nessuno": {
+  "_nv": true
+ },
+ "q104-aptico-pressione-forte": {
+  "_nv": true
+ },
+ "q104-aptico-solo-errori": {
+  "_nv": true
+ },
+ "q104-aptico-trackpad-allineamenti": {
+  "_nv": true
+ }
+}

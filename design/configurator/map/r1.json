@@ -1,0 +1,148 @@
+{
+  "q004-contenuto-solo-titolo": {
+    "title": "center",
+    "_f": "solo titolo centrato, senza icona"
+  },
+  "q004-contenuto-campo-ricerca": {
+    "title": "hidden",
+    "_f": "titolo sostituito dal campo di ricerca"
+  },
+  "q002-altezza-tema-scalabile": {
+    "tbh": 3,
+    "_f": "h = 3u base; scala con il tema"
+  },
+  "q011-bordo-trasparente": {
+    "border": "none",
+    "_f": "bordo trasparente, nessun bordo visibile"
+  },
+  "q012-raggio-regolabile": {
+    "radm": 2,
+    "_f": "raggio scelto dall'utente, base 2u"
+  },
+  "q013-massimizzata-solo-fluttuante": {
+    "radm": 2,
+    "_f": "raggio 2u se fluttuante; 0 se massimizzata"
+  },
+  "q014-ombra-dinamica-sfondo": {
+    "shadow": "soft",
+    "_f": "ombra base soft; segue lo sfondo"
+  },
+  "q019-inattiva-pulsanti-grigi": {
+    "tb": "inactive",
+    "_f": "pulsanti = T2 quando inattiva"
+  },
+  "q008-massimizza-schermo-intero": {
+    "_nv": true
+  },
+  "q008-massimizza-semplice": {
+    "_nv": true
+  },
+  "q016-presa-larga-invisibile": {
+    "_nv": true
+  },
+  "q016-presa-tocco-ampliata": {
+    "_nv": true
+  },
+  "q016-presa-alt-trascina": {
+    "_nv": true
+  },
+  "q017-ridim-tempo-reale": {
+    "_nv": true
+  },
+  "q017-ridim-snap-bordi": {
+    "_nv": true
+  },
+  "q017-ridim-minimo-app": {
+    "_nv": true
+  },
+  "q017-ridim-scatti-griglia": {
+    "_nv": true
+  },
+  "q018-minimo-da-contenuto": {
+    "_nv": true
+  },
+  "q018-minimo-fisso": {
+    "_nv": true
+  },
+  "q018-minimo-dichiarato-app": {
+    "_nv": true
+  },
+  "q018-minimo-legato-scala": {
+    "_nv": true
+  },
+  "q018-minimo-ripiega-layout": {
+    "_nv": true
+  },
+  "q019-inattiva-nessun-cambio": {
+    "_nv": true
+  },
+  "q021-attenzione-lampeggio": {
+    "_nv": true
+  },
+  "q021-attenzione-rimbalzo-dock": {
+    "_nv": true
+  },
+  "q021-attenzione-notifica-azione": {
+    "_nv": true
+  },
+  "q025-affianca-trascina-bordo": {
+    "_nv": true
+  },
+  "q025-affianca-tiling-auto": {
+    "_nv": true
+  },
+  "q025-affianca-scorciatoia": {
+    "_nv": true
+  },
+  "q026-switch-alt-tab": {
+    "_nv": true
+  },
+  "q026-switch-cmd-tab": {
+    "_nv": true
+  },
+  "q022-apertura-scala-dissolvenza": {
+    "_nv": true
+  },
+  "q022-apertura-dissolvenza": {
+    "_nv": true
+  },
+  "q022-apertura-scorrimento": {
+    "_nv": true
+  },
+  "q022-apertura-dall-icona": {
+    "_nv": true
+  },
+  "q022-apertura-nessuna": {
+    "_nv": true
+  },
+  "q023-chiusura-dissolvenza-rapida": {
+    "_nv": true
+  },
+  "q023-chiusura-scala-giu": {
+    "_nv": true
+  },
+  "q023-chiusura-scorrimento": {
+    "_nv": true
+  },
+  "q023-chiusura-istantanea": {
+    "_nv": true
+  },
+  "q023-chiusura-scala-dissolvenza": {
+    "_nv": true
+  },
+  "q024-durata-breve": {
+    "_nv": true
+  },
+  "q024-durata-media-morbida": {
+    "_nv": true
+  },
+  "q024-durata-regolabile": {
+    "_nv": true
+  },
+  "q024-durata-ridotta-movimento": {
+    "_nv": true
+  },
+  "q024-durata-solo-dissolvenza": {
+    "_nv": true
+  }
+}

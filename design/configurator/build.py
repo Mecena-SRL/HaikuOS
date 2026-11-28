@@ -42,9 +42,12 @@ VOCAB = {
  "scroll": ["thin", "wide", "hidden"], "dock": ["bottom", "left", "right", "none"],
  "barh": [2, 3, 4, 5], "tbh": [2, 3, 4], "dockicon": [3, 4.4, 6, 8],
  "radm": [0, 1, 2, 3, 4], "pad": [1, 2, 3], "fs": [1.5, 2, 2.5],
+ "w_checkbox": ["on"],  "w_radio": ["on"],  "w_slider": ["on"],  "w_progress": ["on"],  "w_menu": ["on"],  "w_list": ["on"],
+ "w_tabs": ["on"],  "w_dialog": ["on"],  "w_toast": ["on"],  "w_focus": ["on"],  "w_error": ["on"],  "w_disabled": ["on"],
+ "w_sidebar": ["on"],  "w_badge": ["on"], 
 }
 pmap = {}
-for f in sorted(glob.glob(os.path.join(HERE, "map", "m*.json"))):
+for f in sorted(glob.glob(os.path.join(HERE, "map", "[mrg]*.json"))):
     pmap.update(json.load(open(f, encoding="utf-8")))
 bad = []
 for oid, m in pmap.items():

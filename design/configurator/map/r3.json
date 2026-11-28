@@ -1,0 +1,15 @@
+{
+  "q055-pi-tooltip-obbligatorio": {
+    "tip": "on",
+    "_f": "tooltip: padding u/2 x 1.2u; testo 1.6u; raggio radm u"
+  },
+  "q067-sk-conta-gocce": {
+    "_nv": true
+  },
+  "q077-al-suono": {
+    "_nv": true
+  },
+  "q078-tt-scomparsa-auto": {
+    "_nv": true
+  }
+}
