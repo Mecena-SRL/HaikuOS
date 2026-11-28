@@ -429,3 +429,30 @@ mod tests {
         assert_eq!(total, 2 * POINTS.iter().sum::<u32>());
     }
 }
+
+#[cfg(test)]
+mod ai_line {
+    use super::*;
+
+    /// L'IA da sola deve restare entro il muro su ogni pista per i primi 400 tick.
+    #[test]
+    #[ignore = "IA: sterzo a scatti, da correggere con sterzo proporzionale (vedi PR #319)"]
+    fn ai_stays_on_track_all_tracks() {
+        for track in crate::track::TRACKS.iter() {
+            let mut r = Race::new(track, 1, 1);
+            r.countdown = 0;
+            for t in 0..400 {
+                r.tick(None);
+                let k = r.karts[0];
+                let nr = track.nearest(k.x, k.y);
+                assert!(
+                    nr.d2 <= track.off_d2(),
+                    "{} uscito al tick {t}: seg {} v {}",
+                    track.name,
+                    nr.seg,
+                    k.v >> 16
+                );
+            }
+        }
+    }
+}
