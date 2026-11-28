@@ -1,5 +1,6 @@
-//! Finestra reale (feature `window`, minifb). Stesso tabellone di `view`: mouse (passaggio = selezione,
-//! click = gioca o passa) e tastiera (frecce sposta, invio gioca, `p` passa, Esc esce).
+//! Finestra reale (feature `window`, minifb). Stesso tabellone di `view`.
+//! Mouse: il passaggio sopra una carta la seleziona solo quando il mouse si muove; un click gioca o passa.
+//! Tastiera: frecce spostano, invio gioca (o inizia una nuova partita a fine partita), `p` passa, Esc esce.
 
 use crate::view::{self, Hit, Pane};
 use crate::Ui;
@@ -15,6 +16,7 @@ pub fn run(mut ui: Ui) {
     win.set_target_fps(60);
     let mut pane = Pane::new(WIN_W, WIN_H);
     let mut was_down = false;
+    let mut last_mouse: Option<(f32, f32)> = None;
 
     while win.is_open() {
         let (w, h) = win.get_size();
@@ -23,8 +25,16 @@ pub fn run(mut ui: Ui) {
         }
         let n = ui.g.side[0].hand.n as usize;
         for k in win.get_keys_pressed(KeyRepeat::No) {
+            if k == Key::Escape {
+                return;
+            }
+            if ui.g.over.is_some() {
+                if k == Key::Enter {
+                    ui.restart();
+                }
+                continue;
+            }
             match k {
-                Key::Escape => return,
                 Key::Left => ui.cur = ui.cur.saturating_sub(1),
                 Key::Right => ui.cur = (ui.cur + 1).min(n.saturating_sub(1)),
                 Key::Enter => {
@@ -36,25 +46,35 @@ pub fn run(mut ui: Ui) {
                 _ => {}
             }
         }
+
+        let mouse = win.get_mouse_pos(MouseMode::Clamp);
+        let moved = mouse != last_mouse;
+        last_mouse = mouse;
         let down = win.get_mouse_down(MouseButton::Left);
         let click = down && !was_down;
         was_down = down;
-        if let Some((mx, my)) = win.get_mouse_pos(MouseMode::Clamp) {
+
+        if let Some((mx, my)) = mouse {
             let (dx, dy) = pane.to_design(mx as i32, my as i32);
-            // Passaggio del mouse sopra una carta: la seleziona.
-            if let Some(Hit::Card(i)) = view::hit(dx, dy, n) {
-                ui.cur = i;
+            if moved && ui.g.over.is_none() {
+                if let Some(Hit::Card(i)) = view::hit(dx, dy, n, ui.cur) {
+                    ui.cur = i;
+                }
             }
             if click {
-                match view::hit(dx, dy, n) {
-                    Some(Hit::Pass) => {
-                        ui.human(Act::Pass);
+                if ui.g.over.is_some() {
+                    ui.restart();
+                } else {
+                    match view::hit(dx, dy, n, ui.cur) {
+                        Some(Hit::Pass) => {
+                            ui.human(Act::Pass);
+                        }
+                        Some(Hit::Card(i)) => {
+                            ui.cur = i;
+                            ui.human(Act::Play(i));
+                        }
+                        None => {}
                     }
-                    Some(Hit::Card(i)) => {
-                        ui.cur = i;
-                        ui.human(Act::Play(i));
-                    }
-                    None => {}
                 }
             }
         }

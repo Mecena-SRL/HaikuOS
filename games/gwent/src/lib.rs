@@ -1,7 +1,7 @@
 //! Gwent in stile console: regole, `no_std`, senza allocazione.
 //! Due file per giocatore (vicina e a distanza), meteo globale. Ogni turno si gioca una carta o si passa;
-//! il round finisce quando passano entrambi. Vince il round chi ha più potenza; in pareggio il round si ripete.
-//! Al meglio dei tre: vince chi arriva a 2 round.
+//! il round finisce quando passano entrambi. Vince il round chi ha più potenza. In pareggio vince chi non apre.
+//! Al meglio dei tre: vince chi arriva a 2 round. Chi perde un round apre il successivo.
 
 #![cfg_attr(not(test), no_std)]
 
@@ -72,19 +72,30 @@ impl Side {
     }
 }
 
+/// Esito di un round: punti di ciascun tabellone e vincitore (0 tu, 1 avversario).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Round {
+    pub pts: [i32; 2],
+    pub winner: u8,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Game {
     /// 0 = giocatore, 1 = avversario.
     pub side: [Side; 2],
     pub turn: u8,
-    /// Chi apre il round (perde il round precedente).
+    /// Chi apre il round (ha perso il round precedente).
     pub starter: u8,
     pub frost: bool,
     pub fog: bool,
     /// Numero del round in corso, da 1.
-    pub round: u8,
+    pub round: u16,
     /// Vincitore della partita, quando c'è.
     pub over: Option<u8>,
+    /// Ultima carta piazzata sul tabellone: (tabellone, fila, slot). Serve per l'effetto visivo.
+    pub last: Option<(u8, u8, u8)>,
+    /// Esito dell'ultimo round concluso.
+    pub result: Option<Round>,
     rng: u32,
 }
 
@@ -98,9 +109,7 @@ pub enum Act {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Event {
     Continue,
-    /// Round pari: si ripete, nessun punto.
-    Tie,
-    RoundWon(u8),
+    Round(Round),
     MatchWon(u8),
 }
 
@@ -112,11 +121,27 @@ fn row_idx(r: Row) -> usize {
 }
 
 impl Game {
-    /// Nuova partita: mazzi mescolati con `seed`, 10 carte in mano a testa, chi apre è scelto a caso.
+    /// Nuova partita con i mazzi di default.
     pub fn new(seed: u32) -> Self {
-        let mut g = Game { side: [Side::new(); 2], turn: 0, starter: 0, frost: false, fog: false, round: 1, over: None, rng: seed | 1 };
-        for (s, deck) in [DECK_A, DECK_B].iter().enumerate() {
-            for &id in deck {
+        Self::with_decks(seed, &DECK_A, &DECK_B)
+    }
+
+    /// Nuova partita con mazzi scelti: `a` per il giocatore, `b` per l'avversario.
+    pub fn with_decks(seed: u32, a: &[u8], b: &[u8]) -> Self {
+        let mut g = Game {
+            side: [Side::new(); 2],
+            turn: 0,
+            starter: 0,
+            frost: false,
+            fog: false,
+            round: 1,
+            over: None,
+            last: None,
+            result: None,
+            rng: seed | 1,
+        };
+        for (s, deck) in [a, b].iter().enumerate() {
+            for &id in deck.iter() {
                 g.side[s].deck.push(id);
             }
             g.shuffle(s);
@@ -207,6 +232,29 @@ impl Game {
         }
     }
 
+    /// Scorch: distrugge l'unità più forte del tabellone (a parità, la prima trovata).
+    fn scorch(&mut self) {
+        let mut best: Option<(usize, usize, usize, i32)> = None;
+        for b in 0..2 {
+            for r in 0..2 {
+                for i in 0..self.side[b].rows[r].n as usize {
+                    let slot = self.side[b].rows[r].c[i];
+                    if DEFS[(slot & !OWNER) as usize].kind != Kind::Unit {
+                        continue;
+                    }
+                    let p = self.slot_power(b, r, i);
+                    if best.map_or(true, |x| p > x.3) {
+                        best = Some((b, r, i, p));
+                    }
+                }
+            }
+        }
+        if let Some((b, r, i, _)) = best {
+            let slot = self.side[b].rows[r].take(i);
+            self.side[(slot >> 7) as usize].grave.push(slot & !OWNER);
+        }
+    }
+
     /// Gioca la carta `idx` della mano di `s`, senza controlli di turno: usare `act`.
     pub(crate) fn play(&mut self, s: usize, idx: usize) {
         let id = self.side[s].hand.take(idx);
@@ -225,9 +273,16 @@ impl Game {
                 self.fog = false;
                 self.side[s].grave.push(id);
             }
+            Kind::Scorch => {
+                self.side[s].grave.push(id);
+                self.scorch();
+            }
             _ => {
                 let board = if d.kind == Kind::Spy { 1 - s } else { s };
-                self.side[board].rows[row_idx(d.row)].push(id | ((s as u8) << 7));
+                let slot = id | ((s as u8) << 7);
+                let row = row_idx(d.row);
+                self.side[board].rows[row].push(slot);
+                self.last = Some((board as u8, row as u8, slot));
                 if d.kind == Kind::Medic {
                     self.revive(s);
                 }
@@ -242,7 +297,8 @@ impl Game {
         }
     }
 
-    /// Potenza di uno slot del tabellone `board`, file `row`, posizione `i`.
+    /// Potenza di uno slot del tabellone `board`, fila `row`, posizione `i`.
+    /// Unità: base (ridotta a 1 dal meteo), +1 per ogni Stendardo/Trombettiere della fila, x2 con il Corno.
     pub fn slot_power(&self, board: usize, row: usize, i: usize) -> i32 {
         let rp = &self.side[board].rows[row];
         let d = DEFS[(rp.c[i] & !OWNER) as usize];
@@ -251,8 +307,14 @@ impl Game {
         if affected && p > 1 {
             p = 1;
         }
-        let morale = rp.as_slice().iter().filter(|&&x| DEFS[(x & !OWNER) as usize].kind == Kind::Morale).count() as i32;
-        p + morale - (d.kind == Kind::Morale) as i32
+        if d.kind == Kind::Unit {
+            let morale = rp.as_slice().iter().filter(|&&x| DEFS[(x & !OWNER) as usize].kind == Kind::Morale).count() as i32;
+            p += morale;
+            if rp.as_slice().iter().any(|&x| DEFS[(x & !OWNER) as usize].kind == Kind::Horn) {
+                p *= 2;
+            }
+        }
+        p
     }
 
     /// Potenza totale delle carte sul tabellone di `board` (anche quelle portate dall'avversario).
@@ -301,7 +363,7 @@ impl Game {
     }
 
     fn end_round(&mut self) -> Event {
-        let (t0, t1) = (self.score(0), self.score(1));
+        let pts = [self.score(0), self.score(1)];
         for b in 0..2 {
             for r in 0..2 {
                 let row = self.side[b].rows[r];
@@ -313,29 +375,35 @@ impl Game {
         }
         self.frost = false;
         self.fog = false;
-        self.round += 1;
+        self.last = None;
+        self.round = self.round.saturating_add(1);
         for sd in self.side.iter_mut() {
             sd.passed = false;
         }
-        let ev = if t0 == t1 {
-            Event::Tie
+        // Pareggio: vince chi non apre. Così nessun round si ripete all'infinito.
+        let starter = self.starter as usize;
+        let w = if pts[0] > pts[1] {
+            0
+        } else if pts[1] > pts[0] {
+            1
         } else {
-            let w = if t0 > t1 { 0 } else { 1 };
-            self.side[w].wins += 1;
-            if self.side[w].wins >= WINS {
-                self.over = Some(w as u8);
-                return Event::MatchWon(w as u8);
-            }
-            self.starter = (1 - w) as u8;
-            Event::RoundWon(w as u8)
+            1 - starter
         };
+        let round = Round { pts, winner: w as u8 };
+        self.result = Some(round);
+        self.side[w].wins += 1;
+        if self.side[w].wins >= WINS {
+            self.over = Some(w as u8);
+            return Event::MatchWon(w as u8);
+        }
+        self.starter = (1 - w) as u8;
         for s in 0..2 {
             for _ in 0..DRAW_ROUND {
                 self.draw(s);
             }
         }
         self.set_turn(self.starter as usize);
-        ev
+        Event::Round(round)
     }
 }
 
@@ -344,7 +412,7 @@ mod tests {
     use super::*;
 
     fn empty() -> Game {
-        Game { side: [Side::new(); 2], turn: 0, starter: 0, frost: false, fog: false, round: 1, over: None, rng: 7 }
+        Game { side: [Side::new(); 2], turn: 0, starter: 0, frost: false, fog: false, round: 1, over: None, last: None, result: None, rng: 7 }
     }
 
     fn put(g: &mut Game, board: usize, row: usize, id: u8, owner: u8) {
@@ -359,11 +427,27 @@ mod tests {
     }
 
     #[test]
-    fn stendardo_da_plus_uno_agli_altri() {
+    fn stendardo_da_plus_uno_alle_unita_non_a_se_stesso() {
         let mut g = empty();
         put(&mut g, 0, 0, 2, 0); // Guerriero 6
         put(&mut g, 0, 0, 9, 0); // Stendardo 2
         assert_eq!(g.score(0), 6 + 1 + 2);
+    }
+
+    #[test]
+    fn stendardi_non_si_potenziano_a_vicenda() {
+        let mut g = empty();
+        put(&mut g, 0, 1, 17, 0); // Trombettiere 2
+        put(&mut g, 0, 1, 17, 0); // Trombettiere 2
+        assert_eq!(g.score(0), 4);
+    }
+
+    #[test]
+    fn corno_raddoppia_le_unita_della_fila() {
+        let mut g = empty();
+        put(&mut g, 0, 0, 4, 0); // Gigante 10
+        put(&mut g, 0, 0, 23, 0); // Corno 0
+        assert_eq!(g.score(0), 20);
     }
 
     #[test]
@@ -373,6 +457,18 @@ mod tests {
         put(&mut g, 0, 1, 15, 0); // Catapulta 8: a distanza, non toccata
         g.frost = true;
         assert_eq!(g.score(0), 1 + 8);
+    }
+
+    #[test]
+    fn scorch_distrugge_l_unita_piu_forte() {
+        let mut g = empty();
+        put(&mut g, 0, 0, 4, 0); // Gigante 10 (del giocatore)
+        put(&mut g, 1, 0, 2, 1); // Guerriero 6 (avversario)
+        g.side[0].hand.push(24); // Scorch
+        g.play(0, 0);
+        assert_eq!(g.side[0].rows[0].n, 0);
+        assert_eq!(g.side[1].rows[0].n, 1);
+        assert!(g.side[0].grave.as_slice().contains(&4));
     }
 
     #[test]
@@ -409,7 +505,7 @@ mod tests {
         g.turn = 0;
         assert_eq!(g.act(0, Act::Play(0)), Some(Event::Continue));
         assert_eq!(g.turn, 1);
-        assert_eq!(g.act(1, Act::Pass), Some(Event::RoundWon(0)));
+        assert!(matches!(g.act(1, Act::Pass), Some(Event::Round(r)) if r.winner == 0));
         assert_eq!(g.side[0].wins, 1);
         assert_eq!(g.starter, 1); // chi perde il round apre il successivo
         assert_eq!(g.round, 2);
@@ -417,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn pareggio_non_assegna_punti() {
+    fn pareggio_lo_vince_chi_non_apre() {
         let mut g = empty();
         for s in 0..2 {
             g.side[s].rows[0].push(2); // Guerriero 6 su entrambi
@@ -425,11 +521,10 @@ mod tests {
             g.side[s].deck.push(0);
         }
         g.side[1].passed = true;
-        g.turn = 0;
-        assert_eq!(g.act(0, Act::Pass), Some(Event::Tie));
-        assert_eq!(g.side[0].wins, 0);
-        assert_eq!(g.side[1].wins, 0);
-        assert_eq!(g.starter, 0);
+        g.turn = 0; // apre il giocatore 0
+        assert!(matches!(g.act(0, Act::Pass), Some(Event::Round(r)) if r.winner == 1));
+        assert_eq!(g.side[1].wins, 1);
+        assert_eq!(g.starter, 0); // ha perso il round, quindi apre di nuovo
     }
 
     #[test]

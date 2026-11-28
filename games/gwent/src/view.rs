@@ -3,7 +3,7 @@
 //! e velature calcolati per pixel (nessun bitmap). Testo solo ASCII.
 
 use gwent::cards::{Kind, DEFS};
-use gwent::Game;
+use gwent::{Game, Round};
 use haiku_gui::layout::Rect;
 use haiku_gui::palette::Tok;
 use haiku_gui::render::Canvas;
@@ -21,10 +21,10 @@ pub enum Hit {
     Pass,
 }
 
-/// Rettangolo della carta `i` in mano (`n` carte in totale).
-pub fn hand_rect(i: usize, n: usize) -> Rect {
+/// Rettangolo della carta `i` in mano (`n` carte in totale). La carta selezionata si alza di 20.
+pub fn card_rect(i: usize, n: usize, sel: bool) -> Rect {
     let pitch = if n <= 1 { 0 } else { (1050 / (n as i32 - 1)).min(170) };
-    Rect::new(300 + i as i32 * pitch, 830, 150, 220)
+    Rect::new(300 + i as i32 * pitch, if sel { 810 } else { 830 }, 150, 220)
 }
 
 /// Riga `row` (0 vicina, 1 a distanza) del tabellone `board` (0 tu, 1 avversario).
@@ -42,12 +42,16 @@ fn inside(r: Rect, x: i32, y: i32) -> bool {
     x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
 }
 
-/// Cosa c'è sotto il punto `(x, y)` (coordinate di progetto).
-pub fn hit(x: i32, y: i32, hand_len: usize) -> Option<Hit> {
+/// Cosa c'è sotto il punto `(x, y)` (coordinate di progetto). La carta `cur` è disegnata per ultima,
+/// quindi è controllata per prima.
+pub fn hit(x: i32, y: i32, hand_len: usize, cur: usize) -> Option<Hit> {
     if inside(PASS, x, y) {
         return Some(Hit::Pass);
     }
-    (0..hand_len).rev().find(|&i| inside(hand_rect(i, hand_len), x, y)).map(Hit::Card)
+    if cur < hand_len && inside(card_rect(cur, hand_len, true), x, y) {
+        return Some(Hit::Card(cur));
+    }
+    (0..hand_len).rev().find(|&i| i != cur && inside(card_rect(i, hand_len, false), x, y)).map(Hit::Card)
 }
 
 // Palette della scena (0xRRGGBB).
@@ -61,6 +65,8 @@ const GOLD_TOP: u32 = 0xFFE08A;
 const GOLD_BOT: u32 = 0xC98E2A;
 const PAPER_TOP: u32 = 0xFCF8F0;
 const PAPER_BOT: u32 = 0xE6D6BC;
+const PANEL_TOP: u32 = 0x16355E;
+const PANEL_BOT: u32 = 0x0D1F3D;
 const PL: u32 = 0x4E9BFF;
 const AI: u32 = 0xFF8A3D;
 const FROST: u32 = 0x9FD8FF;
@@ -68,6 +74,7 @@ const FOG: u32 = 0xC4CEDD;
 const GLOW_GOLD: u32 = 0xFFD76A;
 const BTN_TOP: u32 = 0x47E6C4;
 const BTN_BOT: u32 = 0x1A9C84;
+const BTN_WARN: u32 = 0xF08A3C;
 const BTN_OFF: u32 = 0x4A5368;
 
 /// Interpolazione lineare di due colori, `t` in 0..=255.
@@ -88,7 +95,26 @@ fn mix(dst: u32, src: u32, a: u32) -> u32 {
     ch(16) | ch(8) | ch(0)
 }
 
-/// Fotogramma RGB, `w`×`h` pixel, formato 0x00RRGGBB (lo stesso di minifb).
+/// Spezza `s` in righe di al più `max` caratteri, a parole intere.
+fn wrap(s: &str, max: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for w in s.split_whitespace() {
+        if !cur.is_empty() && cur.len() + 1 + w.len() > max {
+            out.push(std::mem::take(&mut cur));
+        }
+        if !cur.is_empty() {
+            cur.push(' ');
+        }
+        cur.push_str(w);
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
+}
+
+/// Fotogramma `w`×`h` pixel, formato 0x00RRGGBB (lo stesso di minifb).
 pub struct Img {
     pub w: usize,
     pub h: usize,
@@ -232,11 +258,12 @@ impl Pane {
         self.im.glow(d, sp, c, amax);
     }
 
-    /// Testo con angolo in alto a sinistra; `size` in unità di progetto (em).
+    /// Testo con angolo in alto a sinistra; `size` in unità di progetto. Minimo 9 px sullo schermo.
     fn txt(&mut self, x: i32, y: i32, size: i32, s: &str, t: Tok) {
         let px = self.ox + (x as f32 * self.k) as i32;
         let py = self.oy + (y as f32 * self.k) as i32;
-        vfont::draw_text(&mut self.im, px, py, (size as f32 * self.k) as i32, s, t);
+        let sz = ((size as f32 * self.k) as i32).max(9);
+        vfont::draw_text(&mut self.im, px, py, sz, s, t);
     }
 
     /// Testo centrato orizzontalmente in `r` (larghezza stimata: metà em per carattere).
@@ -250,42 +277,51 @@ fn owner_color(owner: usize) -> u32 {
     if owner == 0 { PL } else { AI }
 }
 
+/// Etichetta breve sotto il nome della carta.
 fn tag(id: usize) -> &'static str {
     let d = DEFS[id];
     match d.kind {
-        Kind::Unit if d.group != 0 => "GRUPPO",
-        Kind::Unit => "",
+        Kind::Unit => match d.group {
+            1 => "LUPI",
+            2 => "ARCIERI",
+            _ => "",
+        },
         Kind::Morale => "MORALE",
-        Kind::Medic => "MEDICO",
+        Kind::Medic => "GUARIGIONE",
         Kind::Spy => "SPIA",
-        Kind::Frost => "METEO GELO",
-        Kind::Fog => "METEO NEBBIA",
-        Kind::Clear => "METEO SERENO",
+        Kind::Horn => "CORNO",
+        Kind::Scorch => "SCORCH",
+        Kind::Frost | Kind::Fog | Kind::Clear => "METEO",
     }
 }
 
-/// Una carta: cornice del colore del proprietario, carta a sfumatura con riflesso in alto,
-/// potenza in medaglione dorato, nome e tipo. `played` accende l'alone del proprietario.
+/// Una carta: cornice del colore del proprietario (oro se selezionata), carta a sfumatura con riflesso,
+/// potenza in medaglione dorato. Se la potenza differisce da quella base, accanto compare "/base".
+/// `played` accende l'alone del proprietario sull'ultima carta piazzata.
 fn card(p: &mut Pane, r: Rect, id: usize, owner: usize, power: i32, sel: bool, played: bool) {
+    let d = DEFS[id];
+    let col = owner_color(owner);
     if played {
-        p.glow(r, 18, owner_color(owner), 150);
+        p.glow(r, 14, col, 140);
     }
     if sel {
-        p.glow(r, 26, GLOW_GOLD, 230);
+        p.glow(r, 14, GLOW_GOLD, 120);
     }
-    p.rr_flat(r, 10, owner_color(owner));
-    let inner = Rect::new(r.x + 5, r.y + 5, r.w - 10, r.h - 10);
+    p.rr_flat(r, 10, if sel { GLOW_GOLD } else { col });
+    let inner = Rect::new(r.x + 4, r.y + 4, r.w - 8, r.h - 8);
     p.rr(inner, 8, PAPER_TOP, PAPER_BOT);
-    p.tint(Rect::new(inner.x + 8, inner.y + 3, inner.w - 16, inner.h / 3), 70, 0xFFFFFF);
-    let d = DEFS[id];
-    let weather = matches!(d.kind, Kind::Frost | Kind::Fog | Kind::Clear);
+    p.tint(Rect::new(inner.x + 8, inner.y + 3, inner.w - 16, inner.h / 3), 60, 0xFFFFFF);
+    let weather = matches!(d.kind, Kind::Frost | Kind::Fog | Kind::Clear | Kind::Scorch);
     if !weather {
-        p.rr(Rect::new(r.x + 9, r.y + 9, 34, 34), 17, GOLD_TOP, GOLD_BOT);
-        let s = format!("{power}");
-        p.txt(r.x + 17, r.y + 13, 26, &s, Tok::T0);
+        p.rr(Rect::new(r.x + 8, r.y + 8, 36, 36), 18, GOLD_TOP, GOLD_BOT);
+        let s = if d.kind == Kind::Horn { "x2".to_string() } else { format!("{power}") };
+        p.txt(r.x + 14, r.y + 14, 26, &s, Tok::T0);
+        if d.kind == Kind::Unit && power != d.power as i32 {
+            p.txt(r.x + 48, r.y + 16, 16, &format!("/{}", d.power), Tok::T0);
+        }
     }
-    p.txt(r.x + 12, r.y + r.h - 62, 18, d.name, Tok::T0);
-    p.txt(r.x + 12, r.y + r.h - 32, 14, tag(id), Tok::T2);
+    p.txt(r.x + 10, r.y + r.h - 64, 18, d.name, Tok::T0);
+    p.txt(r.x + 10, r.y + r.h - 34, 15, tag(id), Tok::T0);
 }
 
 /// Tabellone, mano e pannelli in `p` (riusato tra i fotogrammi). `cur` è la carta selezionata, `msg` la riga di stato.
@@ -295,20 +331,20 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
     p.rr_flat(Rect::new(262, 84, 1296, 700), 28, GOLD_BOT);
     p.rr(Rect::new(268, 90, 1284, 688), 24, FELT_TOP, FELT_BOT);
 
-    // Intestazione: avversario a sinistra, tu a destra, round al centro.
-    p.txt(40, 30, 30, "AVVERSARIO", Tok::T1);
-    p.txt(1560, 30, 30, "TU", Tok::T1);
-    let round = format!("ROUND {}", g.round);
-    p.txt_c(Rect::new(0, 0, DW, 0), 30, 30, &round, Tok::T1);
-    for (b, x0) in [(1usize, 40), (0, 1560)] {
-        for i in 0..2 {
-            let r = Rect::new(x0 + 240 + i * 34, 34, 22, 22);
+    // Intestazioni: nomi, round vinti (pallini con etichetta), numero del round e regola.
+    p.txt(40, 16, 28, "AVVERSARIO", Tok::T1);
+    p.txt(1560, 16, 28, "TU", Tok::T1);
+    p.txt_c(Rect::new(0, 0, DW, 0), 12, 40, &format!("ROUND {}", g.round), Tok::T1);
+    p.txt_c(Rect::new(0, 0, DW, 0), 62, 17, "Vince chi ha piu potenza sul tabellone. Primo a 2 round.", Tok::T1);
+    for (b, x0) in [(1usize, 40), (0usize, 1560)] {
+        for i in 0..2i32 {
             let c = if (i as u8) < g.side[b].wins { owner_color(b) } else { 0x3A4660 };
-            p.rr_flat(r, 11, c);
+            p.rr_flat(Rect::new(x0 + i * 34, 58, 24, 24), 12, c);
         }
+        p.txt(if b == 1 { 112 } else { 1640 }, 62, 16, "ROUND VINTI", Tok::T1);
     }
 
-    // File: sfondo scuro, velatura del meteo, carte con alone.
+    // File: sfondo scuro, velatura e scritta del meteo, carte con alone sull'ultima giocata.
     for board in 0..2 {
         for row in 0..2 {
             let rr = row_rect(board, row);
@@ -317,7 +353,10 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
             if affected {
                 let c = if row == 0 { FROST } else { FOG };
                 p.tint(rr, 80, c);
+                let note = if row == 0 { "GELO: potenza 1" } else { "NEBBIA: potenza 1" };
+                p.txt(rr.x + rr.w - 220, rr.y + 1, 16, note, Tok::A(4));
             }
+            p.txt(rr.x + 6, rr.y + 1, 15, if row == 0 { "VICINA" } else { "A DISTANZA" }, Tok::T1);
             let slots = g.side[board].rows[row];
             let n = slots.n as usize;
             let pitch = if n <= 1 { 130 } else { (1100 / (n as i32 - 1)).min(130) };
@@ -326,20 +365,26 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
                 let owner = (slot >> 7) as usize;
                 let id = (slot & 0x7f) as usize;
                 let power = g.slot_power(board, row, i);
+                let played = g.last == Some((board as u8, row as u8, slot));
                 let cr = Rect::new(rr.x + 4 + i as i32 * pitch, rr.y + 15, 120, 130);
-                card(p, cr, id, owner, power, false, true);
+                card(p, cr, id, owner, power, false, played);
             }
         }
     }
 
-    // Punteggi per tabellone (sinistra).
+    // Punteggi per tabellone (sinistra). Il tabellone di turno ha l'alone del suo colore.
     for (board, y) in [(1usize, 110), (0, 450)] {
-        p.rr_flat(Rect::new(40, y, 220, 310), 14, GOLD_BOT);
-        p.rr(Rect::new(43, y + 3, 214, 304), 12, 0x2A4A7A, 0x142744);
+        let box_r = Rect::new(40, y, 220, 310);
+        if g.over.is_none() && g.turn as usize == board {
+            p.glow(box_r, 16, owner_color(board), 150);
+        }
+        p.rr_flat(box_r, 14, GOLD_BOT);
+        p.rr(Rect::new(43, y + 3, 214, 304), 12, PANEL_TOP, PANEL_BOT);
         let label = if board == 0 { "TU" } else { "AVV." };
         p.txt_c(Rect::new(40, 0, 220, 0), y + 20, 26, label, Tok::T1);
         let s = format!("{}", g.score(board));
         p.txt_c(Rect::new(40, 0, 220, 0), y + 120, 96, &s, Tok::T1);
+        p.txt_c(Rect::new(40, 0, 220, 0), y + 255, 18, "POTENZA", Tok::T1);
     }
 
     // Mano: la carta selezionata si alza e viene disegnata per ultima, sopra le altre.
@@ -350,33 +395,73 @@ pub fn frame_into(p: &mut Pane, g: &Game, cur: usize, msg: &str) {
     }
     for i in order {
         let id = g.side[0].hand.c[i] as usize;
-        let mut r = hand_rect(i, n);
         let sel = i == cur;
-        if sel {
-            r.y -= 20;
-        }
-        let power = DEFS[id].power as i32;
-        card(p, r, id, 0, power, sel, false);
+        let r = card_rect(i, n, sel);
+        card(p, r, id, 0, DEFS[id].power as i32, sel, false);
     }
 
-    // Pannello di destra: stato, meteo, pulsante.
-    p.txt(1560, 130, 24, &format!("Mazzo tu: {}", g.side[0].deck.n), Tok::T1);
-    p.txt(1560, 165, 24, &format!("Mano avv.: {}", g.side[1].hand.n), Tok::T1);
-    p.txt(1560, 220, 24, if g.frost { "GELO attivo" } else { "" }, Tok::A(4));
-    p.txt(1560, 255, 24, if g.fog { "NEBBIA attiva" } else { "" }, Tok::A(4));
+    // Pannello di destra: conteggi, meteo, descrizione della carta selezionata.
+    p.txt(1560, 108, 22, &format!("Mano tu: {}   Mazzo: {}", g.side[0].hand.n, g.side[0].deck.n), Tok::T1);
+    p.txt(1560, 138, 22, &format!("Mano avv.: {}", g.side[1].hand.n), Tok::T1);
+    let meteo = match (g.frost, g.fog) {
+        (true, true) => "Meteo: GELO e NEBBIA",
+        (true, false) => "Meteo: GELO",
+        (false, true) => "Meteo: NEBBIA",
+        _ => "Meteo: nessuno",
+    };
+    p.txt(1560, 170, 22, meteo, Tok::A(4));
+
+    let panel = Rect::new(1556, 206, 324, 226);
+    p.rr_flat(panel, 12, GOLD_BOT);
+    p.rr(Rect::new(panel.x + 3, panel.y + 3, panel.w - 6, panel.h - 6), 10, PANEL_TOP, PANEL_BOT);
+    if cur < n {
+        let d = DEFS[g.side[0].hand.c[cur] as usize];
+        p.txt(1572, 218, 26, d.name, Tok::T3);
+        p.txt(1572, 252, 20, &format!("Potenza {}", d.power), Tok::T1);
+        for (k, line) in wrap(d.desc, 27).iter().enumerate() {
+            p.txt(1572, 284 + k as i32 * 26, 20, line, Tok::T1);
+        }
+    } else {
+        p.txt(1572, 218, 22, "Nessuna carta in mano", Tok::T1);
+    }
+
+    // Pulsante PASSA: arancio se stai perdendo il round, grigio se tocca all'avversario.
     let yours = g.turn == 0 && g.over.is_none();
-    let label = if yours { "PASSA" } else { "..." };
+    let behind = g.score(0) < g.score(1);
     if yours {
-        p.rr(PASS, 12, BTN_TOP, BTN_BOT);
+        let (top, bot, label) = if behind { (BTN_WARN, BTN_WARN, "PASSA: PERDI") } else { (BTN_TOP, BTN_BOT, "PASSA") };
+        p.rr(PASS, 12, top, bot);
+        p.txt_c(PASS, PASS.y + 22, 34, label, Tok::T0);
+        if behind {
+            p.txt(1560, 560, 18, "Passando perdi il round. Premi P due volte.", Tok::A(1));
+        }
     } else {
         p.rr_flat(PASS, 12, BTN_OFF);
+        p.txt_c(PASS, PASS.y + 22, 34, "ATTENDI", Tok::T1);
     }
-    p.txt_c(PASS, PASS.y + 22, 36, label, Tok::T0);
-    p.txt(1560, 580, 26, if yours { "Tocca a te" } else { "Turno avversario" }, Tok::T3);
-    p.txt(1560, 630, 24, msg, Tok::T1);
+    p.txt(1560, 596, 26, if yours { "Tocca a te" } else { "Turno avversario" }, Tok::T3);
+    for (k, line) in wrap(msg, 30).iter().take(3).enumerate() {
+        p.txt(1560, 634 + k as i32 * 24, 19, line, Tok::T1);
+    }
+
+    // Ultimo round concluso.
+    if let Some(Round { pts, winner }) = g.result {
+        let who = if winner == 0 { "Vince: tu" } else { "Vince: avversario" };
+        p.txt(1560, 790, 20, "Ultimo round", Tok::T1);
+        p.txt(1560, 816, 26, &format!("Tu {}  -  Avv {}", pts[0], pts[1]), Tok::T1);
+        p.txt(1560, 850, 22, who, if winner == 0 { Tok::A(4) } else { Tok::A(3) });
+    }
+
+    // Fine partita: velo scuro e riepilogo.
     if let Some(w) = g.over {
-        let t = if w == 0 { "HAI VINTO" } else { "HAI PERSO" };
-        p.txt_c(Rect::new(0, 0, DW, 0), 440, 64, t, Tok::T3);
+        p.tint(Rect::new(0, 0, DW, DH), 150, 0x000000);
+        let panel = Rect::new(560, 300, 800, 420);
+        p.rr_flat(panel, 24, GOLD_BOT);
+        p.rr(Rect::new(566, 306, 788, 408), 20, PANEL_TOP, PANEL_BOT);
+        let title = if w == 0 { "HAI VINTO LA PARTITA" } else { "HAI PERSO LA PARTITA" };
+        p.txt_c(panel, 340, 56, title, Tok::T3);
+        p.txt_c(panel, 450, 36, &format!("Round vinti: tu {} - avv {}", g.side[0].wins, g.side[1].wins), Tok::T1);
+        p.txt_c(panel, 600, 24, "Invio: nuova partita     Esc: esci", Tok::T1);
     }
 }
 
@@ -401,14 +486,21 @@ mod tests {
             let py = (p.oy as f32 + cy as f32 * k) as i32;
             let (dx, dy) = p.to_design(px, py);
             assert!((dx - cx).abs() <= 2 && (dy - cy).abs() <= 2, "{w}x{h}: {dx},{dy}");
-            assert_eq!(hit(dx, dy, 3), Some(Hit::Pass));
+            assert_eq!(hit(dx, dy, 3, 0), Some(Hit::Pass));
         }
     }
 
     #[test]
     fn carta_in_mano_e_selezionabile() {
-        let r = hand_rect(2, 5);
-        assert_eq!(hit(r.x + 5, r.y + 5, 5), Some(Hit::Card(2)));
-        assert_eq!(hit(5, 5, 5), None);
+        let r = card_rect(2, 5, false);
+        assert_eq!(hit(r.x + 5, r.y + 5, 5, 0), Some(Hit::Card(2)));
+        assert_eq!(hit(5, 5, 5, 0), None);
+    }
+
+    #[test]
+    fn carta_selezionata_ha_la_precedenza_dove_si_sovrappone() {
+        // Con 10 carte la selezionata 3 copre parte della 2: un click sulla zona comune prende la 3.
+        let sel = card_rect(3, 10, true);
+        assert_eq!(hit(sel.x + 2, sel.y + 40, 10, 3), Some(Hit::Card(3)));
     }
 }
